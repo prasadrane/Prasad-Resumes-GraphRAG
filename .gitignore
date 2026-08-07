@@ -1,0 +1,15 @@
+# Environment variables
+.env
+
+# Python virtual environment
+venv/
+
+# GraphRAG outputs & runtime logs/cache
+output/
+cache/
+logs/
+update_output/
+
+# OS specific files
+.DS_Store
+Thumbs.db
