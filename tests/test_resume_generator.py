@@ -30,6 +30,14 @@ class TestResumeGenerator(unittest.TestCase):
         out_dir = get_output_dir("Google")
         self.assertTrue(str(out_dir).endswith(f"{date_str}\\Google") or str(out_dir).endswith(f"{date_str}/Google"))
 
+    def test_get_output_dir_readonly(self):
+        date_str = datetime.now().strftime("%m-%d-%Y")
+        # Mock base_output_dir where mkdir raises PermissionError
+        mock_read_only = Path("/non_existent_readonly_dir_12345/output")
+        out_dir = get_output_dir("CrowdStrike", base_output_dir=mock_read_only)
+        self.assertTrue(out_dir.exists())
+        self.assertIn("CrowdStrike", str(out_dir))
+
     def test_clean_em_dashes(self):
         bullet = "Reduced false positive alerts — improving on-call responsiveness."
         cleaned = clean_em_dashes(bullet)

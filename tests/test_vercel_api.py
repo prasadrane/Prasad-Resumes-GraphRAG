@@ -41,5 +41,22 @@ class TestVercelAPI(unittest.TestCase):
         self.assertIn("pdf_url", data)
         self.assertTrue(data["pdf_url"].startswith("data:application/pdf;base64,"))
 
+    def test_query_endpoint_distinct_responses(self):
+        # Test company question
+        res_comp = self.client.post("/api/query", json={"query": "Which companies has Prasad worked for?", "mode": "local"})
+        self.assertEqual(res_comp.status_code, 200)
+        text_comp = res_comp.json()["response"]
+        self.assertIn("Rocket Mortgage", text_comp)
+
+        # Test AWS question
+        res_aws = self.client.post("/api/query", json={"query": "What AWS technologies did Prasad use?", "mode": "local"})
+        self.assertEqual(res_aws.status_code, 200)
+        text_aws = res_aws.json()["response"]
+        self.assertIn("AWS", text_aws)
+        self.assertIn("Bedrock", text_aws)
+
+        # Verify responses are NOT identical
+        self.assertNotEqual(text_comp, text_aws)
+
 if __name__ == "__main__":
     unittest.main()

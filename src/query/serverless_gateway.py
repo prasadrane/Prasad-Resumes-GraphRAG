@@ -59,18 +59,28 @@ def _call_openrouter(prompt: str, system_prompt: Optional[str], model: str, api_
         return res_data["choices"][0]["message"]["content"]
 
 def _call_gemini_direct(prompt: str, system_prompt: Optional[str], api_key: str) -> str:
-    url = GEMINI_URL_TEMPLATE.format(model="gemini-2.5-flash-lite", api_key=api_key)
+    fallback_models = ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash"]
+    last_err = None
     full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
     payload = {
         "contents": [{"parts": [{"text": full_prompt}]}]
     }
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST"
-    )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        res_data = json.loads(resp.read().decode("utf-8"))
-        return res_data["candidates"][0]["content"]["parts"][0]["text"]
+
+    for model in fallback_models:
+        url = GEMINI_URL_TEMPLATE.format(model=model, api_key=api_key)
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                return res_data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            last_err = e
+            continue
+            
+    raise RuntimeError(f"All Gemini Direct API models failed. Last error: {last_err}")

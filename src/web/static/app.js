@@ -30,13 +30,23 @@ document.addEventListener('DOMContentLoaded', () => {
             let inList = false;
             let result = '';
             for (let line of lines) {
-                const bulletMatch = line.match(/^[\s]*[\*\-]\s+(.*)/);
+                const h3Match = line.match(/^###\s+(.*)/);
+                const h2Match = line.match(/^##\s+(.*)/);
+                const h1Match = line.match(/^#\s+(.*)/);
+                const bulletMatch = line.match(/^[\s]*[•\*\-]\s+(.*)/);
+
                 if (bulletMatch) {
                     if (!inList) { result += '<ul>'; inList = true; }
                     result += `<li>${bulletMatch[1]}</li>`;
                 } else {
                     if (inList) { result += '</ul>'; inList = false; }
-                    if (line.trim() === '') {
+                    if (h3Match) {
+                        result += `<h3>${h3Match[1]}</h3>`;
+                    } else if (h2Match) {
+                        result += `<h2>${h2Match[1]}</h2>`;
+                    } else if (h1Match) {
+                        result += `<h1>${h1Match[1]}</h1>`;
+                    } else if (line.trim() === '') {
                         result += '<br>';
                     } else {
                         result += `<p>${line}</p>`;

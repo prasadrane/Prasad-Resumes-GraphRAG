@@ -37,7 +37,13 @@ def get_output_dir(company_name: str, base_output_dir: Optional[Path] = None) ->
     date_str = datetime.now().strftime("%m-%d-%Y")
     clean_company = re.sub(r"[^A-Za-z0-9_-]", "_", company_name.strip())
     target_dir = base_output_dir / date_str / clean_company
-    target_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        import tempfile
+        base_output_dir = Path(tempfile.gettempdir()) / "output"
+        target_dir = base_output_dir / date_str / clean_company
+        target_dir.mkdir(parents=True, exist_ok=True)
     return target_dir
 
 def clean_em_dashes(text: str) -> str:

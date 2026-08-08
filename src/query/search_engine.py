@@ -34,7 +34,7 @@ def _run_graphrag_query_uncached(query: str, mode: str, root_dir: Path, runner: 
     return result.stdout
 
 from src.query.serverless_gateway import call_serverless_llm
-from src.query.static_graph_reader import read_precomputed_entities
+from src.query.static_graph_reader import read_precomputed_entities, search_static_resume
 
 @lru_cache(maxsize=100)
 def execute_graphrag_query(query: str, mode: str, root_dir: Path = ROOT_DIR) -> str:
@@ -46,12 +46,5 @@ def execute_graphrag_query(query: str, mode: str, root_dir: Path = ROOT_DIR) -> 
         system_prompt = f"You are an AI assistant answering questions about Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
         return call_serverless_llm(prompt=query, system_prompt=system_prompt)
     except Exception as e:
-        # Structured summary fallback guaranteed to return instantly
-        return (
-            f"**Prasad Rane's GraphRAG Summary for '{query}':**\n\n"
-            "• **AWS & Cloud Technologies:** AWS Lambda, S3, EC2, CloudWatch, DynamoDB, API Gateway, and CloudFront.\n"
-            "• **Core Engineering Stack:** Python, FastAPI, Docker, Microservices, GraphRAG, LiteLLM, React, and CI/CD pipelines.\n"
-            "• **Professional Experience:** Lead Software Engineer at Tech Corp (2021–Present) building high-throughput microservices and AI agent automation systems."
-        )
-
-
+        # Dynamic resume search fallback guaranteed to return accurate answer instantly
+        return search_static_resume(query)

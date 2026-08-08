@@ -57,7 +57,8 @@ class RenderPdfRequest(BaseModel):
 @app.post("/api/generate")
 def generate_resume_endpoint(req: ResumeGenerationRequest):
     try:
-        raw_path = generate_raw_resume(req.company, req.jd_text)
+        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+        raw_path = generate_raw_resume(req.company, req.jd_text, base_output_dir=temp_out_dir)
         pdf_target = raw_path.parent / "Prasad_Rane_Resume.pdf"
         render_pdf_resume(raw_path, pdf_target)
 

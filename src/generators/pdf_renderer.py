@@ -94,7 +94,12 @@ def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
 
 def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
     """Render PDF document directly from ResumeData Pydantic model using modular story builders."""
-    output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        import tempfile
+        output_pdf_path = Path(tempfile.gettempdir()) / "output" / output_pdf_path.name
+        output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
     doc = SimpleDocTemplate(
         str(output_pdf_path),
