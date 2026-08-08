@@ -110,16 +110,24 @@ def parse_master_resume(content: str) -> Dict[str, Any]:
             if line.startswith("### Canonical Summary"):
                 continue
             if line.startswith("### Domain-Specific"):
-                break  # Stop summary at domain variants
-            if not line.startswith(">") and not line.startswith("**Work Authorization:**"):
-                sections["SUMMARY"].append(line)
+                current_sec = "SKIP_SUMMARY_VARIANTS"
+                continue
+            if line.startswith("📍") or line.startswith("**Prasad Rane**") or line.startswith(">") or line.startswith("**Work Authorization:**"):
+                continue
+            sections["SUMMARY"].append(line)
+
+        elif current_sec == "SKIP_SUMMARY_VARIANTS":
+            continue
 
         elif current_sec == "EXPERIENCE":
-            if line.startswith("### ") or line.startswith("#### "):
+            if line.startswith("### "):
                 if current_job_header:
                     sections["EXPERIENCE"].append((current_job_header, current_job_bullets))
-                current_job_header = line.lstrip("#").strip()
+                current_job_header = line[4:].strip()
                 current_job_bullets = []
+            elif line.startswith("#### "):
+                # Story title header -> skip or add clean context
+                continue
             elif line.startswith("- ") or line.startswith("* "):
                 current_job_bullets.append(line[2:].strip())
 
@@ -179,13 +187,14 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     out_lines.append(bold_keywords(sum_text, keywords, max_bold_phrases=3, max_bold_ratio=0.15))
     out_lines.append("")
 
-    # 2. EXPERIENCE
+    # 2. EXPERIENCE (Filter top bullets per job to fit 2-page page budget)
     out_lines.append("## EXPERIENCE")
     for job_heading, bullets in parsed["EXPERIENCE"]:
-        # Clean heading into single line: Job Title | Company Name | Location | Dates
         clean_heading = clean_em_dashes(job_heading)
         out_lines.append(f"### {clean_heading}")
-        for b in bullets:
+        # Limit to top 3-4 bullets per company role to enforce 2-page cap
+        selected_bullets = bullets[:4] if "Rocket Mortgage" in job_heading else bullets[:3]
+        for b in selected_bullets:
             bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
             out_lines.append(f"- {bolded_bullet}")
         out_lines.append("")
