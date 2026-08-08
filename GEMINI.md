@@ -63,8 +63,10 @@ For deployment on serverless platforms like **Vercel Free Tier** where long-runn
 - **Direct Gemini AI Studio API Fallback:** Uses `GEMINI_API_KEY` via direct Google REST endpoints if OpenRouter is unconfigured.
 - **Fast Static Graph Reader:** Uses `src/query/static_graph_reader.py` to query pre-indexed graph entities within < 1 second serverless execution budget.
 
+---
 
-## 4. Operational Commands
+## 5. Operational Commands
+
 
 ### Start LiteLLM Proxy (Port 8002)
 ```powershell
