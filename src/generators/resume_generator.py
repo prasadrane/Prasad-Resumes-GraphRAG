@@ -1,5 +1,5 @@
 """
-resume_generator.py — Tailored raw resume content generator adhering to exact resume generation rules.
+resume_generator.py — Tailored raw resume content generator adhering to generic, candidate-agnostic resume rules.
 """
 
 import re
@@ -9,11 +9,8 @@ from typing import List, Optional
 
 from .ats_matcher import extract_ats_keywords
 from .constants import (
-    DEFAULT_AWS_CERTIFICATE,
     DEFAULT_CANDIDATE_NAME,
     DEFAULT_CANDIDATE_TITLE,
-    DEFAULT_EDUCATION,
-    DEFAULT_LOCATION,
     MARKDOWN_BULLET_PREFIX,
     MARKDOWN_H1_PREFIX,
     MARKDOWN_H2_PREFIX,
@@ -82,7 +79,7 @@ def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max
     return text
 
 def parse_master_resume(content: str) -> ResumeData:
-    """Parse raw master resume into structured ResumeData Pydantic model."""
+    """Parse raw master resume into a generic ResumeData Pydantic model dynamically."""
     lines = [clean_em_dashes(l) for l in content.split("\n")]
     data = ResumeData()
     
@@ -92,10 +89,22 @@ def parse_master_resume(content: str) -> ResumeData:
     summary_lines = []
 
     for line in lines:
-        if not line or (line.startswith(MARKDOWN_H1_PREFIX) and "MASTER RESUME" in line.upper()):
+        if not line:
             continue
 
-        if line.startswith(MARKDOWN_H2_PREFIX):
+        # Dynamic Candidate Name extraction from # Header or **Name** line
+        if line.startswith(MARKDOWN_H1_PREFIX):
+            header_text = line[len(MARKDOWN_H1_PREFIX):].strip()
+            name_match = re.split(r"\s*[—–|-]\s*", header_text)[0].strip()
+            if name_match:
+                data.name = name_match
+            continue
+
+        if line.startswith("**Title:**"):
+            data.title = line.replace("**Title:**", "").strip()
+            continue
+
+        if line.startswith("## "):
             sec_upper = line.upper()
             if SECTION_SUMMARY in sec_upper or "PROFILES" in sec_upper:
                 current_sec = SECTION_SUMMARY
@@ -120,7 +129,14 @@ def parse_master_resume(content: str) -> ResumeData:
             if line.startswith("### Domain-Specific"):
                 current_sec = SECTION_SKIP_SUMMARY_VARIANTS
                 continue
-            if line.startswith("📍") or line.startswith(f"**{DEFAULT_CANDIDATE_NAME}**") or line.startswith(">") or line.startswith("**Work Authorization:**"):
+            if line.startswith("📍") or line.startswith(">") or line.startswith("**Work Authorization:**"):
+                # Extract Candidate Name if present on name bold line
+                if line.startswith("**") and not data.name:
+                    bold_name = re.findall(r"\*\*(.*?)\*\*", line)
+                    if bold_name:
+                        data.name = bold_name[0]
+                continue
+            if line.startswith("**") and data.name in line and not line.startswith("- "):
                 continue
             summary_lines.append(line)
 
@@ -148,6 +164,11 @@ def parse_master_resume(content: str) -> ResumeData:
     if current_job_header:
         data.jobs.append(JobEntry(heading=current_job_header, bullets=current_job_bullets))
 
+    if not data.name:
+        data.name = DEFAULT_CANDIDATE_NAME
+    if not data.title:
+        data.title = DEFAULT_CANDIDATE_TITLE
+
     data.summary = " ".join(summary_lines)
     return data
 
@@ -156,7 +177,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     out_lines = [
         f"{MARKDOWN_H1_PREFIX}{data.name}",
         f"**Title:** {data.title}",
-        f"**Contact:** {data.contact_location} | {data.contact_phone} | {data.contact_email} | linkedin.com/in/rane-prasad | prasadrane.vercel.app",
+        f"**Contact:** {data.contact_location} | {data.contact_phone} | {data.contact_email} | {data.contact_linkedin} | {data.contact_portfolio}",
         ""
     ]
 
@@ -165,12 +186,14 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     out_lines.append(bold_keywords(data.summary, keywords, max_bold_phrases=3, max_bold_ratio=0.15))
     out_lines.append("")
 
-    # 2. EXPERIENCE
+    # 2. EXPERIENCE (Generic bullet cap for 2-page page budget)
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EXPERIENCE}")
-    for job in data.jobs:
+    for idx, job in enumerate(data.jobs):
         clean_heading = clean_em_dashes(job.heading)
         out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
-        selected_bullets = job.bullets[:4] if "Rocket Mortgage" in job.heading else job.bullets[:3]
+        # Generic role filtering: 4 bullets for primary/first role, 3 bullets for subsequent roles
+        max_bullets = 4 if idx == 0 else 3
+        selected_bullets = job.bullets[:max_bullets]
         for b in selected_bullets:
             bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
             out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
@@ -207,14 +230,16 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
-        parsed = parse_master_resume(master_content)
+        parsed: ResumeData = parse_master_resume(master_content)
     else:
         parsed = ResumeData(
-            summary=f"{DEFAULT_CANDIDATE_TITLE} with 10+ years of experience building high-throughput systems.",
-            jobs=[JobEntry(heading=f"Software Engineer | Rocket Mortgage | {DEFAULT_LOCATION} | Jan 2023 - Jul 2025", bullets=["Built Python and AWS microservices."])],
-            skills=["Backend & APIs: C#, .NET Core, Python, AWS, Docker"],
-            certifications=[DEFAULT_AWS_CERTIFICATE],
-            education=DEFAULT_EDUCATION
+            name=DEFAULT_CANDIDATE_NAME,
+            title=DEFAULT_CANDIDATE_TITLE,
+            summary=f"{DEFAULT_CANDIDATE_TITLE} with experience building high-throughput software applications.",
+            jobs=[JobEntry(heading="Software Engineer | Tech Corp | Remote | Jan 2023 - Present", bullets=["Built scalable microservices."])],
+            skills=["Backend & APIs: C#, Python, Cloud"],
+            certifications=["Cloud Certification"],
+            education=["B.S. in Computer Science"]
         )
 
     tailored_text = format_tailored_markdown(parsed, keywords)

@@ -9,41 +9,42 @@ from src.generators.pdf_renderer import parse_raw_resume, render_pdf_resume
 
 class TestPDFRenderer(unittest.TestCase):
 
-    def test_parse_raw_resume_multi_job(self):
-        raw_content = """# Prasad Rane
-**Title:** Senior Software Engineer
-**Contact:** Lake Bluff, IL | 513-967-9423 | emailprasadrane@gmail.com | linkedin.com/in/rane-prasad | prasadrane.vercel.app
+    def test_parse_raw_resume_generic_candidate(self):
+        raw_content = """# Alex Smith
+**Title:** Principal Software Architect
+**Contact:** San Francisco, CA | 415-555-0199 | alex@example.com | linkedin.com/in/alexsmith | alexsmith.dev
 
 ## SUMMARY
-Senior Software Engineer with 10 years experience in **Python** and **AWS**.
+Principal Software Architect with 10 years experience in **Python** and **AWS**.
 
 ## EXPERIENCE
-### Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 - Jul 2025
+### Software Architect | TechCorp | San Francisco, CA | Jan 2021 - Present
 - Built **Python** backend microservices.
 
-### Software Developer | London Computer Systems | Cincinnati, OH | Dec 2019 - Jan 2023
-- Optimized **SQL Server** database queries.
+### Senior Developer | CloudSystems | San Jose, CA | Dec 2018 - Dec 2020
+- Optimized **PostgreSQL** database queries.
 
 ## SKILLS
-- **Backend & APIs:** Python, C#, AWS, Docker, Kubernetes
+- **Backend & APIs:** Python, Go, AWS, Docker, Kubernetes
 
 ## CERTIFICATIONS
-- **AWS Certified Cloud Practitioner** - Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029
+- **AWS Solutions Architect Professional** - Amazon Web Services
 
 ## EDUCATION
-- M.S. in Information Systems - University of Cincinnati (2019)
-- B.E. in Electronics & Telecommunication - University of Pune (2013)
+- M.S. in Computer Science - Stanford University (2018)
 """
         parsed = parse_raw_resume(raw_content)
-        self.assertEqual(parsed.name, "Prasad Rane")
+        self.assertEqual(parsed.name, "Alex Smith")
+        self.assertEqual(parsed.title, "Principal Software Architect")
+        self.assertEqual(parsed.contact_location, "San Francisco, CA")
+        self.assertEqual(parsed.contact_email, "alex@example.com")
         self.assertEqual(len(parsed.jobs), 2)
-        self.assertEqual(parsed.jobs[0].company, "Rocket Mortgage")
-        self.assertEqual(parsed.jobs[1].company, "London Computer Systems")
-        self.assertEqual(parsed.jobs[1].location, "Cincinnati, OH")
+        self.assertEqual(parsed.jobs[0].company, "TechCorp")
+        self.assertEqual(parsed.jobs[1].company, "CloudSystems")
+        self.assertEqual(parsed.jobs[1].location, "San Jose, CA")
 
         # Verify education year stripping
-        self.assertNotIn("2019", parsed.education[0])
-        self.assertNotIn("2013", parsed.education[1])
+        self.assertNotIn("2018", parsed.education[0])
 
     def test_render_pdf_resume_file_not_found(self):
         with self.assertRaises(FileNotFoundError):
@@ -54,7 +55,7 @@ Senior Software Engineer with 10 years experience in **Python** and **AWS**.
             tmp_path = Path(tmp_dir)
             raw_file = tmp_path / "raw_resume.txt"
             raw_file.write_text(
-                "# Prasad Rane\n\n## SUMMARY\nExperienced in **Python**.\n\n## EXPERIENCE\n### Lead Engineer | Google | Remote | 2023 - Present\n- Led cloud teams.\n",
+                "# Alex Smith\n**Title:** Lead Engineer\n**Contact:** Remote | alex@example.com\n\n## SUMMARY\nExperienced in **Python**.\n\n## EXPERIENCE\n### Lead Engineer | Google | Remote | 2023 - Present\n- Led cloud teams.\n",
                 encoding="utf-8",
             )
 

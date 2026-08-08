@@ -1,5 +1,5 @@
 """
-pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus and Pydantic models.
+pdf_renderer.py — Rule-based, candidate-agnostic PDF resume generator using ReportLab Platypus and Pydantic models.
 Enforces exact font sizes, colors, margins, spacing, KeepTogether job blocks, clickable links, and 2-page max guardrail.
 """
 
@@ -15,15 +15,7 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, KeepTogether
 
 from .constants import (
-    CREDLY_AWS_CERT_URL,
-    DEFAULT_AWS_CERTIFICATE,
     DEFAULT_CANDIDATE_NAME,
-    DEFAULT_EDUCATION,
-    DEFAULT_EMAIL,
-    DEFAULT_LINKEDIN_URL,
-    DEFAULT_LOCATION,
-    DEFAULT_PHONE,
-    DEFAULT_PORTFOLIO_URL,
     MARKDOWN_BULLET_PREFIX,
     MARKDOWN_H1_PREFIX,
     MARKDOWN_H2_PREFIX,
@@ -70,10 +62,12 @@ def markdown_to_reportlab_html(text: str) -> str:
     text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
     # Convert *italic* -> <i>italic</i>
     text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+    # Convert markdown links [text](url) -> <a href="url"><font color="#0f3460">text</font></a>
+    text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2"><font color="#0f3460">\1</font></a>', text)
     return text.strip()
 
 def parse_raw_resume(raw_content: str) -> ResumeData:
-    """Parse raw_resume.txt Markdown content into structured ResumeData Pydantic model."""
+    """Parse raw_resume.txt Markdown content generically into ResumeData Pydantic model."""
     lines = [l.strip() for l in raw_content.split("\n") if l.strip()]
     data = ResumeData()
 
@@ -83,7 +77,14 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
 
     for line in lines:
         if line.startswith(MARKDOWN_H1_PREFIX):
-            data.name = DEFAULT_CANDIDATE_NAME
+            data.name = line[len(MARKDOWN_H1_PREFIX):].strip()
+            continue
+        elif line.startswith("**Title:**"):
+            data.title = line.replace("**Title:**", "").strip()
+            continue
+        elif line.startswith("**Contact:**"):
+            contact_str = line.replace("**Contact:**", "").strip()
+            parse_contact_header(contact_str, data)
             continue
         elif line.startswith(MARKDOWN_H2_PREFIX):
             sec_heading = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
@@ -138,8 +139,25 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
                 clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
                 data.education.append(clean_edu)
 
+    if not data.name:
+        data.name = DEFAULT_CANDIDATE_NAME
+
     data.summary = " ".join(summary_lines)
     return data
+
+def parse_contact_header(contact_str: str, data: ResumeData) -> None:
+    """Parse contact line into structured ResumeData contact fields."""
+    parts = [p.strip() for p in contact_str.split("|") if p.strip()]
+    if len(parts) >= 1:
+        data.contact_location = parts[0]
+    if len(parts) >= 2:
+        data.contact_phone = parts[1]
+    if len(parts) >= 3:
+        data.contact_email = parts[2]
+    if len(parts) >= 4:
+        data.contact_linkedin = parts[3]
+    if len(parts) >= 5:
+        data.contact_portfolio = parts[4]
 
 def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
     """Parse single-line job heading into title, company, location, dates dynamically."""
@@ -148,14 +166,50 @@ def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
 
     return {
         "title": parts[0] if len(parts) > 0 else "Software Engineer",
-        "company": parts[1] if len(parts) > 1 else "Rocket Mortgage",
-        "location": parts[2] if len(parts) > 2 else DEFAULT_LOCATION,
-        "dates": parts[3] if len(parts) > 3 else "Jan 2023 - Jul 2025"
+        "company": parts[1] if len(parts) > 1 else "",
+        "location": parts[2] if len(parts) > 2 else "",
+        "dates": parts[3] if len(parts) > 3 else ""
     }
 
 def format_job_heading(job: JobEntry) -> str:
     """Format single line Job Heading: Job Title | Company Name | Location | Dates"""
-    return f'<font color="#0f3460"><b>{job.title}</b> | <b>{job.company}</b></font> | <font color="#6b7280"><i>{job.location}</i> | <i>{job.dates}</i></font>'
+    heading_parts = []
+    if job.title and job.company:
+        heading_parts.append(f'<font color="#0f3460"><b>{job.title}</b> | <b>{job.company}</b></font>')
+    elif job.title or job.company:
+        heading_parts.append(f'<font color="#0f3460"><b>{job.title or job.company}</b></font>')
+
+    meta_parts = []
+    if job.location:
+        meta_parts.append(f'<i>{job.location}</i>')
+    if job.dates:
+        meta_parts.append(f'<i>{job.dates}</i>')
+
+    if meta_parts:
+        heading_parts.append(f'<font color="#6b7280">{" | ".join(meta_parts)}</font>')
+
+    return " | ".join(heading_parts) if heading_parts else job.heading
+
+def format_contact_paragraph(data: ResumeData) -> str:
+    """Format contact items into reportlab clickable HTML paragraph string dynamically."""
+    items = []
+    if data.contact_location:
+        items.append(data.contact_location)
+    if data.contact_phone:
+        items.append(data.contact_phone)
+    if data.contact_email:
+        email_clean = data.contact_email.replace("mailto:", "")
+        items.append(f'<a href="mailto:{email_clean}"><font color="#0f3460">{email_clean}</font></a>')
+    if data.contact_linkedin:
+        link_url = data.contact_linkedin if data.contact_linkedin.startswith("http") else f"https://{data.contact_linkedin}"
+        display_text = data.contact_linkedin.replace("https://", "").replace("http://", "")
+        items.append(f'<a href="{link_url}"><font color="#0f3460">{display_text}</font></a>')
+    if data.contact_portfolio:
+        port_url = data.contact_portfolio if data.contact_portfolio.startswith("http") else f"https://{data.contact_portfolio}"
+        display_text = data.contact_portfolio.replace("https://", "").replace("http://", "")
+        items.append(f'<a href="{port_url}"><font color="#0f3460">{display_text}</font></a>')
+
+    return " | ".join(items)
 
 def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
     """Render rule-based ATS compliant PDF resume using ReportLab Platypus and Pydantic models."""
@@ -287,14 +341,9 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     # 1. Header: Name & Clickable Contact Details
     story.append(Paragraph(parsed.name, style_name))
-
-    contact_html = (
-        f'{parsed.contact_location} | {parsed.contact_phone} | '
-        f'<a href="mailto:{parsed.contact_email}"><font color="#0f3460">{parsed.contact_email}</font></a> | '
-        f'<a href="{parsed.contact_linkedin}"><font color="#0f3460">linkedin.com/in/rane-prasad</font></a> | '
-        f'<a href="{parsed.contact_portfolio}"><font color="#0f3460">prasadrane.vercel.app</font></a>'
-    )
-    story.append(Paragraph(contact_html, style_contact))
+    contact_html = format_contact_paragraph(parsed)
+    if contact_html:
+        story.append(Paragraph(contact_html, style_contact))
 
     def add_section_header(title: str):
         story.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_RULE, spaceBefore=6, spaceAfter=6))
@@ -335,33 +384,18 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         story.append(KeepTogether(skills_flowables))
 
     # 5. Certifications Section
-    add_section_header(SECTION_CERTIFICATIONS)
     if parsed.certifications:
+        add_section_header(SECTION_CERTIFICATIONS)
         for cert in parsed.certifications:
-            if "AWS" in cert and "Credly" not in cert:
-                cert_html = (
-                    f'<b><a href="{CREDLY_AWS_CERT_URL}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
-                    f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
-                )
-            else:
-                cert_html = markdown_to_reportlab_html(cert)
+            cert_html = markdown_to_reportlab_html(cert)
             story.append(Paragraph(cert_html, style_cert))
-    else:
-        cert_html = (
-            f'<b><a href="{CREDLY_AWS_CERT_URL}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
-            f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
-        )
-        story.append(Paragraph(cert_html, style_cert))
 
-    # 6. Education Section (Display MS and BE without years)
-    add_section_header(SECTION_EDUCATION)
+    # 6. Education Section
     if parsed.education:
+        add_section_header(SECTION_EDUCATION)
         for edu in parsed.education:
             clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
             story.append(Paragraph(markdown_to_reportlab_html(clean_edu), style_edu))
-    else:
-        for edu in DEFAULT_EDUCATION:
-            story.append(Paragraph(markdown_to_reportlab_html(edu), style_edu))
 
     doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path
