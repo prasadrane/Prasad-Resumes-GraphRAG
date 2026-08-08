@@ -1,18 +1,14 @@
 """
-pdf_renderer.py — Rule-based, candidate-agnostic PDF resume generator using ReportLab Platypus and Pydantic models.
-Enforces exact font sizes, colors, margins, spacing, KeepTogether job blocks, clickable links, and 2-page max guardrail.
+pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus, Pydantic models, and pdf_styles.
 """
 
 import re
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Optional
 
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether, HRFlowable
 
 from .constants import (
     DEFAULT_CANDIDATE_NAME,
@@ -28,43 +24,27 @@ from .constants import (
     SECTION_SUMMARY,
 )
 from .models import JobEntry, ResumeData
+from .pdf_styles import (
+    COLOR_RULE,
+    PageCountCanvas,
+    create_section_header_flowables,
+    format_contact_paragraph,
+    format_job_heading,
+    get_resume_styles,
+    markdown_to_reportlab_html,
+)
 
-# Color Palette Reference
-COLOR_DARK = colors.HexColor("#1a1a2e")      # Name, Section Headers
-COLOR_ACCENT = colors.HexColor("#0f3460")    # Job Titles, Clickable Links
-COLOR_BODY = colors.HexColor("#374151")      # Bullets, Skills, Education
-COLOR_META = colors.HexColor("#6b7280")      # Contact Line, Location, Dates
-COLOR_RULE = colors.HexColor("#d1d5db")      # Horizontal Rule Line
+def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
+    """Parse single-line job heading into title, company, location, dates dynamically."""
+    cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
+    parts = [p.strip() for p in re.split(r"[|—–]", cleaned) if p.strip()]
 
-class PageCountCanvas(canvas.Canvas):
-    """Canvas recorder to enforce 2-page maximum constraint."""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._page_count = 0
-
-    def showPage(self):
-        self._page_count += 1
-        super().showPage()
-
-    def save(self):
-        if self._page_count > 2:
-            print(f"[WARN] PDF Resume exceeded 2-page constraint ({self._page_count} pages). Adjusting content spacing recommended.")
-        super().save()
-
-def markdown_to_reportlab_html(text: str) -> str:
-    """Convert Markdown bold/italics and cleanup em-dashes."""
-    if not text:
-        return ""
-    # Preserve date hyphens while converting em-dashes
-    text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
-    text = text.replace("—", ". ").replace(" – ", ". ")
-    # Convert **bold** -> <b>bold</b>
-    text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
-    # Convert *italic* -> <i>italic</i>
-    text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
-    # Convert markdown links [text](url) -> <a href="url"><font color="#0f3460">text</font></a>
-    text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2"><font color="#0f3460">\1</font></a>', text)
-    return text.strip()
+    return {
+        "title": parts[0] if len(parts) > 0 else "Software Engineer",
+        "company": parts[1] if len(parts) > 1 else "",
+        "location": parts[2] if len(parts) > 2 else "",
+        "dates": parts[3] if len(parts) > 3 else ""
+    }
 
 def parse_raw_resume(raw_content: str) -> ResumeData:
     """Parse raw_resume.txt Markdown content generically into ResumeData Pydantic model."""
@@ -84,7 +64,12 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
             continue
         elif line.startswith("**Contact:**"):
             contact_str = line.replace("**Contact:**", "").strip()
-            parse_contact_header(contact_str, data)
+            parts = [p.strip() for p in contact_str.split("|") if p.strip()]
+            if len(parts) >= 1: data.contact_location = parts[0]
+            if len(parts) >= 2: data.contact_phone = parts[1]
+            if len(parts) >= 3: data.contact_email = parts[2]
+            if len(parts) >= 4: data.contact_linkedin = parts[3]
+            if len(parts) >= 5: data.contact_portfolio = parts[4]
             continue
         elif line.startswith(MARKDOWN_H2_PREFIX):
             sec_heading = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
@@ -126,18 +111,15 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
                 elif data.jobs:
                     data.jobs[-1].bullets.append(bullet)
 
-        elif current_section == SECTION_SKILLS:
-            if line.startswith(MARKDOWN_BULLET_PREFIX):
-                data.skills.append(line[2:].strip())
+        elif current_section == SECTION_SKILLS and line.startswith(MARKDOWN_BULLET_PREFIX):
+            data.skills.append(line[2:].strip())
 
-        elif current_section == SECTION_CERTIFICATIONS:
-            if line.startswith(MARKDOWN_BULLET_PREFIX):
-                data.certifications.append(line[2:].strip())
+        elif current_section == SECTION_CERTIFICATIONS and line.startswith(MARKDOWN_BULLET_PREFIX):
+            data.certifications.append(line[2:].strip())
 
-        elif current_section == SECTION_EDUCATION:
-            if line.startswith(MARKDOWN_BULLET_PREFIX):
-                clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
-                data.education.append(clean_edu)
+        elif current_section == SECTION_EDUCATION and line.startswith(MARKDOWN_BULLET_PREFIX):
+            clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
+            data.education.append(clean_edu)
 
     if not data.name:
         data.name = DEFAULT_CANDIDATE_NAME
@@ -145,74 +127,8 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
     data.summary = " ".join(summary_lines)
     return data
 
-def parse_contact_header(contact_str: str, data: ResumeData) -> None:
-    """Parse contact line into structured ResumeData contact fields."""
-    parts = [p.strip() for p in contact_str.split("|") if p.strip()]
-    if len(parts) >= 1:
-        data.contact_location = parts[0]
-    if len(parts) >= 2:
-        data.contact_phone = parts[1]
-    if len(parts) >= 3:
-        data.contact_email = parts[2]
-    if len(parts) >= 4:
-        data.contact_linkedin = parts[3]
-    if len(parts) >= 5:
-        data.contact_portfolio = parts[4]
-
-def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
-    """Parse single-line job heading into title, company, location, dates dynamically."""
-    cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
-    parts = [p.strip() for p in re.split(r"[|—–]", cleaned) if p.strip()]
-
-    return {
-        "title": parts[0] if len(parts) > 0 else "Software Engineer",
-        "company": parts[1] if len(parts) > 1 else "",
-        "location": parts[2] if len(parts) > 2 else "",
-        "dates": parts[3] if len(parts) > 3 else ""
-    }
-
-def format_job_heading(job: JobEntry) -> str:
-    """Format single line Job Heading: Job Title | Company Name | Location | Dates"""
-    heading_parts = []
-    if job.title and job.company:
-        heading_parts.append(f'<font color="#0f3460"><b>{job.title}</b> | <b>{job.company}</b></font>')
-    elif job.title or job.company:
-        heading_parts.append(f'<font color="#0f3460"><b>{job.title or job.company}</b></font>')
-
-    meta_parts = []
-    if job.location:
-        meta_parts.append(f'<i>{job.location}</i>')
-    if job.dates:
-        meta_parts.append(f'<i>{job.dates}</i>')
-
-    if meta_parts:
-        heading_parts.append(f'<font color="#6b7280">{" | ".join(meta_parts)}</font>')
-
-    return " | ".join(heading_parts) if heading_parts else job.heading
-
-def format_contact_paragraph(data: ResumeData) -> str:
-    """Format contact items into reportlab clickable HTML paragraph string dynamically."""
-    items = []
-    if data.contact_location:
-        items.append(data.contact_location)
-    if data.contact_phone:
-        items.append(data.contact_phone)
-    if data.contact_email:
-        email_clean = data.contact_email.replace("mailto:", "")
-        items.append(f'<a href="mailto:{email_clean}"><font color="#0f3460">{email_clean}</font></a>')
-    if data.contact_linkedin:
-        link_url = data.contact_linkedin if data.contact_linkedin.startswith("http") else f"https://{data.contact_linkedin}"
-        display_text = data.contact_linkedin.replace("https://", "").replace("http://", "")
-        items.append(f'<a href="{link_url}"><font color="#0f3460">{display_text}</font></a>')
-    if data.contact_portfolio:
-        port_url = data.contact_portfolio if data.contact_portfolio.startswith("http") else f"https://{data.contact_portfolio}"
-        display_text = data.contact_portfolio.replace("https://", "").replace("http://", "")
-        items.append(f'<a href="{port_url}"><font color="#0f3460">{display_text}</font></a>')
-
-    return " | ".join(items)
-
 def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
-    """Render rule-based ATS compliant PDF resume using ReportLab Platypus and Pydantic models."""
+    """Render rule-based ATS compliant PDF resume using ReportLab Platypus, Pydantic models, and pdf_styles."""
     if not raw_resume_path.exists():
         raise FileNotFoundError(f"Raw resume file not found: {raw_resume_path}")
 
@@ -229,173 +145,55 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         bottomMargin=0.45 * inch,
     )
 
-    styles = getSampleStyleSheet()
-
-    font_family = "Helvetica"
-    font_bold = "Helvetica-Bold"
-
-    style_name = ParagraphStyle(
-        "ResName",
-        parent=styles["Normal"],
-        fontName=font_bold,
-        fontSize=23,
-        leading=26,
-        textColor=COLOR_DARK,
-        spaceAfter=6,
-        alignment=0,
-    )
-
-    style_contact = ParagraphStyle(
-        "ResContact",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_META,
-        spaceAfter=12,
-        alignment=0,
-    )
-
-    style_sec_header = ParagraphStyle(
-        "ResSecHeader",
-        parent=styles["Normal"],
-        fontName=font_bold,
-        fontSize=10.5,
-        leading=13,
-        textColor=COLOR_DARK,
-        spaceAfter=6,
-        alignment=0,
-        keepWithNext=True,
-    )
-
-    style_job_heading = ParagraphStyle(
-        "ResJobHeading",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=10.5,
-        leading=13,
-        textColor=COLOR_DARK,
-        spaceAfter=4,
-        alignment=0,
-    )
-
-    style_bullet = ParagraphStyle(
-        "ResBullet",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_BODY,
-        leftIndent=12,
-        firstLineIndent=-12,
-        spaceAfter=3,
-        alignment=0,
-    )
-
-    style_summary = ParagraphStyle(
-        "ResSummary",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_BODY,
-        spaceAfter=6,
-        alignment=0,
-    )
-
-    style_skill = ParagraphStyle(
-        "ResSkill",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_BODY,
-        leftIndent=0,
-        spaceAfter=4,
-        alignment=0,
-    )
-
-    style_cert = ParagraphStyle(
-        "ResCert",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_BODY,
-        spaceAfter=2,
-        alignment=0,
-    )
-
-    style_edu = ParagraphStyle(
-        "ResEdu",
-        parent=styles["Normal"],
-        fontName=font_family,
-        fontSize=9.5,
-        leading=13,
-        textColor=COLOR_BODY,
-        spaceAfter=2,
-        alignment=0,
-    )
-
+    styles = get_resume_styles()
     story = []
 
-    # 1. Header: Name & Clickable Contact Details
-    story.append(Paragraph(parsed.name, style_name))
+    # 1. Header: Name & Contact Paragraph
+    story.append(Paragraph(parsed.name, styles["name"]))
     contact_html = format_contact_paragraph(parsed)
     if contact_html:
-        story.append(Paragraph(contact_html, style_contact))
-
-    def add_section_header(title: str):
-        story.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_RULE, spaceBefore=6, spaceAfter=6))
-        story.append(Paragraph(title, style_sec_header))
+        story.append(Paragraph(contact_html, styles["contact"]))
 
     # 2. Professional Summary Section
     if parsed.summary:
-        add_section_header(SECTION_SUMMARY)
+        story.extend(create_section_header_flowables(SECTION_SUMMARY, styles["sec_header"]))
         sum_html = markdown_to_reportlab_html(parsed.summary)
-        story.append(Paragraph(sum_html, style_summary))
+        story.append(Paragraph(sum_html, styles["summary"]))
 
     # 3. Experience Section
     if parsed.jobs:
-        add_section_header(SECTION_EXPERIENCE)
+        story.extend(create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"]))
         for job in parsed.jobs:
-            job_flowables = []
-            heading_html = format_job_heading(job)
-            job_flowables.append(Paragraph(heading_html, style_job_heading))
-
+            job_flowables = [Paragraph(format_job_heading(job), styles["job_heading"])]
             for b in job.bullets:
                 b_html = markdown_to_reportlab_html(b)
-                bullet_str = f"• {b_html}"
-                job_flowables.append(Paragraph(bullet_str, style_bullet))
+                job_flowables.append(Paragraph(f"• {b_html}", styles["bullet"]))
 
             job_flowables.append(Spacer(1, 3))
             story.append(KeepTogether(job_flowables))
 
     # 4. Skills Section
     if parsed.skills:
-        skills_flowables = []
-        skills_flowables.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_RULE, spaceBefore=6, spaceAfter=6))
-        skills_flowables.append(Paragraph(SECTION_SKILLS, style_sec_header))
-
+        skills_flowables = create_section_header_flowables(SECTION_SKILLS, styles["sec_header"])
         for sk in parsed.skills:
             sk_html = markdown_to_reportlab_html(sk)
-            skills_flowables.append(Paragraph(sk_html, style_skill))
+            skills_flowables.append(Paragraph(sk_html, styles["skill"]))
 
         story.append(KeepTogether(skills_flowables))
 
     # 5. Certifications Section
     if parsed.certifications:
-        add_section_header(SECTION_CERTIFICATIONS)
+        story.extend(create_section_header_flowables(SECTION_CERTIFICATIONS, styles["sec_header"]))
         for cert in parsed.certifications:
             cert_html = markdown_to_reportlab_html(cert)
-            story.append(Paragraph(cert_html, style_cert))
+            story.append(Paragraph(cert_html, styles["cert"]))
 
     # 6. Education Section
     if parsed.education:
-        add_section_header(SECTION_EDUCATION)
+        story.extend(create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"]))
         for edu in parsed.education:
             clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
-            story.append(Paragraph(markdown_to_reportlab_html(clean_edu), style_edu))
+            story.append(Paragraph(markdown_to_reportlab_html(clean_edu), styles["edu"]))
 
     doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path
