@@ -1,0 +1,8 @@
+# Local Development, GraphRAG Indexing & Proxy Dependencies
+-r requirements.txt
+graphrag
+litellm
+lancedb
+pdfplumber
+pypdf
+pymupdf

@@ -1,17 +1,6 @@
-# Core GraphRAG & LLM Proxy Dependencies
-graphrag
-litellm
-
-# Data Validation & Modeling
+# Vercel Serverless API Production Dependencies (Lightweight <50MB bundle)
+fastapi
 pydantic>=2.0.0
-
-# Document & PDF Processing
-pdfplumber
-pypdf
-pymupdf
 reportlab
-
-# Environment & Utilities
 python-dotenv
 pyyaml
-lancedb

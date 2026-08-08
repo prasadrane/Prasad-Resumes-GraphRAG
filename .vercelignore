@@ -1,0 +1,17 @@
+# Ignore heavy local cache, test, and indexing artifacts for lightweight Vercel bundle
+venv/
+.venv/
+cache/
+logs/
+output/
+.git/
+.github/
+tests/
+.agents/
+.graphify/
+scratch/
+*.png
+*.pdf
+*.log
+*.tmp
+ui_verification_*.png
