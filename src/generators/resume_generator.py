@@ -5,7 +5,7 @@ resume_generator.py — Tailored raw resume content generator adhering to generi
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from .ats_matcher import extract_ats_keywords
 from .constants import (
@@ -48,6 +48,30 @@ def clean_em_dashes(text: str) -> str:
     text = text.replace("—", ". ").replace(" – ", ". ")
     text = re.sub(r"\s+\.\s+", ". ", text)
     return text.strip()
+
+def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
+    """Parse single-line job heading into title, company, location, dates dynamically."""
+    cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
+    parts = [p.strip() for p in cleaned.split("|") if p.strip()]
+
+    return {
+        "title": parts[0] if len(parts) > 0 else "",
+        "company": parts[1] if len(parts) > 1 else "",
+        "location": parts[2] if len(parts) > 2 else "",
+        "dates": parts[3] if len(parts) > 3 else ""
+    }
+
+def create_job_entry(heading: str, bullets: List[str]) -> JobEntry:
+    """Helper to instantiate JobEntry with parsed component fields."""
+    parsed_comp = parse_job_heading_components(heading)
+    return JobEntry(
+        heading=heading,
+        title=parsed_comp["title"],
+        company=parsed_comp["company"],
+        location=parsed_comp["location"],
+        dates=parsed_comp["dates"],
+        bullets=bullets,
+    )
 
 def _can_bold_keyword(matched_len: int, current_bold_chars: int, total_chars: int, max_bold_ratio: float) -> bool:
     """Helper predicate to check if bolding a keyword stays under max character ratio."""
@@ -160,7 +184,7 @@ def parse_resume_markdown(content: str) -> ResumeData:
         elif current_sec == SECTION_EXPERIENCE:
             if line.startswith(MARKDOWN_H3_PREFIX):
                 if current_job_header:
-                    data.jobs.append(JobEntry(heading=current_job_header, bullets=current_job_bullets))
+                    data.jobs.append(create_job_entry(current_job_header, current_job_bullets))
                 current_job_header = line[len(MARKDOWN_H3_PREFIX):].strip()
                 current_job_bullets = []
             elif line.startswith(MARKDOWN_H4_PREFIX):
@@ -179,7 +203,7 @@ def parse_resume_markdown(content: str) -> ResumeData:
             data.education.append(clean_edu)
 
     if current_job_header:
-        data.jobs.append(JobEntry(heading=current_job_header, bullets=current_job_bullets))
+        data.jobs.append(create_job_entry(current_job_header, current_job_bullets))
 
     if not data.name:
         data.name = DEFAULT_CANDIDATE_NAME
@@ -254,7 +278,7 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
             name=DEFAULT_CANDIDATE_NAME,
             title=DEFAULT_CANDIDATE_TITLE,
             summary=f"{DEFAULT_CANDIDATE_TITLE} with experience building high-throughput software applications.",
-            jobs=[JobEntry(heading="Software Engineer | Tech Corp | Remote | Jan 2023 - Present", bullets=["Built scalable microservices."])],
+            jobs=[create_job_entry("Software Engineer | Tech Corp | Remote | Jan 2023 - Present", ["Built scalable microservices."])],
             skills=["Backend & APIs: C#, Python, Cloud"],
             certifications=["Cloud Certification"],
             education=["B.S. in Computer Science"]
