@@ -18,8 +18,15 @@
 - **Graph Index Storage:** Apache Parquet (`output/*.parquet`)
 - **Caching Layer:** Persistent file cache (`cache/`) + Runtime LRU cache (`@lru_cache`)
 
+## Deployment & Serverless Gateway
+- **Deployment Platform:** Vercel Free Tier (Serverless Hobby Plan via `@vercel/python` / `vercel.json`)
+- **Serverless Framework:** FastAPI (`api/index.py`)
+- **Serverless Cloud Gateway:** `src/query/serverless_gateway.py` (Direct OpenRouter / Gemini API routing for stateless environments)
+- **Static Graph Reader:** `src/query/static_graph_reader.py` (Fast pre-indexed graph search < 1s)
+
 ## Preprocessing & Utilities
 - **PDF Extraction:** PyMuPDF (`fitz`), `pdfplumber`, `pypdf`
 - **PDF Generation:** ReportLab (`reportlab`) rule-based PDF engine
 - **Configuration Engine:** PyYAML (`pyyaml`)
 - **Testing:** Standard Python `unittest` framework
+
