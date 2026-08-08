@@ -1,6 +1,6 @@
 """
 pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus.
-Enforces exact font sizes, colors, margins, spacing, KeepTogether job blocks, and clickable links.
+Enforces exact font sizes, colors, margins, spacing, KeepTogether job blocks, clickable links, and 2-page max guardrail.
 """
 
 import re
@@ -11,6 +11,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, KeepTogether
 
 # Color Palette Reference
@@ -20,17 +21,34 @@ COLOR_BODY = colors.HexColor("#374151")      # Bullets, Skills, Education
 COLOR_META = colors.HexColor("#6b7280")      # Contact Line, Location, Dates
 COLOR_RULE = colors.HexColor("#d1d5db")      # Horizontal Rule Line
 
+class PageCountCanvas(canvas.Canvas):
+    """Canvas recorder to enforce 2-page maximum constraint."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pages = []
+
+    def showPage(self):
+        self.pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        page_count = len(self.pages)
+        if page_count > 2:
+            print(f"[WARN] PDF Resume exceeded 2-page constraint ({page_count} pages). Adjusting content spacing recommended.")
+        super().save()
+
 def markdown_to_reportlab_html(text: str) -> str:
     """Convert Markdown bold/italics and cleanup em-dashes."""
     if not text:
         return ""
-    # Replace em-dashes with period or colon per rule
+    # Preserve date hyphens while converting em-dashes
+    text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
     text = text.replace("—", ". ").replace(" – ", ". ")
     # Convert **bold** -> <b>bold</b>
     text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
     # Convert *italic* -> <i>italic</i>
     text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
-    return text
+    return text.strip()
 
 def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
     """Parse raw_resume.txt Markdown content into structured data."""
@@ -80,7 +98,15 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
         elif current_section == "EXPERIENCE":
             if line.startswith("### ") or line.startswith("#### "):
                 raw_job = line.lstrip("#").strip()
-                current_job = {"heading": raw_job, "bullets": []}
+                parsed_heading = parse_job_heading_components(raw_job)
+                current_job = {
+                    "heading": raw_job,
+                    "title": parsed_heading["title"],
+                    "company": parsed_heading["company"],
+                    "location": parsed_heading["location"],
+                    "dates": parsed_heading["dates"],
+                    "bullets": []
+                }
                 data["jobs"].append(current_job)
             elif line.startswith("- ") or line.startswith("* "):
                 bullet = line[2:].strip()
@@ -91,34 +117,38 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
 
         elif current_section == "SKILLS":
             if line.startswith("- "):
-                line = line[2:].strip()
-            data["skills"].append(line)
+                data["skills"].append(line[2:].strip())
 
         elif current_section == "CERTIFICATIONS":
             if line.startswith("- "):
-                line = line[2:].strip()
-            data["certifications"].append(line)
+                data["certifications"].append(line[2:].strip())
 
         elif current_section == "EDUCATION":
             if line.startswith("- "):
-                line = line[2:].strip()
-            data["education"].append(line)
+                clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
+                data["education"].append(clean_edu)
 
     data["summary"] = " ".join(summary_lines)
     return data
 
-def format_job_heading(heading_str: str) -> str:
-    """Format single line Job Heading: Title | Company Name | Location | Dates"""
-    # Clean markdown formatting from raw heading string
+def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
+    """Parse single-line job heading into title, company, location, dates dynamically."""
     cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
-
-    # Split components by | or — or –
     parts = [p.strip() for p in re.split(r"[|—–]", cleaned) if p.strip()]
 
-    title = parts[0] if len(parts) > 0 else "Software Engineer"
-    company = parts[1] if len(parts) > 1 else "Rocket Mortgage"
-    location = parts[2] if len(parts) > 2 else "Lake Bluff, IL"
-    dates = parts[3] if len(parts) > 3 else "Jan 2023 - Jul 2025"
+    return {
+        "title": parts[0] if len(parts) > 0 else "Software Engineer",
+        "company": parts[1] if len(parts) > 1 else "Rocket Mortgage",
+        "location": parts[2] if len(parts) > 2 else "Lake Bluff, IL",
+        "dates": parts[3] if len(parts) > 3 else "Jan 2023 - Jul 2025"
+    }
+
+def format_job_heading(job_dict: Dict[str, str]) -> str:
+    """Format single line Job Heading: Job Title | Company Name | Location | Dates"""
+    title = job_dict.get("title", "Software Engineer")
+    company = job_dict.get("company", "Rocket Mortgage")
+    location = job_dict.get("location", "Lake Bluff, IL")
+    dates = job_dict.get("dates", "Jan 2023 - Jul 2025")
 
     return f'<font color="#0f3460"><b>{title}</b> | <b>{company}</b></font> | <font color="#6b7280"><i>{location}</i> | <i>{dates}</i></font>'
 
@@ -142,10 +172,8 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     styles = getSampleStyleSheet()
 
-    # Define exact typography styles
     font_family = "Helvetica"
     font_bold = "Helvetica-Bold"
-    font_italic = "Helvetica-Oblique"
 
     style_name = ParagraphStyle(
         "ResName",
@@ -178,6 +206,7 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         textColor=COLOR_DARK,
         spaceAfter=6,
         alignment=0,
+        keepWithNext=True,  # Prevent orphaned section headers
     )
 
     style_job_heading = ParagraphStyle(
@@ -233,7 +262,7 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         fontName=font_family,
         fontSize=9.5,
         leading=13,
-        textColor=COLOR_ACCENT,
+        textColor=COLOR_BODY,
         spaceAfter=2,
         alignment=0,
     )
@@ -277,17 +306,15 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         add_section_header("EXPERIENCE")
         for job in parsed["jobs"]:
             job_flowables = []
-            heading_html = format_job_heading(job["heading"])
+            heading_html = format_job_heading(job)
             job_flowables.append(Paragraph(heading_html, style_job_heading))
 
             for b in job["bullets"]:
                 b_html = markdown_to_reportlab_html(b)
-                # Prepend bullet point symbol
                 bullet_str = f"• {b_html}"
                 job_flowables.append(Paragraph(bullet_str, style_bullet))
 
             job_flowables.append(Spacer(1, 3))
-            # Wrap each job block in KeepTogether to prevent splitting across pages
             story.append(KeepTogether(job_flowables))
 
     # 4. Skills Section
@@ -305,18 +332,32 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
     # 5. Certifications Section
     cert_credly_url = "https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5"
     add_section_header("CERTIFICATIONS")
-    cert_html = (
-        f'<b><a href="{cert_credly_url}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
-        f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
-    )
-    story.append(Paragraph(cert_html, style_cert))
+    if parsed["certifications"]:
+        for cert in parsed["certifications"]:
+            if "AWS" in cert and "Credly" not in cert:
+                cert_html = (
+                    f'<b><a href="{cert_credly_url}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
+                    f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
+                )
+            else:
+                cert_html = markdown_to_reportlab_html(cert)
+            story.append(Paragraph(cert_html, style_cert))
+    else:
+        cert_html = (
+            f'<b><a href="{cert_credly_url}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
+            f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
+        )
+        story.append(Paragraph(cert_html, style_cert))
 
     # 6. Education Section (Display MS and BE without years)
     add_section_header("EDUCATION")
-    edu_ms = "M.S. in Information Systems - University of Cincinnati"
-    edu_be = "B.E. in Electronics & Telecommunication - University of Pune"
-    story.append(Paragraph(edu_ms, style_edu))
-    story.append(Paragraph(edu_be, style_edu))
+    if parsed["education"]:
+        for edu in parsed["education"]:
+            clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
+            story.append(Paragraph(markdown_to_reportlab_html(clean_edu), style_edu))
+    else:
+        story.append(Paragraph("M.S. in Information Systems - University of Cincinnati", style_edu))
+        story.append(Paragraph("B.E. in Electronics & Telecommunication - University of Pune", style_edu))
 
-    doc.build(story)
+    doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path

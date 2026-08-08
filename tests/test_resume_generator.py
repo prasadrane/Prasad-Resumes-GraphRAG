@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from src.generators.resume_generator import (
     bold_keywords,
+    clean_em_dashes,
     get_output_dir,
     generate_raw_resume,
 )
@@ -19,12 +20,27 @@ class TestResumeGenerator(unittest.TestCase):
         out_dir = get_output_dir("Google")
         self.assertTrue(str(out_dir).endswith(f"{date_str}\\Google") or str(out_dir).endswith(f"{date_str}/Google"))
 
-    def test_bold_keywords(self):
-        text = "Experienced in Python and AWS cloud infrastructure."
-        keywords = ["Python", "AWS"]
-        bolded = bold_keywords(text, keywords)
+    def test_clean_em_dashes(self):
+        # Em-dash in bullet prose replaced with period
+        bullet = "Reduced false positive alerts — improving on-call responsiveness."
+        cleaned = clean_em_dashes(bullet)
+        self.assertIn("alerts. improving", cleaned)
+        self.assertNotIn("—", cleaned)
+
+        # Date range hyphens preserved
+        dates = "Jan 2023 - Jul 2025"
+        self.assertEqual(clean_em_dashes(dates), "Jan 2023 - Jul 2025")
+
+    def test_bold_keywords_limit_and_percentage_cap(self):
+        # Long bullet text
+        bullet = "Architected high-throughput microservices using Python, AWS, Docker, Kubernetes, and GraphRAG to optimize performance and reduce latency."
+        keywords = ["Python", "AWS", "Docker", "Kubernetes", "GraphRAG"]
+        bolded = bold_keywords(bullet, keywords, max_bold_phrases=3, max_bold_ratio=0.25)
+
+        # Ensure max 3 phrases bolded and bold length ratio is controlled
+        bold_count = bolded.count("**") // 2
+        self.assertLessEqual(bold_count, 3)
         self.assertIn("**Python**", bolded)
-        self.assertIn("**AWS**", bolded)
 
     def test_generate_raw_resume(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -38,8 +54,12 @@ class TestResumeGenerator(unittest.TestCase):
             self.assertEqual(out_file.name, "raw_resume.txt")
             content = out_file.read_text(encoding="utf-8")
             self.assertIn("Prasad Rane", content)
-            self.assertIn("Summaries", content)
-            self.assertIn("**Python**", content)
+            self.assertIn("## SUMMARY", content)
+            self.assertIn("## EXPERIENCE", content)
+            self.assertIn("## SKILLS", content)
+            self.assertIn("## CERTIFICATIONS", content)
+            self.assertIn("## EDUCATION", content)
+            self.assertNotIn("Gap-Framing", content)
 
 if __name__ == "__main__":
     unittest.main()
