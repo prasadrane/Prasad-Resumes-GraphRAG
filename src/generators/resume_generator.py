@@ -61,7 +61,7 @@ def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max
     bold_count = len(existing_bolds)
 
     for kw in sorted(keywords, key=len, reverse=True):
-        if not kw.strip() or len(kw.strip()) < 3:
+        if not kw.strip() or len(kw.strip()) < 2:
             continue
         if bold_count >= max_bold_phrases or (current_bold_chars / total_chars) >= max_bold_ratio:
             break
@@ -95,7 +95,8 @@ def parse_master_resume(content: str) -> ResumeData:
         # Dynamic Candidate Name extraction from # Header or **Name** line
         if line.startswith(MARKDOWN_H1_PREFIX):
             header_text = line[len(MARKDOWN_H1_PREFIX):].strip()
-            name_match = re.split(r"\s*[—–|-]\s*", header_text)[0].strip()
+            header_text = re.sub(r"(?i)\s*[\.—–|-]*\s*MASTER RESUME.*$", "", header_text).strip()
+            name_match = re.split(r"\s*[\.—–|-]\s*", header_text)[0].strip()
             if name_match:
                 data.name = name_match
             continue
