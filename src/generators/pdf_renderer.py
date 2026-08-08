@@ -1,30 +1,24 @@
 """
-pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus, Pydantic models, and pdf_styles.
-Applies SOLID (SRP, OCP) to support rendering directly from Path or pre-parsed ResumeData.
+pdf_renderer.py — Rule-based, candidate-agnostic PDF resume generator using ReportLab Platypus and Pydantic models.
+Applies SOLID (SRP, OCP) and DRY principles by reusing unified markdown parsing and modular story builders.
 """
 
 import re
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 
 from .constants import (
-    DEFAULT_CANDIDATE_NAME,
-    MARKDOWN_BULLET_PREFIX,
-    MARKDOWN_H1_PREFIX,
-    MARKDOWN_H2_PREFIX,
-    MARKDOWN_H3_PREFIX,
-    MARKDOWN_H4_PREFIX,
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
     SECTION_EXPERIENCE,
     SECTION_SKILLS,
     SECTION_SUMMARY,
 )
-from .models import JobEntry, ResumeData
+from .models import ResumeData
 from .pdf_styles import (
     PageCountCanvas,
     create_section_header_flowables,
@@ -33,102 +27,74 @@ from .pdf_styles import (
     get_resume_styles,
     markdown_to_reportlab_html,
 )
+from .resume_generator import parse_resume_markdown
 
-def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
-    """Parse single-line job heading into title, company, location, dates dynamically."""
-    cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
-    parts = [p.strip() for p in re.split(r"[|—–]", cleaned) if p.strip()]
+# Alias for backward compatibility
+parse_raw_resume = parse_resume_markdown
 
-    return {
-        "title": parts[0] if len(parts) > 0 else "Software Engineer",
-        "company": parts[1] if len(parts) > 1 else "",
-        "location": parts[2] if len(parts) > 2 else "",
-        "dates": parts[3] if len(parts) > 3 else ""
-    }
+def _build_header_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Name and Contact Header."""
+    story = [Paragraph(parsed.name, styles["name"])]
+    contact_html = format_contact_paragraph(parsed)
+    if contact_html:
+        story.append(Paragraph(contact_html, styles["contact"]))
+    return story
 
-def parse_raw_resume(raw_content: str) -> ResumeData:
-    """Parse raw_resume.txt Markdown content generically into ResumeData Pydantic model (SRP)."""
-    lines = [l.strip() for l in raw_content.split("\n") if l.strip()]
-    data = ResumeData()
+def _build_summary_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Professional Summary section."""
+    if not parsed.summary:
+        return []
+    story = create_section_header_flowables(SECTION_SUMMARY, styles["sec_header"])
+    sum_html = markdown_to_reportlab_html(parsed.summary)
+    story.append(Paragraph(sum_html, styles["summary"]))
+    return story
 
-    current_section = None
-    current_job: Optional[JobEntry] = None
-    summary_lines = []
+def _build_experience_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Experience section with KeepTogether job blocks."""
+    if not parsed.jobs:
+        return []
+    story = create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"])
+    for job in parsed.jobs:
+        job_flowables = [Paragraph(format_job_heading(job), styles["job_heading"])]
+        for b in job.bullets:
+            b_html = markdown_to_reportlab_html(b)
+            job_flowables.append(Paragraph(f"• {b_html}", styles["bullet"]))
+        job_flowables.append(Spacer(1, 3))
+        story.append(KeepTogether(job_flowables))
+    return story
 
-    for line in lines:
-        if line.startswith(MARKDOWN_H1_PREFIX):
-            data.name = line[len(MARKDOWN_H1_PREFIX):].strip()
-            continue
-        elif line.startswith("**Title:**"):
-            data.title = line.replace("**Title:**", "").strip()
-            continue
-        elif line.startswith("**Contact:**"):
-            contact_str = line.replace("**Contact:**", "").strip()
-            parts = [p.strip() for p in contact_str.split("|") if p.strip()]
-            if len(parts) >= 1: data.contact_location = parts[0]
-            if len(parts) >= 2: data.contact_phone = parts[1]
-            if len(parts) >= 3: data.contact_email = parts[2]
-            if len(parts) >= 4: data.contact_linkedin = parts[3]
-            if len(parts) >= 5: data.contact_portfolio = parts[4]
-            continue
-        elif line.startswith(MARKDOWN_H2_PREFIX):
-            sec_heading = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
-            if SECTION_SUMMARY in sec_heading or "PROFILE" in sec_heading:
-                current_section = SECTION_SUMMARY
-            elif SECTION_EXPERIENCE in sec_heading or "HISTORY" in sec_heading:
-                current_section = SECTION_EXPERIENCE
-            elif "SKILL" in sec_heading or "COMPETENCI" in sec_heading:
-                current_section = SECTION_SKILLS
-            elif "CERTIF" in sec_heading:
-                current_section = SECTION_CERTIFICATIONS
-            elif "EDUCAT" in sec_heading:
-                current_section = SECTION_EDUCATION
-            else:
-                current_section = sec_heading
-            continue
+def _build_skills_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Skills section."""
+    if not parsed.skills:
+        return []
+    skills_flowables = create_section_header_flowables(SECTION_SKILLS, styles["sec_header"])
+    for sk in parsed.skills:
+        sk_html = markdown_to_reportlab_html(sk)
+        skills_flowables.append(Paragraph(sk_html, styles["skill"]))
+    return [KeepTogether(skills_flowables)]
 
-        if current_section == SECTION_SUMMARY:
-            if not line.startswith(">") and not line.startswith("**Work Authorization:**"):
-                summary_lines.append(line)
+def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Certifications section."""
+    if not parsed.certifications:
+        return []
+    story = create_section_header_flowables(SECTION_CERTIFICATIONS, styles["sec_header"])
+    for cert in parsed.certifications:
+        cert_html = markdown_to_reportlab_html(cert)
+        story.append(Paragraph(cert_html, styles["cert"]))
+    return story
 
-        elif current_section == SECTION_EXPERIENCE:
-            if line.startswith(MARKDOWN_H3_PREFIX) or line.startswith(MARKDOWN_H4_PREFIX):
-                raw_job = line.lstrip("#").strip()
-                parsed_heading = parse_job_heading_components(raw_job)
-                current_job = JobEntry(
-                    heading=raw_job,
-                    title=parsed_heading["title"],
-                    company=parsed_heading["company"],
-                    location=parsed_heading["location"],
-                    dates=parsed_heading["dates"],
-                    bullets=[]
-                )
-                data.jobs.append(current_job)
-            elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
-                bullet = line[2:].strip()
-                if current_job:
-                    current_job.bullets.append(bullet)
-                elif data.jobs:
-                    data.jobs[-1].bullets.append(bullet)
-
-        elif current_section == SECTION_SKILLS and line.startswith(MARKDOWN_BULLET_PREFIX):
-            data.skills.append(line[2:].strip())
-
-        elif current_section == SECTION_CERTIFICATIONS and line.startswith(MARKDOWN_BULLET_PREFIX):
-            data.certifications.append(line[2:].strip())
-
-        elif current_section == SECTION_EDUCATION and line.startswith(MARKDOWN_BULLET_PREFIX):
-            clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
-            data.education.append(clean_edu)
-
-    if not data.name:
-        data.name = DEFAULT_CANDIDATE_NAME
-
-    data.summary = " ".join(summary_lines)
-    return data
+def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Education section."""
+    if not parsed.education:
+        return []
+    story = create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"])
+    for edu in parsed.education:
+        clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
+        story.append(Paragraph(markdown_to_reportlab_html(clean_edu), styles["edu"]))
+    return story
 
 def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
-    """Render PDF document directly from ResumeData Pydantic model (Open/Closed Principle)."""
+    """Render PDF document directly from ResumeData Pydantic model using modular story builders."""
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
 
     doc = SimpleDocTemplate(
@@ -143,52 +109,13 @@ def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
     styles = get_resume_styles()
     story = []
 
-    # 1. Header: Name & Contact Paragraph
-    story.append(Paragraph(parsed.name, styles["name"]))
-    contact_html = format_contact_paragraph(parsed)
-    if contact_html:
-        story.append(Paragraph(contact_html, styles["contact"]))
-
-    # 2. Professional Summary Section
-    if parsed.summary:
-        story.extend(create_section_header_flowables(SECTION_SUMMARY, styles["sec_header"]))
-        sum_html = markdown_to_reportlab_html(parsed.summary)
-        story.append(Paragraph(sum_html, styles["summary"]))
-
-    # 3. Experience Section
-    if parsed.jobs:
-        story.extend(create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"]))
-        for job in parsed.jobs:
-            job_flowables = [Paragraph(format_job_heading(job), styles["job_heading"])]
-            for b in job.bullets:
-                b_html = markdown_to_reportlab_html(b)
-                job_flowables.append(Paragraph(f"• {b_html}", styles["bullet"]))
-
-            job_flowables.append(Spacer(1, 3))
-            story.append(KeepTogether(job_flowables))
-
-    # 4. Skills Section
-    if parsed.skills:
-        skills_flowables = create_section_header_flowables(SECTION_SKILLS, styles["sec_header"])
-        for sk in parsed.skills:
-            sk_html = markdown_to_reportlab_html(sk)
-            skills_flowables.append(Paragraph(sk_html, styles["skill"]))
-
-        story.append(KeepTogether(skills_flowables))
-
-    # 5. Certifications Section
-    if parsed.certifications:
-        story.extend(create_section_header_flowables(SECTION_CERTIFICATIONS, styles["sec_header"]))
-        for cert in parsed.certifications:
-            cert_html = markdown_to_reportlab_html(cert)
-            story.append(Paragraph(cert_html, styles["cert"]))
-
-    # 6. Education Section
-    if parsed.education:
-        story.extend(create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"]))
-        for edu in parsed.education:
-            clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
-            story.append(Paragraph(markdown_to_reportlab_html(clean_edu), styles["edu"]))
+    # Build story modularly per section
+    story.extend(_build_header_story(parsed, styles))
+    story.extend(_build_summary_story(parsed, styles))
+    story.extend(_build_experience_story(parsed, styles))
+    story.extend(_build_skills_story(parsed, styles))
+    story.extend(_build_certifications_story(parsed, styles))
+    story.extend(_build_education_story(parsed, styles))
 
     doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path
@@ -203,5 +130,5 @@ def render_pdf_resume(raw_resume_source: Union[Path, str], output_pdf_path: Path
         raise FileNotFoundError(f"Raw resume file not found: {raw_path}")
 
     raw_content = raw_path.read_text(encoding="utf-8")
-    parsed = parse_raw_resume(raw_content)
+    parsed = parse_resume_markdown(raw_content)
     return render_pdf_from_model(parsed, output_pdf_path)

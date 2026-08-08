@@ -31,6 +31,7 @@ def clean_text(text: str) -> str:
     """Remove excessive whitespace while preserving line breaks (KISS)."""
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
+    text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
 def is_standard_header(line: str) -> bool:

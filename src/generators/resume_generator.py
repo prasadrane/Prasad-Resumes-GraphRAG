@@ -49,6 +49,11 @@ def clean_em_dashes(text: str) -> str:
     text = re.sub(r"\s+\.\s+", ". ", text)
     return text.strip()
 
+def _can_bold_keyword(matched_len: int, current_bold_chars: int, total_chars: int, max_bold_ratio: float) -> bool:
+    """Helper predicate to check if bolding a keyword stays under max character ratio."""
+    new_ratio = (current_bold_chars + matched_len) / total_chars
+    return new_ratio <= (max_bold_ratio + 0.05)
+
 def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max_bold_ratio: float = 0.20) -> str:
     """Highlight job description keywords judiciously (max 2-3 phrases, <20% bolded text total)."""
     if not text or not keywords:
@@ -70,16 +75,24 @@ def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max
         match = pattern.search(text)
         if match:
             matched_str = match.group(1)
-            new_bold_chars = current_bold_chars + len(matched_str)
-            if (new_bold_chars / total_chars) <= (max_bold_ratio + 0.05):
+            if _can_bold_keyword(len(matched_str), current_bold_chars, total_chars, max_bold_ratio):
                 text = pattern.sub(r"**\1**", text, count=1)
-                current_bold_chars = new_bold_chars
+                current_bold_chars += len(matched_str)
                 bold_count += 1
 
     return text
 
-def parse_master_resume(content: str) -> ResumeData:
-    """Parse raw master resume into a generic ResumeData Pydantic model dynamically."""
+def _parse_contact_line(contact_str: str, data: ResumeData) -> None:
+    """Parse contact header line into structured ResumeData contact fields."""
+    parts = [p.strip() for p in contact_str.split("|") if p.strip()]
+    if len(parts) >= 1: data.contact_location = parts[0]
+    if len(parts) >= 2: data.contact_phone = parts[1]
+    if len(parts) >= 3: data.contact_email = parts[2]
+    if len(parts) >= 4: data.contact_linkedin = parts[3]
+    if len(parts) >= 5: data.contact_portfolio = parts[4]
+
+def parse_resume_markdown(content: str) -> ResumeData:
+    """Unified Markdown resume parser building a generic ResumeData Pydantic model."""
     lines = [clean_em_dashes(l) for l in content.split("\n")]
     data = ResumeData()
     
@@ -92,7 +105,6 @@ def parse_master_resume(content: str) -> ResumeData:
         if not line:
             continue
 
-        # Dynamic Candidate Name extraction from # Header or **Name** line
         if line.startswith(MARKDOWN_H1_PREFIX):
             header_text = line[len(MARKDOWN_H1_PREFIX):].strip()
             header_text = re.sub(r"(?i)\s*[\.—–|-]*\s*MASTER RESUME.*$", "", header_text).strip()
@@ -105,8 +117,13 @@ def parse_master_resume(content: str) -> ResumeData:
             data.title = line.replace("**Title:**", "").strip()
             continue
 
-        if line.startswith("## "):
-            sec_upper = line.upper()
+        if line.startswith("**Contact:**"):
+            contact_str = line.replace("**Contact:**", "").strip()
+            _parse_contact_line(contact_str, data)
+            continue
+
+        if line.startswith(MARKDOWN_H2_PREFIX):
+            sec_upper = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
             if SECTION_SUMMARY in sec_upper or "PROFILES" in sec_upper:
                 current_sec = SECTION_SUMMARY
             elif SECTION_EXPERIENCE in sec_upper or "BULLET" in sec_upper:
@@ -131,7 +148,6 @@ def parse_master_resume(content: str) -> ResumeData:
                 current_sec = SECTION_SKIP_SUMMARY_VARIANTS
                 continue
             if line.startswith("📍") or line.startswith(">") or line.startswith("**Work Authorization:**"):
-                # Extract Candidate Name if present on name bold line
                 if line.startswith("**") and not data.name:
                     bold_name = re.findall(r"\*\*(.*?)\*\*", line)
                     if bold_name:
@@ -173,6 +189,9 @@ def parse_master_resume(content: str) -> ResumeData:
     data.summary = " ".join(summary_lines)
     return data
 
+# Alias for backwards compatibility
+parse_master_resume = parse_resume_markdown
+
 def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text."""
     out_lines = [
@@ -187,15 +206,13 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     out_lines.append(bold_keywords(data.summary, keywords, max_bold_phrases=3, max_bold_ratio=0.15))
     out_lines.append("")
 
-    # 2. EXPERIENCE (Generic bullet cap for 2-page page budget)
+    # 2. EXPERIENCE
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EXPERIENCE}")
     for idx, job in enumerate(data.jobs):
         clean_heading = clean_em_dashes(job.heading)
         out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
-        # Generic role filtering: 4 bullets for primary/first role, 3 bullets for subsequent roles
         max_bullets = 4 if idx == 0 else 3
-        selected_bullets = job.bullets[:max_bullets]
-        for b in selected_bullets:
+        for b in job.bullets[:max_bullets]:
             bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
             out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
         out_lines.append("")
@@ -231,7 +248,7 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
-        parsed: ResumeData = parse_master_resume(master_content)
+        parsed = parse_resume_markdown(master_content)
     else:
         parsed = ResumeData(
             name=DEFAULT_CANDIDATE_NAME,
