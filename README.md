@@ -2,11 +2,11 @@
 
 LLM-powered knowledge graph built over Prasad's **Master Resume** (consolidated from 47+ resume variations and master source files) and **Behavioral Story Bank**, using Microsoft GraphRAG + Google Gemini + FreeLLMAPI / OpenRouter fallback pool, complete with an automated ATS-tailored raw text and rule-based PDF resume generation pipeline.
 
-**Status:** 🚀 **Enterprise Modular & Production Ready** | Clean architecture with `src/` modules, `config/` settings, `scripts/` launchers, and test suites.
+**Status:** **Enterprise Modular & Production Ready** | Clean architecture with `src/` modules, `config/` settings, `scripts/` launchers, and test suites.
 
 ---
 
-## 🏗️ Architecture & System Data Flow
+## Architecture & System Data Flow
 
 ![Architecture & System Data Flow](docs/architecture_diagram.png)
 
@@ -23,7 +23,7 @@ LLM-powered knowledge graph built over Prasad's **Master Resume** (consolidated 
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 - `src/`                <- Enterprise modular application code
   - `converters/`      <- PDF parsing (`pdf_parser.py`) and section structuring (`resume_structurer.py`)
@@ -45,7 +45,7 @@ LLM-powered knowledge graph built over Prasad's **Master Resume** (consolidated 
 
 ---
 
-## ⚙️ Quick Start Setup
+## Quick Start Setup
 
 ### 1. Configure API Key
 Add your Gemini API Key to `.env`:
@@ -118,10 +118,9 @@ This repository includes a serverless refactor allowing deployment to **Vercel F
 python -m unittest discover -s tests
 ```
 
-
 ---
 
-## 📄 Resume Generation Standards & Rules
+## Resume Generation Standards & Rules
 
 The PDF renderer follows strict ATS resume design standards:
 
@@ -139,7 +138,7 @@ The PDF renderer follows strict ATS resume design standards:
 
 ---
 
-## 🔄 Multi-Tier Fallback Architecture
+## Multi-Tier Fallback Architecture
 
 To eliminate rate-limiting (`429`) and daily quota blocks during indexing and querying, requests are routed through **LiteLLM Proxy (port 8002)** using an automated multi-tier fallback chain:
 
@@ -158,7 +157,7 @@ To eliminate rate-limiting (`429`) and daily quota blocks during indexing and qu
 
 ---
 
-## 📊 Applied Pipeline Optimizations
+## Applied Pipeline Optimizations
 
 | Parameter | Configuration / Value | Benefit |
 | :--- | :--- | :--- |
