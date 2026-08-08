@@ -1,6 +1,6 @@
 /**
  * app.js — Material Design 3 Frontend Architecture for Prasad Resumes GraphRAG UI.
- * Discrete Controllers: Navigation, Generator, Chatbot, and PreviewDrawer.
+ * Discrete Controllers: Navigation, DefaultResume, Generator, Chatbot, and PreviewDrawer.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let html = this.escapeHtml(text);
             html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
             html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
-            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            html = html.replace(/\*(.*?)\*/g, 'em>$1</em>');
             html = html.replace(/`(.*?)`/g, '<code>$1</code>');
             const lines = html.split('\n');
             let inList = false;
@@ -70,39 +70,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Navigation Controller (Material Design 3 Segmented Control)
     const NavigationController = {
+        navDefaultBtn: document.getElementById('nav-default-btn'),
         navTailorBtn: document.getElementById('nav-tailor-btn'),
         navChatBtn: document.getElementById('nav-chat-btn'),
+
+        defaultView: document.getElementById('default-view'),
         generatorView: document.getElementById('generator-view'),
         chatbotView: document.getElementById('chatbot-view'),
 
         init() {
-            if (!this.navTailorBtn || !this.navChatBtn) return;
-            this.navTailorBtn.addEventListener('click', () => this.switchTab('tailor'));
-            this.navChatBtn.addEventListener('click', () => this.switchTab('chat'));
+            if (this.navDefaultBtn) this.navDefaultBtn.addEventListener('click', () => this.switchTab('default'));
+            if (this.navTailorBtn) this.navTailorBtn.addEventListener('click', () => this.switchTab('tailor'));
+            if (this.navChatBtn) this.navChatBtn.addEventListener('click', () => this.switchTab('chat'));
+
+            // Load Default Resume on startup as 1st active view
+            DefaultResumeController.loadDefaultResume();
         },
 
         switchTab(tab) {
-            if (tab === 'tailor') {
-                this.navTailorBtn.classList.add('active');
-                this.navTailorBtn.setAttribute('aria-selected', 'true');
-                this.navChatBtn.classList.remove('active');
-                this.navChatBtn.setAttribute('aria-selected', 'false');
+            // Reset all button active states
+            [this.navDefaultBtn, this.navTailorBtn, this.navChatBtn].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove('active');
+                    btn.setAttribute('aria-selected', 'false');
+                }
+            });
 
-                this.generatorView.classList.remove('hidden');
-                this.chatbotView.classList.add('hidden');
+            // Hide all views cleanly (no DOM overlap)
+            [this.defaultView, this.generatorView, this.chatbotView].forEach(view => {
+                if (view) view.classList.add('hidden');
+            });
+
+            if (tab === 'default') {
+                if (this.navDefaultBtn) {
+                    this.navDefaultBtn.classList.add('active');
+                    this.navDefaultBtn.setAttribute('aria-selected', 'true');
+                }
+                if (this.defaultView) this.defaultView.classList.remove('hidden');
+                DefaultResumeController.loadDefaultResume();
+            } else if (tab === 'tailor') {
+                if (this.navTailorBtn) {
+                    this.navTailorBtn.classList.add('active');
+                    this.navTailorBtn.setAttribute('aria-selected', 'true');
+                }
+                if (this.generatorView) this.generatorView.classList.remove('hidden');
             } else if (tab === 'chat') {
-                this.navChatBtn.classList.add('active');
-                this.navChatBtn.setAttribute('aria-selected', 'true');
-                this.navTailorBtn.classList.remove('active');
-                this.navTailorBtn.setAttribute('aria-selected', 'false');
-
-                this.chatbotView.classList.remove('hidden');
-                this.generatorView.classList.add('hidden');
+                if (this.navChatBtn) {
+                    this.navChatBtn.classList.add('active');
+                    this.navChatBtn.setAttribute('aria-selected', 'true');
+                }
+                if (this.chatbotView) this.chatbotView.classList.remove('hidden');
             }
         }
     };
 
-    // 2. Preview Drawer Controller (PDF & Raw Edit Modes)
+    // 2. Default Resume Controller
+    const DefaultResumeController = {
+        defaultView: document.getElementById('default-view'),
+        defaultPdfIframe: document.getElementById('default-pdf-iframe'),
+        defaultRawTextarea: document.getElementById('default-raw-textarea'),
+        defaultTogglePdfBtn: document.getElementById('default-toggle-pdf-btn'),
+        defaultToggleEditBtn: document.getElementById('default-toggle-edit-btn'),
+        defaultPdfContainer: document.getElementById('default-pdf-container'),
+        defaultEditContainer: document.getElementById('default-edit-container'),
+        defaultDownloadLink: document.getElementById('default-download-link'),
+        defaultOpenLink: document.getElementById('default-open-link'),
+
+        isLoaded: false,
+
+        init() {
+            if (!this.defaultView) return;
+            if (this.defaultTogglePdfBtn) this.defaultTogglePdfBtn.addEventListener('click', () => this.switchMode('pdf'));
+            if (this.defaultToggleEditBtn) this.defaultToggleEditBtn.addEventListener('click', () => this.switchMode('edit'));
+        },
+
+        async loadDefaultResume() {
+            if (this.isLoaded) return;
+            try {
+                const res = await fetch('/api/default-resume');
+                if (!res.ok) throw new Error('Failed to fetch default master resume.');
+                const data = await res.json();
+                
+                if (this.defaultPdfIframe) this.defaultPdfIframe.src = data.pdf_url;
+                if (this.defaultRawTextarea) this.defaultRawTextarea.value = data.raw_resume || '';
+                if (this.defaultDownloadLink) this.defaultDownloadLink.href = data.pdf_url;
+                if (this.defaultOpenLink) this.defaultOpenLink.href = data.pdf_url;
+                this.isLoaded = true;
+            } catch (err) {
+                if (this.defaultRawTextarea) this.defaultRawTextarea.value = `Error loading default resume: ${err.message}`;
+            }
+        },
+
+        switchMode(mode) {
+            if (mode === 'pdf') {
+                if (this.defaultTogglePdfBtn) this.defaultTogglePdfBtn.classList.add('active');
+                if (this.defaultToggleEditBtn) this.defaultToggleEditBtn.classList.remove('active');
+                if (this.defaultPdfContainer) this.defaultPdfContainer.classList.remove('hidden');
+                if (this.defaultEditContainer) this.defaultEditContainer.classList.add('hidden');
+            } else {
+                if (this.defaultToggleEditBtn) this.defaultToggleEditBtn.classList.add('active');
+                if (this.defaultTogglePdfBtn) this.defaultTogglePdfBtn.classList.remove('active');
+                if (this.defaultEditContainer) this.defaultEditContainer.classList.remove('hidden');
+                if (this.defaultPdfContainer) this.defaultPdfContainer.classList.add('hidden');
+            }
+        }
+    };
+
+    // 3. Preview Drawer Controller (PDF & Raw Edit Modes for Tailored Resume)
     const PreviewController = {
         previewSection: document.getElementById('preview-section'),
         previewFilename: document.getElementById('preview-filename'),
@@ -124,10 +198,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         init() {
             if (!this.previewSection) return;
-            this.closePreviewBtn.addEventListener('click', () => this.close());
-            this.togglePdfBtn.addEventListener('click', () => this.switchDrawerMode('pdf'));
-            this.toggleEditBtn.addEventListener('click', () => this.switchDrawerMode('edit'));
-            this.saveRerenderBtn.addEventListener('click', () => this.handleSaveAndRerender());
+            if (this.closePreviewBtn) this.closePreviewBtn.addEventListener('click', () => this.close());
+            if (this.togglePdfBtn) this.togglePdfBtn.addEventListener('click', () => this.switchDrawerMode('pdf'));
+            if (this.toggleEditBtn) this.toggleEditBtn.addEventListener('click', () => this.switchDrawerMode('edit'));
+            if (this.saveRerenderBtn) this.saveRerenderBtn.addEventListener('click', () => this.handleSaveAndRerender());
 
             // Global trigger bindings
             window.previewPdf = (pdfUrl, title, txtUrl = '', rawText = '') => this.openPdf(pdfUrl, title, txtUrl, rawText);
@@ -139,15 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
             this.currentTxtUrl = txtUrl;
             if (rawText) {
                 this.currentRawText = rawText;
-                this.rawEditTextarea.value = rawText;
+                if (this.rawEditTextarea) this.rawEditTextarea.value = rawText;
             }
-            this.previewFilename.textContent = title;
-            this.previewOpenLink.href = pdfUrl;
+            if (this.previewFilename) this.previewFilename.textContent = title;
+            if (this.previewOpenLink) this.previewOpenLink.href = pdfUrl;
             if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
-            this.pdfIframe.src = pdfUrl;
+            if (this.pdfIframe) this.pdfIframe.src = pdfUrl;
             this.switchDrawerMode('pdf');
-            this.previewSection.classList.remove('hidden');
-            this.previewSection.scrollIntoView({ behavior: 'smooth' });
+            if (this.previewSection) {
+                this.previewSection.classList.remove('hidden');
+                this.previewSection.scrollIntoView({ behavior: 'smooth' });
+            }
         },
 
         openEdit(txtUrl, pdfUrl, title, rawText = '') {
@@ -156,32 +232,29 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rawText) {
                 this.currentRawText = rawText;
             }
-            this.previewFilename.textContent = title;
-            this.previewOpenLink.href = pdfUrl;
+            if (this.previewFilename) this.previewFilename.textContent = title;
+            if (this.previewOpenLink) this.previewOpenLink.href = pdfUrl;
             if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
-            this.pdfIframe.src = pdfUrl;
+            if (this.pdfIframe) this.pdfIframe.src = pdfUrl;
             this.switchDrawerMode('edit');
-            this.previewSection.classList.remove('hidden');
-            this.previewSection.scrollIntoView({ behavior: 'smooth' });
-        },
-
-        close() {
-            this.previewSection.classList.add('hidden');
-            this.pdfIframe.src = 'about:blank';
+            if (this.previewSection) {
+                this.previewSection.classList.remove('hidden');
+                this.previewSection.scrollIntoView({ behavior: 'smooth' });
+            }
         },
 
         switchDrawerMode(mode) {
             if (mode === 'pdf') {
-                this.togglePdfBtn.classList.add('active');
-                this.toggleEditBtn.classList.remove('active');
-                this.pdfViewContainer.classList.remove('hidden');
-                this.editViewContainer.classList.add('hidden');
+                if (this.togglePdfBtn) this.togglePdfBtn.classList.add('active');
+                if (this.toggleEditBtn) this.toggleEditBtn.classList.remove('active');
+                if (this.pdfViewContainer) this.pdfViewContainer.classList.remove('hidden');
+                if (this.editViewContainer) this.editViewContainer.classList.add('hidden');
             } else if (mode === 'edit') {
-                this.toggleEditBtn.classList.add('active');
-                this.togglePdfBtn.classList.remove('active');
-                this.editViewContainer.classList.remove('hidden');
-                this.pdfViewContainer.classList.add('hidden');
-                if (this.currentRawText) {
+                if (this.toggleEditBtn) this.toggleEditBtn.classList.add('active');
+                if (this.togglePdfBtn) this.togglePdfBtn.classList.remove('active');
+                if (this.editViewContainer) this.editViewContainer.classList.remove('hidden');
+                if (this.pdfViewContainer) this.pdfViewContainer.classList.add('hidden');
+                if (this.currentRawText && this.rawEditTextarea) {
                     this.rawEditTextarea.value = this.currentRawText;
                 } else if (this.currentTxtUrl) {
                     this.fetchRawContent(this.currentTxtUrl);
@@ -195,13 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Failed to fetch raw resume content.');
                 const text = await res.text();
                 this.currentRawText = text;
-                this.rawEditTextarea.value = text;
+                if (this.rawEditTextarea) this.rawEditTextarea.value = text;
             } catch (err) {
-                this.rawEditTextarea.value = `Error loading content: ${err.message}`;
+                if (this.rawEditTextarea) this.rawEditTextarea.value = `Error loading content: ${err.message}`;
             }
         },
 
         async handleSaveAndRerender() {
+            if (!this.rawEditTextarea) return;
             const newContent = this.rawEditTextarea.value;
             if (!newContent.trim()) return;
             this.setSaveLoading(true);
@@ -213,7 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         raw_text: newContent,
                         txt_url: this.currentTxtUrl,
-                        company: this.previewFilename.textContent
+                        company: this.previewFilename ? this.previewFilename.textContent : 'Tailored'
                     })
                 });
 
@@ -223,8 +297,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 GeneratorController.showAlert('Resume updated and re-rendered successfully!', 'success');
                 this.currentPdfUrl = data.pdf_url;
                 this.currentRawText = newContent;
-                this.pdfIframe.src = this.currentPdfUrl;
-                this.previewOpenLink.href = this.currentPdfUrl;
+                if (this.pdfIframe) this.pdfIframe.src = this.currentPdfUrl;
+                if (this.previewOpenLink) this.previewOpenLink.href = this.currentPdfUrl;
                 if (this.previewDownloadLink) this.previewDownloadLink.href = this.currentPdfUrl;
                 this.switchDrawerMode('pdf');
             } catch (err) {
@@ -235,15 +309,23 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         setSaveLoading(isLoading) {
+            if (!this.saveRerenderBtn) return;
             this.saveRerenderBtn.disabled = isLoading;
             const btnText = this.saveRerenderBtn.querySelector('.btn-text');
-            btnText.textContent = isLoading ? 'Saving & Rendering...' : 'Save & Re-render PDF';
+            if (btnText) btnText.textContent = isLoading ? 'Saving & Rendering...' : 'Save & Re-render PDF';
+        },
+
+        close() {
+            if (this.previewSection) {
+                this.previewSection.classList.add('hidden');
+                if (this.pdfIframe) this.pdfIframe.src = 'about:blank';
+            }
         }
     };
 
-    // 3. Generator Controller (Resume Tailoring Form & Live Char Counter)
+    // 4. Generator Form Controller
     const GeneratorController = {
-        resumeForm: document.getElementById('resume-form'),
+        form: document.getElementById('resume-form'),
         companyInput: document.getElementById('company-input'),
         jdInput: document.getElementById('jd-input'),
         jdCharCount: document.getElementById('jd-char-count'),
@@ -251,40 +333,62 @@ document.addEventListener('DOMContentLoaded', () => {
         formAlert: document.getElementById('form-alert'),
 
         init() {
-            if (!this.resumeForm) return;
-            this.resumeForm.addEventListener('submit', (e) => this.handleSubmit(e));
+            if (!this.form) return;
+            this.form.addEventListener('submit', (e) => this.handleSubmit(e));
+            this.jdInput.addEventListener('input', () => this.updateCharCount());
+        },
 
-            // Character counter for Job Description
-            if (this.jdInput && this.jdCharCount) {
-                this.jdInput.addEventListener('input', () => {
-                    const len = this.jdInput.value.length;
-                    this.jdCharCount.textContent = `${len.toLocaleString()} / 10,000 chars`;
-                });
+        updateCharCount() {
+            const count = this.jdInput.value.length;
+            this.jdCharCount.textContent = `${count.toLocaleString()} / 10,000 chars`;
+        },
+
+        showAlert(msg, type) {
+            Utils.showAlert(msg, type, this.formAlert);
+        },
+
+        hideAlert() {
+            Utils.hideAlert(this.formAlert);
+        },
+
+        setLoading(isLoading) {
+            this.generateBtn.disabled = isLoading;
+            const btnText = this.generateBtn.querySelector('.btn-text');
+            const btnIcon = this.generateBtn.querySelector('.btn-icon');
+            if (isLoading) {
+                btnText.textContent = 'Synthesizing Tailored Resume...';
+                btnIcon.textContent = 'hourglass_empty';
+            } else {
+                btnText.textContent = 'Generate Tailored Resume';
+                btnIcon.textContent = 'auto_awesome';
             }
         },
 
         async handleSubmit(e) {
             e.preventDefault();
-            const company = this.companyInput.value.trim();
-            const jdText = this.jdInput.value.trim();
+            this.hideAlert();
+
+            const company = this.companyInput.value.strip ? this.companyInput.value.strip() : this.companyInput.value.trim();
+            const jdText = this.jdInput.value.strip ? this.jdInput.value.strip() : this.jdInput.value.trim();
 
             if (!company) {
-                this.showAlert('Please enter a target company name.', 'error');
+                this.showAlert('Please specify target company name.', 'error');
                 return;
             }
 
             this.setLoading(true);
-            this.hideAlert();
 
             try {
-                const res = await fetch('/api/generate', {
+                const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ company, jd_text: jdText })
+                    body: JSON.stringify({ company: company, jd_text: jdText })
                 });
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || 'Resume generation failed.');
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Failed to generate tailored resume.');
+                }
 
                 this.showAlert(`Success! Tailored resume created for ${company}.`, 'success');
                 if (data.pdf_url) {
@@ -295,106 +399,97 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 this.setLoading(false);
             }
-        },
-
-        setLoading(isLoading) {
-            this.generateBtn.disabled = isLoading;
-            const btnText = this.generateBtn.querySelector('.btn-text');
-            btnText.textContent = isLoading ? 'Tailoring & Generating PDF...' : 'Generate Tailored Resume';
-        },
-
-        showAlert(msg, type) { Utils.showAlert(msg, type, this.formAlert); },
-        hideAlert() { Utils.hideAlert(this.formAlert); }
+        }
     };
 
-    // 4. Chatbot Controller (GraphRAG Q&A, M3 Mode Selector, Copy, Clear Chat)
+    // 5. GraphRAG Chatbot Controller
     const ChatbotController = {
         chatForm: document.getElementById('chat-form'),
         chatInput: document.getElementById('chat-input'),
-        chatMessages: document.getElementById('chat-messages'),
         chatSendBtn: document.getElementById('chat-send-btn'),
+        chatMessages: document.getElementById('chat-messages'),
         clearChatBtn: document.getElementById('clear-chat-btn'),
         modeBtns: document.querySelectorAll('.m3-mode-btn'),
-        chips: document.querySelectorAll('.m3-action-chip'),
+        actionChips: document.querySelectorAll('.m3-action-chip'),
 
         currentMode: 'local',
 
         init() {
             if (!this.chatForm) return;
             this.chatForm.addEventListener('submit', (e) => this.handleSubmit(e));
+            this.clearChatBtn.addEventListener('click', () => this.clearChat());
 
-            // Mode Segmented Buttons
             this.modeBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
                     this.modeBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    this.currentMode = btn.dataset.mode || 'local';
+                    e.currentTarget.classList.add('active');
+                    this.currentMode = e.currentTarget.getAttribute('data-mode') || 'local';
                 });
             });
 
-            // Action Chip listeners
-            this.chips.forEach(chip => {
-                chip.addEventListener('click', () => {
-                    const question = chip.getAttribute('data-question');
-                    if (question) {
-                        this.chatInput.value = question;
-                        this.sendQuery(question);
+            this.actionChips.forEach(chip => {
+                chip.addEventListener('click', (e) => {
+                    const q = e.currentTarget.getAttribute('data-question');
+                    if (q) {
+                        this.chatInput.value = q;
+                        this.handleSubmit(new Event('submit'));
                     }
                 });
             });
-
-            // Clear Chat listener
-            if (this.clearChatBtn) {
-                this.clearChatBtn.addEventListener('click', () => this.clearChat());
-            }
         },
 
-        handleSubmit(e) {
-            e.preventDefault();
-            const question = this.chatInput.value.trim();
-            if (!question) return;
-            this.sendQuery(question);
-        },
+        async handleSubmit(e) {
+            if (e) e.preventDefault();
+            const query = this.chatInput.value.trim();
+            if (!query) return;
 
-        async sendQuery(question) {
-            const mode = this.currentMode;
-
-            // Append User Message
-            this.appendMessage(question, 'user');
+            this.appendUserMessage(query);
             this.chatInput.value = '';
 
-            // Append Loading Indicator Message
-            const loadingMsgId = this.appendLoadingMessage();
+            const loadingId = this.appendLoadingMessage();
             this.setLoading(true);
 
             try {
-                const res = await fetch('/api/query', {
+                const response = await fetch('/api/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: question, mode })
+                    body: JSON.stringify({ query: query, mode: this.currentMode })
                 });
 
-                const data = await res.json();
-                this.removeMessage(loadingMsgId);
+                const data = await response.json();
+                this.removeMessage(loadingId);
 
-                if (!res.ok) throw new Error(data.detail || 'Query execution failed.');
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Query execution failed.');
+                }
 
-                this.appendMessage(data.response, 'assistant');
+                this.appendAssistantMessage(data.response || 'No response returned.');
             } catch (err) {
-                this.removeMessage(loadingMsgId);
-                this.appendMessage(`❌ Error: ${err.message}`, 'assistant');
+                this.removeMessage(loadingId);
+                this.appendAssistantMessage(`❌ Error: ${err.message}`);
             } finally {
                 this.setLoading(false);
             }
         },
 
-        appendMessage(text, role) {
+        appendUserMessage(text) {
             const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${role}`;
-            
+            msgDiv.className = 'message user';
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            if (role === 'assistant') {
+            bubbleDiv.textContent = text;
+            msgDiv.appendChild(bubbleDiv);
+            this.chatMessages.appendChild(msgDiv);
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+        },
+
+        appendAssistantMessage(text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message assistant';
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            if (text.includes('#') || text.includes('**') || text.includes('- ') || text.includes('• ')) {
                 bubbleDiv.innerHTML = Utils.formatMarkdown(text);
                 
                 // Append Copy to Clipboard Button for Assistant messages
@@ -460,6 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Initialize All Controllers
+    DefaultResumeController.init();
     NavigationController.init();
     PreviewController.init();
     GeneratorController.init();

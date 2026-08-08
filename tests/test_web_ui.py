@@ -29,13 +29,22 @@ class TestWebUI(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_default_resume_endpoint(self):
+        """Test GET /api/default-resume returns master resume PDF and raw text."""
+        response = self.client.get("/api/default-resume")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("pdf_url", data)
+        self.assertIn("raw_resume", data)
+        self.assertIn("PRASAD RANE", data["raw_resume"])
+
     def test_history_endpoint(self):
         """Test GET /api/history returns valid resume history entries."""
         response = self.client.get("/api/history")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsInstance(data, list)
-        # Check if TestCompanyUI exists in history
         companies = [item.get("company") for item in data]
         self.assertIn("TestCompanyUI", companies)
 
@@ -58,7 +67,6 @@ class TestWebUI(unittest.TestCase):
 
     def test_save_edit_endpoint(self):
         """Test POST /api/save-edit updates raw text and re-renders PDF."""
-        # Create mock TXT file
         test_txt = self.test_output_dir / "Prasad_Rane_Resume.txt"
         test_txt.write_text("# Prasad Rane\n\n## Professional Summary\nInitial summary.", encoding="utf-8")
 
@@ -71,14 +79,11 @@ class TestWebUI(unittest.TestCase):
         self.assertEqual(data["status"], "success")
         self.assertIn("pdf_url", data)
 
-        # Verify TXT file updated
         updated_content = test_txt.read_text(encoding="utf-8")
         self.assertIn("Updated summary line", updated_content)
 
-        # Cleanup TXT file
         if test_txt.exists():
             test_txt.unlink()
-
 
     def test_query_endpoint_validation(self):
         """Test POST /api/query validation on empty query."""
@@ -96,8 +101,5 @@ class TestWebUI(unittest.TestCase):
         self.assertEqual(data["response"], "Prasad used AWS Lambda and S3.")
         mock_query.assert_called_once_with(query="What AWS services did Prasad use?", mode="local", root_dir=ROOT_DIR)
 
-
 if __name__ == "__main__":
     unittest.main()
-
-

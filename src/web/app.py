@@ -16,7 +16,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = ROOT_DIR / "output"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-from src.generators.resume_generator import generate_raw_resume
+from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown
 from src.generators.pdf_renderer import render_pdf_resume
 from src.query.search_engine import execute_graphrag_query
 
@@ -77,6 +77,39 @@ def read_root():
     if index_path.exists():
         return FileResponse(str(index_path))
     return JSONResponse({"message": "Prasad Resumes GraphRAG API Server Active. UI static assets missing."})
+
+
+@app.get("/api/default-resume")
+@app.get("/api/default_resume")
+def get_default_resume_endpoint():
+    """Fetch default master resume raw text and PDF preview."""
+    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    if not master_path.exists():
+        raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
+
+    try:
+        master_content = master_path.read_text(encoding="utf-8")
+        parsed = parse_resume_markdown(master_content)
+        clean_raw_resume = format_tailored_markdown(parsed, [])
+
+        out_dir = OUTPUT_DIR / "Default"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        txt_target = out_dir / "raw_resume.txt"
+        txt_target.write_text(clean_raw_resume, encoding="utf-8")
+        pdf_target = out_dir / "Prasad_Rane_Default_Resume.pdf"
+        render_pdf_resume(txt_target, pdf_target)
+
+        pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+        txt_rel = txt_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+
+        return {
+            "status": "success",
+            "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
+            "txt_url": f"/api/files/{txt_rel}",
+            "raw_resume": clean_raw_resume
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load default resume: {str(e)}")
 
 
 @app.get("/api/history", response_model=List[ResumeHistoryItem])

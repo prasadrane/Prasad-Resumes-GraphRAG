@@ -15,7 +15,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.generators.ats_matcher import extract_ats_keywords
-from src.generators.resume_generator import generate_raw_resume
+from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown
 from src.generators.pdf_renderer import render_pdf_resume
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
@@ -49,6 +49,40 @@ import tempfile
 @app.get("/api/history")
 def get_history():
     return []
+
+@app.get("/api/default-resume")
+@app.get("/api/default_resume")
+def get_default_resume_endpoint():
+    """Fetch default master resume raw text and base64 PDF preview for Vercel serverless."""
+    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    if not master_path.exists():
+        raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
+
+    try:
+        master_content = master_path.read_text(encoding="utf-8")
+        parsed = parse_resume_markdown(master_content)
+        clean_raw_resume = format_tailored_markdown(parsed, [])
+
+        temp_out_dir = Path(tempfile.gettempdir()) / "output" / "Default"
+        temp_out_dir.mkdir(parents=True, exist_ok=True)
+        raw_path = temp_out_dir / "master_raw_resume.txt"
+        raw_path.write_text(clean_raw_resume, encoding="utf-8")
+
+        pdf_target = temp_out_dir / "Prasad_Rane_Default_Resume.pdf"
+        render_pdf_resume(raw_path, pdf_target)
+
+        pdf_bytes = pdf_target.read_bytes()
+        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+
+        return {
+            "status": "success",
+            "pdf_url": pdf_data_uri,
+            "txt_url": None,
+            "raw_resume": clean_raw_resume
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load default resume: {str(e)}")
 
 class RenderPdfRequest(BaseModel):
     raw_text: str
