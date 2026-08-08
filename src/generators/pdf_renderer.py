@@ -14,6 +14,28 @@ from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, KeepTogether
 
+from .constants import (
+    CREDLY_AWS_CERT_URL,
+    DEFAULT_AWS_CERTIFICATE,
+    DEFAULT_CANDIDATE_NAME,
+    DEFAULT_EDUCATION,
+    DEFAULT_EMAIL,
+    DEFAULT_LINKEDIN_URL,
+    DEFAULT_LOCATION,
+    DEFAULT_PHONE,
+    DEFAULT_PORTFOLIO_URL,
+    MARKDOWN_BULLET_PREFIX,
+    MARKDOWN_H1_PREFIX,
+    MARKDOWN_H2_PREFIX,
+    MARKDOWN_H3_PREFIX,
+    MARKDOWN_H4_PREFIX,
+    SECTION_CERTIFICATIONS,
+    SECTION_EDUCATION,
+    SECTION_EXPERIENCE,
+    SECTION_SKILLS,
+    SECTION_SUMMARY,
+)
+
 # Color Palette Reference
 COLOR_DARK = colors.HexColor("#1a1a2e")      # Name, Section Headers
 COLOR_ACCENT = colors.HexColor("#0f3460")    # Job Titles, Clickable Links
@@ -53,12 +75,12 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
     """Parse raw_resume.txt Markdown content into structured data."""
     lines = [l.strip() for l in raw_content.split("\n") if l.strip()]
     data: Dict[str, Any] = {
-        "name": "Prasad Rane",
-        "contact_location": "Lake Bluff, IL",
-        "contact_phone": "513-967-9423",
-        "contact_email": "emailprasadrane@gmail.com",
-        "contact_linkedin": "https://linkedin.com/in/rane-prasad",
-        "contact_portfolio": "https://prasadrane.vercel.app",
+        "name": DEFAULT_CANDIDATE_NAME,
+        "contact_location": DEFAULT_LOCATION,
+        "contact_phone": DEFAULT_PHONE,
+        "contact_email": DEFAULT_EMAIL,
+        "contact_linkedin": DEFAULT_LINKEDIN_URL,
+        "contact_portfolio": DEFAULT_PORTFOLIO_URL,
         "summary": "",
         "jobs": [],
         "skills": [],
@@ -71,31 +93,31 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
     summary_lines = []
 
     for line in lines:
-        if line.startswith("# "):
-            data["name"] = "Prasad Rane"
+        if line.startswith(MARKDOWN_H1_PREFIX):
+            data["name"] = DEFAULT_CANDIDATE_NAME
             continue
-        elif line.startswith("## "):
-            sec_heading = line[3:].strip().upper()
-            if "SUMMARY" in sec_heading or "PROFILE" in sec_heading:
-                current_section = "SUMMARY"
-            elif "EXPERIENCE" in sec_heading or "HISTORY" in sec_heading:
-                current_section = "EXPERIENCE"
+        elif line.startswith(MARKDOWN_H2_PREFIX):
+            sec_heading = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
+            if SECTION_SUMMARY in sec_heading or "PROFILE" in sec_heading:
+                current_section = SECTION_SUMMARY
+            elif SECTION_EXPERIENCE in sec_heading or "HISTORY" in sec_heading:
+                current_section = SECTION_EXPERIENCE
             elif "SKILL" in sec_heading or "COMPETENCI" in sec_heading:
-                current_section = "SKILLS"
+                current_section = SECTION_SKILLS
             elif "CERTIF" in sec_heading:
-                current_section = "CERTIFICATIONS"
+                current_section = SECTION_CERTIFICATIONS
             elif "EDUCAT" in sec_heading:
-                current_section = "EDUCATION"
+                current_section = SECTION_EDUCATION
             else:
                 current_section = sec_heading
             continue
 
-        if current_section == "SUMMARY":
+        if current_section == SECTION_SUMMARY:
             if not line.startswith(">") and not line.startswith("**Work Authorization:**"):
                 summary_lines.append(line)
 
-        elif current_section == "EXPERIENCE":
-            if line.startswith("### ") or line.startswith("#### "):
+        elif current_section == SECTION_EXPERIENCE:
+            if line.startswith(MARKDOWN_H3_PREFIX) or line.startswith(MARKDOWN_H4_PREFIX):
                 raw_job = line.lstrip("#").strip()
                 parsed_heading = parse_job_heading_components(raw_job)
                 current_job = {
@@ -107,23 +129,23 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
                     "bullets": []
                 }
                 data["jobs"].append(current_job)
-            elif line.startswith("- ") or line.startswith("* "):
+            elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
                 bullet = line[2:].strip()
                 if current_job:
                     current_job["bullets"].append(bullet)
                 elif data["jobs"]:
                     data["jobs"][-1]["bullets"].append(bullet)
 
-        elif current_section == "SKILLS":
-            if line.startswith("- "):
+        elif current_section == SECTION_SKILLS:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
                 data["skills"].append(line[2:].strip())
 
-        elif current_section == "CERTIFICATIONS":
-            if line.startswith("- "):
+        elif current_section == SECTION_CERTIFICATIONS:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
                 data["certifications"].append(line[2:].strip())
 
-        elif current_section == "EDUCATION":
-            if line.startswith("- "):
+        elif current_section == SECTION_EDUCATION:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
                 clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
                 data["education"].append(clean_edu)
 
@@ -138,7 +160,7 @@ def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
     return {
         "title": parts[0] if len(parts) > 0 else "Software Engineer",
         "company": parts[1] if len(parts) > 1 else "Rocket Mortgage",
-        "location": parts[2] if len(parts) > 2 else "Lake Bluff, IL",
+        "location": parts[2] if len(parts) > 2 else DEFAULT_LOCATION,
         "dates": parts[3] if len(parts) > 3 else "Jan 2023 - Jul 2025"
     }
 
@@ -146,7 +168,7 @@ def format_job_heading(job_dict: Dict[str, str]) -> str:
     """Format single line Job Heading: Job Title | Company Name | Location | Dates"""
     title = job_dict.get("title", "Software Engineer")
     company = job_dict.get("company", "Rocket Mortgage")
-    location = job_dict.get("location", "Lake Bluff, IL")
+    location = job_dict.get("location", DEFAULT_LOCATION)
     dates = job_dict.get("dates", "Jan 2023 - Jul 2025")
 
     return f'<font color="#0f3460"><b>{title}</b> | <b>{company}</b></font> | <font color="#6b7280"><i>{location}</i> | <i>{dates}</i></font>'
@@ -205,7 +227,7 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         textColor=COLOR_DARK,
         spaceAfter=6,
         alignment=0,
-        keepWithNext=True,  # Prevent orphaned section headers
+        keepWithNext=True,
     )
 
     style_job_heading = ParagraphStyle(
@@ -280,13 +302,13 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
     story = []
 
     # 1. Header: Name & Clickable Contact Details
-    story.append(Paragraph("Prasad Rane", style_name))
+    story.append(Paragraph(DEFAULT_CANDIDATE_NAME, style_name))
 
     contact_html = (
-        'Lake Bluff, IL | 513-967-9423 | '
-        '<a href="mailto:emailprasadrane@gmail.com"><font color="#0f3460">emailprasadrane@gmail.com</font></a> | '
-        '<a href="https://linkedin.com/in/rane-prasad"><font color="#0f3460">linkedin.com/in/rane-prasad</font></a> | '
-        '<a href="https://prasadrane.vercel.app"><font color="#0f3460">prasadrane.vercel.app</font></a>'
+        f'{DEFAULT_LOCATION} | {DEFAULT_PHONE} | '
+        f'<a href="mailto:{DEFAULT_EMAIL}"><font color="#0f3460">{DEFAULT_EMAIL}</font></a> | '
+        f'<a href="{DEFAULT_LINKEDIN_URL}"><font color="#0f3460">linkedin.com/in/rane-prasad</font></a> | '
+        f'<a href="{DEFAULT_PORTFOLIO_URL}"><font color="#0f3460">prasadrane.vercel.app</font></a>'
     )
     story.append(Paragraph(contact_html, style_contact))
 
@@ -296,13 +318,13 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     # 2. Professional Summary Section
     if parsed["summary"]:
-        add_section_header("PROFESSIONAL SUMMARY")
+        add_section_header(SECTION_SUMMARY)
         sum_html = markdown_to_reportlab_html(parsed["summary"])
         story.append(Paragraph(sum_html, style_summary))
 
     # 3. Experience Section
     if parsed["jobs"]:
-        add_section_header("EXPERIENCE")
+        add_section_header(SECTION_EXPERIENCE)
         for job in parsed["jobs"]:
             job_flowables = []
             heading_html = format_job_heading(job)
@@ -320,7 +342,7 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
     if parsed["skills"]:
         skills_flowables = []
         skills_flowables.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_RULE, spaceBefore=6, spaceAfter=6))
-        skills_flowables.append(Paragraph("SKILLS", style_sec_header))
+        skills_flowables.append(Paragraph(SECTION_SKILLS, style_sec_header))
 
         for sk in parsed["skills"]:
             sk_html = markdown_to_reportlab_html(sk)
@@ -329,13 +351,12 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         story.append(KeepTogether(skills_flowables))
 
     # 5. Certifications Section
-    cert_credly_url = "https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5"
-    add_section_header("CERTIFICATIONS")
+    add_section_header(SECTION_CERTIFICATIONS)
     if parsed["certifications"]:
         for cert in parsed["certifications"]:
             if "AWS" in cert and "Credly" not in cert:
                 cert_html = (
-                    f'<b><a href="{cert_credly_url}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
+                    f'<b><a href="{CREDLY_AWS_CERT_URL}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
                     f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
                 )
             else:
@@ -343,20 +364,20 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
             story.append(Paragraph(cert_html, style_cert))
     else:
         cert_html = (
-            f'<b><a href="{cert_credly_url}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
+            f'<b><a href="{CREDLY_AWS_CERT_URL}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
             f'- Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029'
         )
         story.append(Paragraph(cert_html, style_cert))
 
     # 6. Education Section (Display MS and BE without years)
-    add_section_header("EDUCATION")
+    add_section_header(SECTION_EDUCATION)
     if parsed["education"]:
         for edu in parsed["education"]:
             clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
             story.append(Paragraph(markdown_to_reportlab_html(clean_edu), style_edu))
     else:
-        story.append(Paragraph("M.S. in Information Systems - University of Cincinnati", style_edu))
-        story.append(Paragraph("B.E. in Electronics & Telecommunication - University of Pune", style_edu))
+        for edu in DEFAULT_EDUCATION:
+            story.append(Paragraph(markdown_to_reportlab_html(edu), style_edu))
 
     doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path

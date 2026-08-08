@@ -6,14 +6,7 @@ import re
 from typing import List
 from pathlib import Path
 from src.query.search_engine import execute_graphrag_query
-
-COMMON_TECH_KEYWORDS = {
-    "PYTHON", "JAVA", "C#", ".NET", "AWS", "AZURE", "GCP", "DOCKER", "KUBERNETES",
-    "GRAPHRAG", "LLM", "MICROSERVICES", "SQL", "NOSQL", "POSTGRESQL", "MONGODB",
-    "REACT", "ANGULAR", "TYPESCRIPT", "JAVASCRIPT", "CI/CD", "TERRAFORM",
-    "KAFKA", "RABBITMQ", "REDIS", "REST", "API", "GRAPHQL", "OBSERVABILITY",
-    "DATADOG", "PROMETHEUS", "GRAFANA", "OPENTELEMETRY", "PYTORCH", "TENSORFLOW"
-}
+from .constants import COMMON_ATS_KEYWORDS
 
 def extract_ats_keywords(jd_text: str) -> List[str]:
     """Extract ATS keywords, technologies, and competencies from job description text."""
@@ -21,12 +14,15 @@ def extract_ats_keywords(jd_text: str) -> List[str]:
         return []
 
     found = set()
+    upper_keywords = {kw.upper() for kw in COMMON_ATS_KEYWORDS}
     cleaned = re.sub(r"[^A-Za-z0-9+#/\s-]", " ", jd_text)
     tokens = [t.strip().upper() for t in cleaned.split() if len(t.strip()) >= 2]
 
     for token in tokens:
-        if token in COMMON_TECH_KEYWORDS:
-            found.add(token)
+        if token in upper_keywords:
+            # Map back to standard casing
+            matched_kw = next((kw for kw in COMMON_ATS_KEYWORDS if kw.upper() == token), token)
+            found.add(matched_kw)
 
     # Check multi-word patterns
     upper_jd = jd_text.upper()
@@ -42,8 +38,9 @@ def extract_ats_keywords(jd_text: str) -> List[str]:
     # Match title cased tech words
     words = re.findall(r"\b[A-Z][a-zA-Z0-9#+.-]{2,}\b", jd_text)
     for w in words:
-        if w.upper() in COMMON_TECH_KEYWORDS:
-            found.add(w)
+        if w.upper() in upper_keywords:
+            matched_kw = next((kw for kw in COMMON_ATS_KEYWORDS if kw.upper() == w.upper()), w)
+            found.add(matched_kw)
 
     return sorted(list(found))
 

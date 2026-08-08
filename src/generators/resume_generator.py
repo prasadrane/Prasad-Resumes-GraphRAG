@@ -8,6 +8,31 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .ats_matcher import extract_ats_keywords, match_graphrag_stories
+from .constants import (
+    CREDLY_AWS_CERT_URL,
+    DEFAULT_AWS_CERTIFICATE,
+    DEFAULT_CANDIDATE_NAME,
+    DEFAULT_CANDIDATE_TITLE,
+    DEFAULT_EDUCATION,
+    DEFAULT_EMAIL,
+    DEFAULT_LINKEDIN_URL,
+    DEFAULT_LOCATION,
+    DEFAULT_PHONE,
+    DEFAULT_PORTFOLIO_URL,
+    MARKDOWN_BULLET_PREFIX,
+    MARKDOWN_H1_PREFIX,
+    MARKDOWN_H2_PREFIX,
+    MARKDOWN_H3_PREFIX,
+    MARKDOWN_H4_PREFIX,
+    RAW_RESUME_FILENAME,
+    SECTION_CERTIFICATIONS,
+    SECTION_EDUCATION,
+    SECTION_EXPERIENCE,
+    SECTION_SKILLS,
+    SECTION_SKIP,
+    SECTION_SKIP_SUMMARY_VARIANTS,
+    SECTION_SUMMARY,
+)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -60,7 +85,7 @@ def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max
         if match:
             matched_str = match.group(1)
             new_bold_chars = current_bold_chars + len(matched_str)
-            if (new_bold_chars / total_chars) <= (max_bold_ratio + 0.05):  # Slight margin for multi-word
+            if (new_bold_chars / total_chars) <= (max_bold_ratio + 0.05):
                 text = pattern.sub(r"**\1**", text, count=1)
                 current_bold_chars = new_bold_chars
                 bold_count += 1
@@ -71,89 +96,87 @@ def parse_master_resume(content: str) -> Dict[str, Any]:
     """Parse raw master resume into structured canonical sections."""
     lines = [clean_em_dashes(l) for l in content.split("\n")]
     sections: Dict[str, List[str]] = {
-        "SUMMARY": [],
-        "EXPERIENCE": [],
-        "SKILLS": [],
-        "CERTIFICATIONS": [],
-        "EDUCATION": []
+        SECTION_SUMMARY: [],
+        SECTION_EXPERIENCE: [],
+        SECTION_SKILLS: [],
+        SECTION_CERTIFICATIONS: [],
+        SECTION_EDUCATION: []
     }
     
-    current_sec = "SUMMARY"
+    current_sec = SECTION_SUMMARY
     current_job_header = None
     current_job_bullets = []
 
     for line in lines:
         if not line:
             continue
-        if line.startswith("# ") and "MASTER RESUME" in line.upper():
+        if line.startswith(MARKDOWN_H1_PREFIX) and "MASTER RESUME" in line.upper():
             continue
-        if line.startswith("## "):
+        if line.startswith(MARKDOWN_H2_PREFIX):
             sec_upper = line.upper()
-            if "SUMMARY" in sec_upper or "PROFILES" in sec_upper:
-                current_sec = "SUMMARY"
-            elif "EXPERIENCE" in sec_upper or "BULLET" in sec_upper:
-                current_sec = "EXPERIENCE"
+            if SECTION_SUMMARY in sec_upper or "PROFILES" in sec_upper:
+                current_sec = SECTION_SUMMARY
+            elif SECTION_EXPERIENCE in sec_upper or "BULLET" in sec_upper:
+                current_sec = SECTION_EXPERIENCE
             elif "SKILL" in sec_upper:
-                current_sec = "SKILLS"
+                current_sec = SECTION_SKILLS
             elif "CERTIF" in sec_upper:
-                current_sec = "CERTIFICATIONS"
+                current_sec = SECTION_CERTIFICATIONS
             elif "EDUCAT" in sec_upper:
-                current_sec = "EDUCATION"
+                current_sec = SECTION_EDUCATION
             elif "GAP-FRAMING" in sec_upper:
-                current_sec = "SKIP"
+                current_sec = SECTION_SKIP
             continue
 
-        if current_sec == "SKIP":
+        if current_sec == SECTION_SKIP:
             continue
 
-        if current_sec == "SUMMARY":
+        if current_sec == SECTION_SUMMARY:
             if line.startswith("### Canonical Summary"):
                 continue
             if line.startswith("### Domain-Specific"):
-                current_sec = "SKIP_SUMMARY_VARIANTS"
+                current_sec = SECTION_SKIP_SUMMARY_VARIANTS
                 continue
-            if line.startswith("📍") or line.startswith("**Prasad Rane**") or line.startswith(">") or line.startswith("**Work Authorization:**"):
+            if line.startswith("📍") or line.startswith(f"**{DEFAULT_CANDIDATE_NAME}**") or line.startswith(">") or line.startswith("**Work Authorization:**"):
                 continue
-            sections["SUMMARY"].append(line)
+            sections[SECTION_SUMMARY].append(line)
 
-        elif current_sec == "SKIP_SUMMARY_VARIANTS":
+        elif current_sec == SECTION_SKIP_SUMMARY_VARIANTS:
             continue
 
-        elif current_sec == "EXPERIENCE":
-            if line.startswith("### "):
+        elif current_sec == SECTION_EXPERIENCE:
+            if line.startswith(MARKDOWN_H3_PREFIX):
                 if current_job_header:
-                    sections["EXPERIENCE"].append((current_job_header, current_job_bullets))
-                current_job_header = line[4:].strip()
+                    sections[SECTION_EXPERIENCE].append((current_job_header, current_job_bullets))
+                current_job_header = line[len(MARKDOWN_H3_PREFIX):].strip()
                 current_job_bullets = []
-            elif line.startswith("#### "):
-                # Story title header -> skip or add clean context
+            elif line.startswith(MARKDOWN_H4_PREFIX):
                 continue
-            elif line.startswith("- ") or line.startswith("* "):
+            elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
                 current_job_bullets.append(line[2:].strip())
 
-        elif current_sec == "SKILLS":
-            if line.startswith("- "):
-                sections["SKILLS"].append(line[2:].strip())
+        elif current_sec == SECTION_SKILLS:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
+                sections[SECTION_SKILLS].append(line[2:].strip())
 
-        elif current_sec == "CERTIFICATIONS":
-            if line.startswith("- "):
-                sections["CERTIFICATIONS"].append(line[2:].strip())
+        elif current_sec == SECTION_CERTIFICATIONS:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
+                sections[SECTION_CERTIFICATIONS].append(line[2:].strip())
 
-        elif current_sec == "EDUCATION":
-            if line.startswith("- "):
-                # Strip graduation year e.g. (2019) or (2013)
+        elif current_sec == SECTION_EDUCATION:
+            if line.startswith(MARKDOWN_BULLET_PREFIX):
                 clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
-                sections["EDUCATION"].append(clean_edu)
+                sections[SECTION_EDUCATION].append(clean_edu)
 
     if current_job_header:
-        sections["EXPERIENCE"].append((current_job_header, current_job_bullets))
+        sections[SECTION_EXPERIENCE].append((current_job_header, current_job_bullets))
 
     return sections
 
 def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None) -> Path:
     """Generate tailored raw_resume.txt adhering to exact ATS nomenclature and section order."""
     out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
-    raw_resume_path = out_dir / "raw_resume.txt"
+    raw_resume_path = out_dir / RAW_RESUME_FILENAME
 
     keywords = extract_ats_keywords(jd_text)
 
@@ -164,59 +187,57 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
         parsed = parse_master_resume(master_content)
     else:
         parsed = {
-            "SUMMARY": ["Senior Software Engineer with 10+ years of experience building high-throughput systems."],
-            "EXPERIENCE": [
-                ("Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 - Jul 2025", ["Built Python and AWS microservices."])
+            SECTION_SUMMARY: [f"{DEFAULT_CANDIDATE_TITLE} with 10+ years of experience building high-throughput systems."],
+            SECTION_EXPERIENCE: [
+                (f"Software Engineer | Rocket Mortgage | {DEFAULT_LOCATION} | Jan 2023 - Jul 2025", ["Built Python and AWS microservices."])
             ],
-            "SKILLS": ["Backend & APIs: C#, .NET Core, Python, AWS, Docker"],
-            "CERTIFICATIONS": ["AWS Certified Cloud Practitioner - Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029"],
-            "EDUCATION": ["M.S. in Information Systems - University of Cincinnati", "B.E. in Electronics & Telecommunication - University of Pune"]
+            SECTION_SKILLS: ["Backend & APIs: C#, .NET Core, Python, AWS, Docker"],
+            SECTION_CERTIFICATIONS: [DEFAULT_AWS_CERTIFICATE],
+            SECTION_EDUCATION: DEFAULT_EDUCATION
         }
 
     # Format document in strict section order
     out_lines = [
-        "# Prasad Rane",
-        "**Title:** Senior Software Engineer",
-        "**Contact:** Lake Bluff, IL | 513-967-9423 | emailprasadrane@gmail.com | linkedin.com/in/rane-prasad | prasadrane.vercel.app",
+        f"{MARKDOWN_H1_PREFIX}{DEFAULT_CANDIDATE_NAME}",
+        f"**Title:** {DEFAULT_CANDIDATE_TITLE}",
+        f"**Contact:** {DEFAULT_LOCATION} | {DEFAULT_PHONE} | {DEFAULT_EMAIL} | linkedin.com/in/rane-prasad | prasadrane.vercel.app",
         ""
     ]
 
     # 1. SUMMARY
-    out_lines.append("## SUMMARY")
-    sum_text = " ".join(parsed["SUMMARY"])
+    out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SUMMARY}")
+    sum_text = " ".join(parsed[SECTION_SUMMARY])
     out_lines.append(bold_keywords(sum_text, keywords, max_bold_phrases=3, max_bold_ratio=0.15))
     out_lines.append("")
 
-    # 2. EXPERIENCE (Filter top bullets per job to fit 2-page page budget)
-    out_lines.append("## EXPERIENCE")
-    for job_heading, bullets in parsed["EXPERIENCE"]:
+    # 2. EXPERIENCE
+    out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EXPERIENCE}")
+    for job_heading, bullets in parsed[SECTION_EXPERIENCE]:
         clean_heading = clean_em_dashes(job_heading)
-        out_lines.append(f"### {clean_heading}")
-        # Limit to top 3-4 bullets per company role to enforce 2-page cap
+        out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
         selected_bullets = bullets[:4] if "Rocket Mortgage" in job_heading else bullets[:3]
         for b in selected_bullets:
             bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
-            out_lines.append(f"- {bolded_bullet}")
+            out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
         out_lines.append("")
 
     # 3. SKILLS
-    out_lines.append("## SKILLS")
-    for sk in parsed["SKILLS"]:
-        out_lines.append(f"- {clean_em_dashes(sk)}")
+    out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SKILLS}")
+    for sk in parsed[SECTION_SKILLS]:
+        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_em_dashes(sk)}")
     out_lines.append("")
 
     # 4. CERTIFICATIONS
-    out_lines.append("## CERTIFICATIONS")
-    for cert in parsed["CERTIFICATIONS"]:
-        out_lines.append(f"- {clean_em_dashes(cert)}")
+    out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_CERTIFICATIONS}")
+    for cert in parsed[SECTION_CERTIFICATIONS]:
+        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_em_dashes(cert)}")
     out_lines.append("")
 
     # 5. EDUCATION
-    out_lines.append("## EDUCATION")
-    for edu in parsed["EDUCATION"]:
-        # Ensure graduation years are stripped
+    out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EDUCATION}")
+    for edu in parsed[SECTION_EDUCATION]:
         clean_edu = re.sub(r"\s*\(\d{4}\)", "", clean_em_dashes(edu))
-        out_lines.append(f"- {clean_edu}")
+        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_edu}")
 
     tailored_text = "\n".join(out_lines)
     raw_resume_path.write_text(tailored_text, encoding="utf-8")
