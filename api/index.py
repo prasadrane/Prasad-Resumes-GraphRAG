@@ -54,6 +54,25 @@ class RenderPdfRequest(BaseModel):
     raw_text: str
     company: Optional[str] = "Tailored"
 
+@app.post("/api/generate")
+def generate_resume_endpoint(req: ResumeGenerationRequest):
+    try:
+        raw_path = generate_raw_resume(req.company, req.jd_text)
+        pdf_target = raw_path.parent / "Prasad_Rane_Resume.pdf"
+        render_pdf_resume(raw_path, pdf_target)
+
+        pdf_bytes = pdf_target.read_bytes()
+        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+
+        return {
+            "status": "success",
+            "pdf_url": pdf_data_uri,
+            "raw_resume": raw_path.read_text(encoding="utf-8")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
 @app.post("/api/render_pdf")
 def render_pdf_endpoint(req: RenderPdfRequest):
     try:
@@ -75,5 +94,33 @@ def render_pdf_endpoint(req: RenderPdfRequest):
             "raw_resume": req.raw_text
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"PDF rendering failed: {str(e)}")
+
+from src.query.search_engine import execute_graphrag_query
+
+class QueryRequest(BaseModel):
+    query: str
+    mode: Optional[str] = "local"
+
+@app.post("/api/query")
+def query_endpoint(req: QueryRequest):
+    query_clean = req.query.strip()
+    if not query_clean:
+        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+    
+    mode_clean = req.mode.lower().strip() if req.mode else "local"
+    if mode_clean not in ["local", "global"]:
+        mode_clean = "local"
+        
+    try:
+        response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+        return {
+            "status": "success",
+            "query": query_clean,
+            "mode": mode_clean,
+            "response": response_text
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
 

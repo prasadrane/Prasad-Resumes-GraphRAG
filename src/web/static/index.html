@@ -3,89 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prasad Resumes GraphRAG — Resume Generator UI</title>
+    <title>Prasad Resumes GraphRAG — Material 3 Design Engine</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
-    <link rel="stylesheet" href="/static/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="app-container">
         <!-- Header -->
-        <header class="app-header">
+        <header class="app-header m3-surface-header">
             <div class="header-left">
                 <div class="logo-area">
-                    <span class="logo-icon">📄</span>
+                    <span class="material-symbols-outlined logo-icon">description</span>
                     <h1>Prasad Resumes <span>GraphRAG</span></h1>
                 </div>
-                <!-- Top Navigation Tabs -->
-                <nav class="main-nav">
-                    <button id="nav-tailor-btn" class="nav-tab active">✨ Tailor Resume</button>
-                    <button id="nav-chat-btn" class="nav-tab">💬 Ask Me Questions</button>
+                <!-- Top Navigation Tabs (Material Design 3 Segmented Control) -->
+                <nav class="m3-segmented-control" role="tablist">
+                    <button id="nav-tailor-btn" class="m3-segmented-tab active" role="tab" aria-selected="true">
+                        <span class="material-symbols-outlined tab-icon">auto_awesome</span>
+                        <span>Tailor Resume</span>
+                    </button>
+                    <button id="nav-chat-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
+                        <span class="material-symbols-outlined tab-icon">chat</span>
+                        <span>Ask Me Questions</span>
+                    </button>
                 </nav>
             </div>
-            <div class="status-badge" id="system-status">
-                <span class="status-dot green"></span> Engine Ready
+            <div class="m3-status-badge" id="system-status">
+                <span class="status-dot green"></span> Engine Active
             </div>
         </header>
 
         <!-- Main Content Layout -->
         <main class="app-main">
             <!-- View 1: Generator View (Default) -->
-            <div id="generator-view" class="tab-view">
-                <section class="panel generator-panel">
+            <div id="generator-view" class="tab-view fade-in">
+                <section class="m3-card generator-panel">
                     <div class="panel-header">
-                        <h2>⚡ Tailor New Resume</h2>
-                        <p>Enter the company name and paste the job description to generate an ATS-tailored PDF.</p>
+                        <h2><span class="material-symbols-outlined header-symbol">auto_awesome</span> Tailor Resume for ATS</h2>
+                        <p>Specify the target company and job description to synthesize a keyword-optimized text & PDF resume.</p>
                     </div>
 
                     <form id="resume-form" class="resume-form">
-                        <div class="form-group">
-                            <label for="company-input">Target Company Name <span class="required">*</span></label>
-                            <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, GitHub" required autocomplete="off">
+                        <div class="m3-text-field">
+                            <label for="company-input" class="m3-field-label">Target Company Name <span class="required">*</span></label>
+                            <div class="m3-input-wrapper">
+                                <span class="material-symbols-outlined field-icon">domain</span>
+                                <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, Amazon" required autocomplete="off">
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="jd-input">Job Description (JD)</label>
-                            <textarea id="jd-input" rows="12" placeholder="Paste full job description requirements, responsibilities, or keywords here..."></textarea>
+                        <div class="m3-text-field">
+                            <div class="m3-label-row">
+                                <label for="jd-input" class="m3-field-label">Job Description (JD)</label>
+                                <span id="jd-char-count" class="m3-helper-text">0 / 10,000 chars</span>
+                            </div>
+                            <div class="m3-input-wrapper textarea-wrapper">
+                                <textarea id="jd-input" rows="10" placeholder="Paste target position requirements, responsibilities, or desired tech stack keywords here..."></textarea>
+                            </div>
                         </div>
 
-                        <button type="submit" id="generate-btn" class="btn btn-primary">
-                            <span class="btn-text">✨ Generate Tailored Resume</span>
-                            <span class="spinner hidden"></span>
+                        <button type="submit" id="generate-btn" class="m3-button m3-button-filled">
+                            <span class="material-symbols-outlined btn-icon">auto_awesome</span>
+                            <span class="btn-text">Generate Tailored Resume</span>
                         </button>
                     </form>
 
-                    <div id="form-alert" class="alert hidden"></div>
+                    <div id="form-alert" class="m3-alert hidden"></div>
                 </section>
             </div>
 
             <!-- View 2: Chatbot View -->
-            <div id="chatbot-view" class="tab-view hidden">
-                <section class="panel chatbot-panel">
+            <div id="chatbot-view" class="tab-view hidden fade-in">
+                <section class="m3-card chatbot-panel">
                     <div class="panel-header flex-between">
                         <div>
-                            <h2>🤖 Ask Me Questions (GraphRAG Q&A)</h2>
+                            <h2><span class="material-symbols-outlined header-symbol">psychology</span> Ask Me Questions (GraphRAG Q&A)</h2>
                             <p>Query Prasad Rane's GraphRAG knowledge graph to explore experience, technical skills, and achievements.</p>
                         </div>
-                        <div class="mode-select-group">
-                            <label for="query-mode-select">Mode:</label>
-                            <select id="query-mode-select" class="mode-select">
-                                <option value="local" selected>Local (Detailed Context)</option>
-                                <option value="global">Global (High-level Summary)</option>
-                            </select>
+                        <div class="m3-header-actions">
+                            <div class="m3-segmented-mode" role="radiogroup" aria-label="Query Mode">
+                                <button type="button" class="m3-mode-btn active" data-mode="local">Local Context</button>
+                                <button type="button" class="m3-mode-btn" data-mode="global">Global Summary</button>
+                            </div>
+                            <button id="clear-chat-btn" class="m3-icon-button" title="Clear Conversation" aria-label="Clear Conversation">
+                                <span class="material-symbols-outlined">delete_sweep</span>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Quick Sample Questions -->
+                    <!-- Quick Sample Question Action Chips -->
                     <div class="sample-questions">
-                        <span class="sample-label">💡 Sample Questions:</span>
+                        <span class="sample-label">Suggested Questions:</span>
                         <div class="chips-container">
-                            <button class="chip-btn" data-question="What AWS technologies did Prasad use?">What AWS technologies did Prasad use?</button>
-                            <button class="chip-btn" data-question="What is Prasad's experience with Python & Microservices?">What is Prasad's experience with Python & Microservices?</button>
-                            <button class="chip-btn" data-question="Which companies has Prasad worked for?">Which companies has Prasad worked for?</button>
-                            <button class="chip-btn" data-question="Summarize Prasad's key technical achievements.">Summarize Prasad's key technical achievements.</button>
+                            <button class="m3-action-chip" data-question="What AWS technologies did Prasad use?">
+                                <span class="material-symbols-outlined chip-icon">cloud</span>
+                                <span>What AWS technologies did Prasad use?</span>
+                            </button>
+                            <button class="m3-action-chip" data-question="What is Prasad's experience with Python & Microservices?">
+                                <span class="material-symbols-outlined chip-icon">terminal</span>
+                                <span>Python & Microservices experience</span>
+                            </button>
+                            <button class="m3-action-chip" data-question="Which companies has Prasad worked for?">
+                                <span class="material-symbols-outlined chip-icon">work</span>
+                                <span>Which companies has Prasad worked for?</span>
+                            </button>
+                            <button class="m3-action-chip" data-question="Summarize Prasad's key technical achievements.">
+                                <span class="material-symbols-outlined chip-icon">military_tech</span>
+                                <span>Key technical achievements</span>
+                            </button>
                         </div>
                     </div>
 
@@ -93,16 +122,16 @@
                     <div id="chat-messages" class="chat-messages">
                         <div class="message assistant">
                             <div class="message-bubble">
-                                👋 Hi! I'm your AI GraphRAG assistant. Ask me anything about Prasad Rane's professional experience, technical skills, or projects, or click one of the sample questions above!
+                                <p>👋 Hi! I'm your AI GraphRAG assistant. Ask me anything about Prasad Rane's professional experience, technical skills, or projects, or click one of the suggested questions above!</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Chat Input Bar -->
-                    <form id="chat-form" class="chat-form">
+                    <!-- Chat Input Bar (M3 Pill Search Container) -->
+                    <form id="chat-form" class="m3-chat-input-bar">
                         <input type="text" id="chat-input" placeholder="Type your question about Prasad's experience..." autocomplete="off" required>
-                        <button type="submit" id="chat-send-btn" class="btn btn-primary">
-                            <span class="btn-text">Send ➔</span>
+                        <button type="submit" id="chat-send-btn" class="m3-fab-btn" aria-label="Send Question" title="Send">
+                            <span class="material-symbols-outlined">send</span>
                         </button>
                     </form>
                 </section>
@@ -110,19 +139,30 @@
         </main>
 
         <!-- Bottom Preview Drawer / Container -->
-        <section id="preview-section" class="preview-section hidden">
+        <section id="preview-section" class="m3-preview-drawer hidden slide-up">
             <div class="preview-header">
                 <div class="preview-title">
-                    <span class="preview-icon">👁️</span>
+                    <span class="material-symbols-outlined preview-icon">visibility</span>
                     <h3 id="preview-filename">Resume Preview</h3>
                 </div>
                 <div class="preview-actions">
-                    <div class="view-toggle">
-                        <button id="toggle-pdf-btn" class="btn btn-secondary btn-sm active">📄 PDF Preview</button>
-                        <button id="toggle-edit-btn" class="btn btn-secondary btn-sm">✏️ Edit Raw Content</button>
+                    <div class="m3-segmented-control view-toggle">
+                        <button id="toggle-pdf-btn" class="m3-segmented-tab active">
+                            <span class="material-symbols-outlined tab-icon">picture_as_pdf</span>
+                            <span>PDF Preview</span>
+                        </button>
+                        <button id="toggle-edit-btn" class="m3-segmented-tab">
+                            <span class="material-symbols-outlined tab-icon">edit_note</span>
+                            <span>Edit Raw Content</span>
+                        </button>
                     </div>
-                    <a id="preview-open-link" href="#" target="_blank" class="btn btn-secondary btn-sm">Open in New Tab ↗</a>
-                    <button id="close-preview-btn" class="btn btn-icon">✖</button>
+                    <a id="preview-open-link" href="#" target="_blank" class="m3-button m3-button-outlined btn-sm">
+                        <span>Open in New Tab</span>
+                        <span class="material-symbols-outlined btn-icon">open_in_new</span>
+                    </a>
+                    <button id="close-preview-btn" class="m3-icon-button">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
                 </div>
             </div>
             <div class="preview-body">
@@ -131,10 +171,10 @@
                 </div>
                 <div id="edit-view-container" class="view-container hidden">
                     <div class="editor-toolbar">
-                        <span>Edit Markdown raw content directly below, then click Re-render PDF:</span>
-                        <button id="save-rerender-btn" class="btn btn-primary btn-sm">
-                            <span class="btn-text">🔄 Save & Re-render PDF</span>
-                            <span class="spinner hidden"></span>
+                        <span>Edit Markdown raw content directly below, then click Save & Re-render PDF:</span>
+                        <button id="save-rerender-btn" class="m3-button m3-button-filled btn-sm">
+                            <span class="material-symbols-outlined btn-icon">sync</span>
+                            <span class="btn-text">Save & Re-render PDF</span>
                         </button>
                     </div>
                     <textarea id="raw-edit-textarea" rows="25" spellcheck="false" placeholder="Loading raw content..."></textarea>
@@ -143,6 +183,7 @@
         </section>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>

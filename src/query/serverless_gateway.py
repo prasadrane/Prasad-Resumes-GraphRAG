@@ -7,6 +7,9 @@ import os
 import urllib.request
 import json
 from typing import Optional, Dict, Any
+from dotenv import load_dotenv
+
+load_dotenv()
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 GEMINI_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -17,11 +20,15 @@ def call_serverless_llm(prompt: str, system_prompt: Optional[str] = None, model:
     Used during serverless deployment or when local proxy is unreachable.
     """
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    gemini_key = os.getenv("GEMINI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GRAPHRAG_API_KEY")
 
     if openrouter_key:
-        return _call_openrouter(prompt, system_prompt, model, openrouter_key)
-    elif gemini_key:
+        try:
+            return _call_openrouter(prompt, system_prompt, model, openrouter_key)
+        except Exception as err:
+            print(f"[WARN] OpenRouter call failed ({err}). Falling back to Gemini Direct API...")
+
+    if gemini_key:
         return _call_gemini_direct(prompt, system_prompt, gemini_key)
     else:
         raise ValueError("Neither OPENROUTER_API_KEY nor GEMINI_API_KEY environment variable is set for serverless gateway.")
