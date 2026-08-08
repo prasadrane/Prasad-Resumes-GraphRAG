@@ -25,7 +25,7 @@
 
         <!-- Main Content Layout -->
         <main class="app-main">
-            <!-- Left Side: Generator Form -->
+            <!-- Full Width Generator Form -->
             <section class="panel generator-panel">
                 <div class="panel-header">
                     <h2>⚡ Tailor New Resume</h2>
@@ -40,7 +40,7 @@
 
                     <div class="form-group">
                         <label for="jd-input">Job Description (JD)</label>
-                        <textarea id="jd-input" rows="10" placeholder="Paste full job description requirements, responsibilities, or keywords here..."></textarea>
+                        <textarea id="jd-input" rows="12" placeholder="Paste full job description requirements, responsibilities, or keywords here..."></textarea>
                     </div>
 
                     <button type="submit" id="generate-btn" class="btn btn-primary">
@@ -50,22 +50,6 @@
                 </form>
 
                 <div id="form-alert" class="alert hidden"></div>
-            </section>
-
-            <!-- Right Side: History Section -->
-            <section class="panel history-panel">
-                <div class="panel-header flex-between">
-                    <h2>🕒 Tailored History</h2>
-                    <button id="refresh-history-btn" class="btn btn-icon" title="Refresh History">🔄</button>
-                </div>
-
-                <div class="search-box">
-                    <input type="text" id="history-search" placeholder="Search history by company..." autocomplete="off">
-                </div>
-
-                <div id="history-list" class="history-list">
-                    <div class="loading-placeholder">Loading resume history...</div>
-                </div>
             </section>
         </main>
 

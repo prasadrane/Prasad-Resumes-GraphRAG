@@ -100,14 +100,8 @@ body {
 /* Layout */
 .app-main {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
-}
-
-@media (max-width: 900px) {
-    .app-main {
-        grid-template-columns: 1fr;
-    }
 }
 
 /* Panels */

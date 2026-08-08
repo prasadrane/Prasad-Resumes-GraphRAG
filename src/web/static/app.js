@@ -19,12 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let allHistory = [];
 
     // Initialize Page
-    loadHistory();
+    if (historyList) loadHistory();
 
     // Event Listeners
     resumeForm.addEventListener('submit', handleFormSubmit);
-    refreshHistoryBtn.addEventListener('click', loadHistory);
-    historySearch.addEventListener('input', filterHistory);
+    if (refreshHistoryBtn) refreshHistoryBtn.addEventListener('click', loadHistory);
+    if (historySearch) historySearch.addEventListener('input', filterHistory);
     closePreviewBtn.addEventListener('click', () => {
         previewSection.classList.add('hidden');
         pdfIframe.src = 'about:blank';
@@ -116,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showAlert(`Success! Tailored resume created for ${company}.`, 'success');
             
             // Reload history & open preview
-            await loadHistory();
+            if (historyList) await loadHistory();
             if (data.pdf_url) {
                 previewPdf(data.pdf_url, `${company} — Resume PDF`);
             }
