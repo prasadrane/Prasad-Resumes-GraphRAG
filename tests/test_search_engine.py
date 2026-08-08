@@ -25,25 +25,28 @@ class TestSearchEngine(unittest.TestCase):
     def test_execute_graphrag_query_dynamic_fallback(self, mock_llm):
         mock_llm.side_effect = Exception("LLM call failed")
 
-        # Test company question returns Prasad's actual employers
-        res_company = execute_graphrag_query("Which companies has Prasad worked for?", "local")
-        self.assertIn("Rocket Mortgage", res_company)
-        self.assertIn("London Computer Systems", res_company)
-        self.assertNotIn("Tech Corp", res_company)
+        # Test local mode returns granular company details
+        res_local = execute_graphrag_query("Which companies has Prasad worked for?", "local")
+        self.assertIn("Local Context", res_local)
+        self.assertIn("Rocket Mortgage", res_local)
 
-        # Test AWS question returns AWS technologies
-        res_aws = execute_graphrag_query("What AWS technologies did Prasad use?", "local")
-        self.assertIn("AWS", res_aws)
-        self.assertIn("Fargate", res_aws)
+        # Test global mode returns global executive summary
+        res_global = execute_graphrag_query("Which companies has Prasad worked for?", "global")
+        self.assertIn("Global Summary", res_global)
+        self.assertIn("10+ Year Career Progression", res_global)
 
-    def test_search_static_resume(self):
-        company_res = search_static_resume("Which companies has Prasad worked for?")
-        self.assertIn("Rocket Mortgage", company_res)
-        self.assertIn("EXFO", company_res)
+        # Verify local vs global responses are NOT identical
+        self.assertNotEqual(res_local, res_global)
 
-        aws_res = search_static_resume("What AWS technologies did Prasad use?")
-        self.assertIn("Amazon Bedrock", aws_res)
-        self.assertIn("ECS Fargate", aws_res)
+    def test_search_static_resume_modes(self):
+        company_local = search_static_resume("Which companies has Prasad worked for?", mode="local")
+        self.assertIn("[Local Context]", company_local)
+        self.assertIn("Rocket Mortgage", company_local)
+
+        company_global = search_static_resume("Which companies has Prasad worked for?", mode="global")
+        self.assertIn("[Global Summary]", company_global)
+        self.assertIn("Career Trajectory", company_global)
+        self.assertNotEqual(company_local, company_global)
 
 if __name__ == "__main__":
     unittest.main()

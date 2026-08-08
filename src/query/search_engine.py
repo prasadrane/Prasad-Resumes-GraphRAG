@@ -37,14 +37,18 @@ from src.query.serverless_gateway import call_serverless_llm
 from src.query.static_graph_reader import read_precomputed_entities, search_static_resume
 
 @lru_cache(maxsize=100)
-def execute_graphrag_query(query: str, mode: str, root_dir: Path = ROOT_DIR) -> str:
+def execute_graphrag_query(query: str, mode: str = "local", root_dir: Path = ROOT_DIR) -> str:
     """Execute GraphRAG query with fast static graph & LLM fallback for instant UI responses."""
+    mode_clean = mode.lower().strip() if mode else "local"
     # Attempt direct fast serverless or precomputed graph reading
     try:
         entities = read_precomputed_entities()
         context_snippet = json.dumps(entities[:5], indent=2) if entities else ""
-        system_prompt = f"You are an AI assistant answering questions about Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
+        if mode_clean == "global":
+            system_prompt = f"You are an AI GraphRAG assistant in GLOBAL SUMMARY mode. Synthesize high-level executive overviews, career-wide impact summaries, and strategic domain themes for Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
+        else:
+            system_prompt = f"You are an AI GraphRAG assistant in LOCAL CONTEXT mode. Provide granular, specific entity-level facts, exact metrics, project bullets, and technical tool details for Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
         return call_serverless_llm(prompt=query, system_prompt=system_prompt)
     except Exception as e:
         # Dynamic resume search fallback guaranteed to return accurate answer instantly
-        return search_static_resume(query)
+        return search_static_resume(query, mode=mode_clean)

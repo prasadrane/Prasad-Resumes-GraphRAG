@@ -162,46 +162,63 @@ def generate_resume_endpoint(req: GenerateRequest):
             "company": company_clean,
             "pdf_url": f"/api/files/{pdf_rel}",
             "txt_url": f"/api/files/{txt_rel}",
+            "raw_resume": raw_text_path.read_text(encoding="utf-8"),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
 class SaveEditRequest(BaseModel):
-    txt_url: str = Field(..., min_length=1, description="Relative URL or path to text file")
-    content: str = Field(..., description="Updated raw resume text content")
+    txt_url: Optional[str] = Field(default=None, description="Relative URL or path to text file")
+    raw_text: Optional[str] = Field(default=None, description="Updated raw resume text content")
+    content: Optional[str] = Field(default=None, description="Updated raw resume text content")
+    company: Optional[str] = Field(default="Tailored", description="Company name")
 
 
 @app.post("/api/save-edit")
+@app.post("/api/render_pdf")
 def save_edit_endpoint(req: SaveEditRequest):
     """Save updated raw resume text content and re-render the PDF."""
-    txt_path_str = req.txt_url.replace("/api/files/", "")
-    target_txt = (OUTPUT_DIR / txt_path_str).resolve()
-
-    # Security check: ensure path is within OUTPUT_DIR and is a .txt file
-    if not str(target_txt).startswith(str(OUTPUT_DIR.resolve())):
-        raise HTTPException(status_code=403, detail="Access denied.")
-    if target_txt.suffix.lower() != ".txt":
-        raise HTTPException(status_code=400, detail="Only .txt resume files can be edited.")
-    
+    raw_content = req.raw_text or req.content or ""
+    if not raw_content and not req.txt_url:
+        raise HTTPException(status_code=400, detail="Raw resume text content cannot be empty.")
+        
     try:
-        # Write updated text content to TXT file
-        target_txt.parent.mkdir(parents=True, exist_ok=True)
-        target_txt.write_text(req.content, encoding="utf-8")
-
-        # Re-render PDF
-        pdf_output_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
-        pdf_path = render_pdf_resume(target_txt, pdf_output_target)
-
-        pdf_rel = Path(pdf_path).resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
-        txt_rel = target_txt.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
-
-        return {
-            "status": "success",
-            "message": "Resume updated and re-rendered successfully.",
-            "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
-            "txt_url": f"/api/files/{txt_rel}",
-        }
+        if req.txt_url and req.txt_url.startswith("/api/files/"):
+            txt_path_str = req.txt_url.replace("/api/files/", "")
+            target_txt = (OUTPUT_DIR / txt_path_str).resolve()
+            if not str(target_txt).startswith(str(OUTPUT_DIR.resolve())):
+                raise HTTPException(status_code=403, detail="Access denied.")
+            if raw_content:
+                target_txt.write_text(raw_content, encoding="utf-8")
+            else:
+                raw_content = target_txt.read_text(encoding="utf-8")
+            pdf_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
+            render_pdf_resume(target_txt, pdf_target)
+            pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+            return {
+                "status": "success",
+                "message": "Resume updated and re-rendered successfully.",
+                "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
+                "txt_url": req.txt_url,
+                "raw_resume": raw_content
+            }
+        else:
+            import tempfile, base64
+            temp_out_dir = Path(tempfile.gettempdir()) / "output"
+            temp_out_dir.mkdir(parents=True, exist_ok=True)
+            raw_path = temp_out_dir / "edited_raw_resume.txt"
+            raw_path.write_text(raw_content, encoding="utf-8")
+            pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
+            render_pdf_resume(raw_path, pdf_target)
+            b64_pdf = base64.b64encode(pdf_target.read_bytes()).decode("utf-8")
+            return {
+                "status": "success",
+                "message": "Resume updated and re-rendered successfully.",
+                "pdf_url": f"data:application/pdf;base64,{b64_pdf}",
+                "txt_url": None,
+                "raw_resume": raw_content
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update resume: {str(e)}")
 

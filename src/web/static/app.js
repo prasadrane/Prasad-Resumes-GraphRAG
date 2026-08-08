@@ -120,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentTxtUrl: null,
         currentPdfUrl: null,
+        currentRawText: null,
 
         init() {
             if (!this.previewSection) return;
@@ -129,13 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
             this.saveRerenderBtn.addEventListener('click', () => this.handleSaveAndRerender());
 
             // Global trigger bindings
-            window.previewPdf = (pdfUrl, title, txtUrl = '') => this.openPdf(pdfUrl, title, txtUrl);
-            window.editRawContent = (txtUrl, pdfUrl, title) => this.openEdit(txtUrl, pdfUrl, title);
+            window.previewPdf = (pdfUrl, title, txtUrl = '', rawText = '') => this.openPdf(pdfUrl, title, txtUrl, rawText);
+            window.editRawContent = (txtUrl, pdfUrl, title, rawText = '') => this.openEdit(txtUrl, pdfUrl, title, rawText);
         },
 
-        openPdf(pdfUrl, title, txtUrl = '') {
+        openPdf(pdfUrl, title, txtUrl = '', rawText = '') {
             this.currentPdfUrl = pdfUrl;
             this.currentTxtUrl = txtUrl;
+            if (rawText) {
+                this.currentRawText = rawText;
+                this.rawEditTextarea.value = rawText;
+            }
             this.previewFilename.textContent = title;
             this.previewOpenLink.href = pdfUrl;
             if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
@@ -145,9 +150,12 @@ document.addEventListener('DOMContentLoaded', () => {
             this.previewSection.scrollIntoView({ behavior: 'smooth' });
         },
 
-        openEdit(txtUrl, pdfUrl, title) {
+        openEdit(txtUrl, pdfUrl, title, rawText = '') {
             this.currentTxtUrl = txtUrl;
             this.currentPdfUrl = pdfUrl;
+            if (rawText) {
+                this.currentRawText = rawText;
+            }
             this.previewFilename.textContent = title;
             this.previewOpenLink.href = pdfUrl;
             if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
@@ -173,7 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.togglePdfBtn.classList.remove('active');
                 this.editViewContainer.classList.remove('hidden');
                 this.pdfViewContainer.classList.add('hidden');
-                if (this.currentTxtUrl) this.fetchRawContent(this.currentTxtUrl);
+                if (this.currentRawText) {
+                    this.rawEditTextarea.value = this.currentRawText;
+                } else if (this.currentTxtUrl) {
+                    this.fetchRawContent(this.currentTxtUrl);
+                }
             }
         },
 
@@ -182,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(txtUrl);
                 if (!res.ok) throw new Error('Failed to fetch raw resume content.');
                 const text = await res.text();
+                this.currentRawText = text;
                 this.rawEditTextarea.value = text;
             } catch (err) {
                 this.rawEditTextarea.value = `Error loading content: ${err.message}`;
@@ -189,17 +202,18 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         async handleSaveAndRerender() {
-            if (!this.currentTxtUrl) return;
             const newContent = this.rawEditTextarea.value;
+            if (!newContent.trim()) return;
             this.setSaveLoading(true);
 
             try {
-                const res = await fetch('/api/save-edit', {
+                const res = await fetch('/api/render_pdf', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        raw_text: newContent,
                         txt_url: this.currentTxtUrl,
-                        content: newContent
+                        company: this.previewFilename.textContent
                     })
                 });
 
@@ -208,8 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 GeneratorController.showAlert('Resume updated and re-rendered successfully!', 'success');
                 this.currentPdfUrl = data.pdf_url;
+                this.currentRawText = newContent;
                 this.pdfIframe.src = this.currentPdfUrl;
                 this.previewOpenLink.href = this.currentPdfUrl;
+                if (this.previewDownloadLink) this.previewDownloadLink.href = this.currentPdfUrl;
                 this.switchDrawerMode('pdf');
             } catch (err) {
                 GeneratorController.showAlert(`Edit Error: ${err.message}`, 'error');
@@ -272,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 this.showAlert(`Success! Tailored resume created for ${company}.`, 'success');
                 if (data.pdf_url) {
-                    PreviewController.openPdf(data.pdf_url, `${company} — Resume PDF`, data.txt_url);
+                    PreviewController.openPdf(data.pdf_url, `${company} — Resume PDF`, data.txt_url || '', data.raw_resume || '');
                 }
             } catch (err) {
                 this.showAlert(err.message, 'error');

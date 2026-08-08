@@ -75,12 +75,17 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 @app.post("/api/render_pdf")
+@app.post("/api/save-edit")
 def render_pdf_endpoint(req: RenderPdfRequest):
     try:
+        text_content = req.raw_text or req.content or ""
+        if not text_content:
+            raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
+            
         temp_out_dir = Path(tempfile.gettempdir()) / "output"
         temp_out_dir.mkdir(parents=True, exist_ok=True)
         raw_path = temp_out_dir / "edited_raw_resume.txt"
-        raw_path.write_text(req.raw_text, encoding="utf-8")
+        raw_path.write_text(text_content, encoding="utf-8")
 
         pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
         render_pdf_resume(raw_path, pdf_target)
@@ -92,7 +97,7 @@ def render_pdf_endpoint(req: RenderPdfRequest):
         return {
             "status": "success",
             "pdf_url": pdf_data_uri,
-            "raw_resume": req.raw_text
+            "raw_resume": text_content
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {str(e)}")
