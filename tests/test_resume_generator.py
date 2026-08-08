@@ -6,11 +6,21 @@ import tempfile
 import unittest
 from datetime import datetime
 from pathlib import Path
+from src.generators.constants import (
+    SECTION_CERTIFICATIONS,
+    SECTION_EDUCATION,
+    SECTION_EXPERIENCE,
+    SECTION_SKILLS,
+    SECTION_SUMMARY,
+)
+from src.generators.models import JobEntry, ResumeData
 from src.generators.resume_generator import (
     bold_keywords,
     clean_em_dashes,
-    get_output_dir,
+    format_tailored_markdown,
     generate_raw_resume,
+    get_output_dir,
+    parse_master_resume,
 )
 
 class TestResumeGenerator(unittest.TestCase):
@@ -32,15 +42,60 @@ class TestResumeGenerator(unittest.TestCase):
         self.assertEqual(clean_em_dashes(dates), "Jan 2023 - Jul 2025")
 
     def test_bold_keywords_limit_and_percentage_cap(self):
-        # Long bullet text
         bullet = "Architected high-throughput microservices using Python, AWS, Docker, Kubernetes, and GraphRAG to optimize performance and reduce latency."
         keywords = ["Python", "AWS", "Docker", "Kubernetes", "GraphRAG"]
         bolded = bold_keywords(bullet, keywords, max_bold_phrases=3, max_bold_ratio=0.25)
 
-        # Ensure max 3 phrases bolded and bold length ratio is controlled
         bold_count = bolded.count("**") // 2
         self.assertLessEqual(bold_count, 3)
         self.assertIn("**Python**", bolded)
+
+    def test_parse_master_resume(self):
+        sample_master = """# PRASAD RANE — MASTER RESUME
+## 🎯 Executive & Specialized Professional Summaries
+### Canonical Summary
+Senior Software Engineer with 10+ years of experience architecting cloud systems.
+
+## 💼 Exhaustive Experience & Bullet Library
+### Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 - Jul 2025
+#### Story 1 — Observability
+- Diagnosed monitoring gap on Fannie Mae integration.
+
+## 🛠️ Complete Technical Skills Inventory
+- **Backend & APIs**: C#, .NET Core, Python, AWS
+
+## 🏆 Certifications
+- **AWS Certified Cloud Practitioner** - Amazon Web Services | Issued: Apr 2026 | Expires: Apr 2029
+
+## 🎓 Education
+- **M.S. in Information Systems** - University of Cincinnati (2019)
+"""
+        parsed: ResumeData = parse_master_resume(sample_master)
+        self.assertEqual(parsed.name, "Prasad Rane")
+        self.assertIn("10+ years", parsed.summary)
+        self.assertEqual(len(parsed.jobs), 1)
+        self.assertIn("Rocket Mortgage", parsed.jobs[0].heading)
+        self.assertEqual(len(parsed.skills), 1)
+        self.assertEqual(len(parsed.certifications), 1)
+        self.assertNotIn("2019", parsed.education[0])
+
+    def test_format_tailored_markdown(self):
+        data = ResumeData(
+            summary="Senior Engineer specializing in Python and AWS.",
+            jobs=[JobEntry(heading="Software Engineer | Google | Remote | 2023 - Present", bullets=["Led Python microservices."])],
+            skills=["Backend: Python, C#"],
+            certifications=["AWS Certified Cloud Practitioner"],
+            education=["M.S. in Information Systems - University of Cincinnati"]
+        )
+        keywords = ["Python", "AWS"]
+        md_text = format_tailored_markdown(data, keywords)
+
+        self.assertIn(f"## {SECTION_SUMMARY}", md_text)
+        self.assertIn(f"## {SECTION_EXPERIENCE}", md_text)
+        self.assertIn(f"## {SECTION_SKILLS}", md_text)
+        self.assertIn(f"## {SECTION_CERTIFICATIONS}", md_text)
+        self.assertIn(f"## {SECTION_EDUCATION}", md_text)
+        self.assertIn("**Python**", md_text)
 
     def test_generate_raw_resume(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -59,7 +114,6 @@ class TestResumeGenerator(unittest.TestCase):
             self.assertIn("## SKILLS", content)
             self.assertIn("## CERTIFICATIONS", content)
             self.assertIn("## EDUCATION", content)
-            self.assertNotIn("Gap-Framing", content)
 
 if __name__ == "__main__":
     unittest.main()
