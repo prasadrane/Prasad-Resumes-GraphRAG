@@ -33,10 +33,13 @@ def get_keywords(req: ResumeGenerationRequest):
     kws = extract_ats_keywords(req.jd_text)
     return {"company": req.company, "keywords": kws}
 
+import tempfile
+
 @app.post("/api/generate")
 def generate_resume(req: ResumeGenerationRequest):
     try:
-        raw_resume_path = generate_raw_resume(req.company, req.jd_text)
+        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+        raw_resume_path = generate_raw_resume(req.company, req.jd_text, base_output_dir=temp_out_dir)
         raw_content = raw_resume_path.read_text(encoding="utf-8")
         return {
             "status": "success",
