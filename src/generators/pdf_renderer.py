@@ -25,16 +25,15 @@ class PageCountCanvas(canvas.Canvas):
     """Canvas recorder to enforce 2-page maximum constraint."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pages = []
+        self._page_count = 0
 
     def showPage(self):
-        self.pages.append(dict(self.__dict__))
-        self._startPage()
+        self._page_count += 1
+        super().showPage()
 
     def save(self):
-        page_count = len(self.pages)
-        if page_count > 2:
-            print(f"[WARN] PDF Resume exceeded 2-page constraint ({page_count} pages). Adjusting content spacing recommended.")
+        if self._page_count > 2:
+            print(f"[WARN] PDF Resume exceeded 2-page constraint ({self._page_count} pages). Adjusting content spacing recommended.")
         super().save()
 
 def markdown_to_reportlab_html(text: str) -> str:
