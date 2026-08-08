@@ -116,9 +116,8 @@ def main():
         raw_resume_path = generate_raw_resume(args.company, jd_text)
         print(f"[CLI SUCCESS] Created: {raw_resume_path}")
 
-        clean_comp = re.sub(r"[^A-Za-z0-9_-]", "_", args.company.strip())
-        pdf_output_path = raw_resume_path.parent / f"Prasad_Rane_Resume_{clean_comp}.pdf"
-        print(f"[CLI] Rendering rule-based PDF resume ({pdf_output_path.name})...")
+        pdf_output_path = raw_resume_path.parent / "Prasad_Rane_Resume.pdf"
+        print(f"[CLI] Rendering rule-based PDF resume (Prasad_Rane_Resume.pdf)...")
         render_pdf_resume(raw_resume_path, pdf_output_path)
         print(f"[CLI SUCCESS] Created: {pdf_output_path}")
 

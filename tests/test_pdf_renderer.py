@@ -58,7 +58,7 @@ Senior Software Engineer with 10 years experience in **Python** and **AWS**.
                 encoding="utf-8",
             )
 
-            pdf_file = tmp_path / "Prasad_Rane_Resume_Google.pdf"
+            pdf_file = tmp_path / "Prasad_Rane_Resume.pdf"
             result_file = render_pdf_resume(raw_file, pdf_file)
 
             self.assertTrue(result_file.exists())
