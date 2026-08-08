@@ -38,6 +38,8 @@ class TestVercelAPI(unittest.TestCase):
         data = response.json()
         self.assertEqual(data["status"], "success")
         self.assertIn("raw_resume", data)
+        self.assertIn("pdf_url", data)
+        self.assertTrue(data["pdf_url"].startswith("data:application/pdf;base64,"))
 
 if __name__ == "__main__":
     unittest.main()
