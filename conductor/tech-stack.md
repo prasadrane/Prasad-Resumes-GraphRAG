@@ -20,5 +20,6 @@
 
 ## Preprocessing & Utilities
 - **PDF Extraction:** PyMuPDF (`fitz`), `pdfplumber`, `pypdf`
+- **PDF Generation:** ReportLab (`reportlab`) rule-based PDF engine
 - **Configuration Engine:** PyYAML (`pyyaml`)
 - **Testing:** Standard Python `unittest` framework
