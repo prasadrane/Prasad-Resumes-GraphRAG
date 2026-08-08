@@ -17,8 +17,9 @@
 - [x] **Track: Tailored resume generation with ATS keyword analysis (raw_resume.txt) and rule-based PDF resume generation (Prasad_Rane_Resume.pdf)**
 *Link: [./tracks/tailored_resume_20260808/](./tracks/tailored_resume_20260808/)*
 
-- [ ] **Track: Top Navigation Tabs (Tailor Resume / Ask Me Questions GraphRAG Chatbot), Modular UI Refactoring, and Chrome DevTools Smoke Testing**
+- [x] **Track: Top Navigation Tabs (Tailor Resume / Ask Me Questions GraphRAG Chatbot), Modular UI Refactoring, and Chrome DevTools Smoke Testing**
 *Link: [./tracks/nav_chatbot_20260808/](./tracks/nav_chatbot_20260808/)*
+
 
 
 

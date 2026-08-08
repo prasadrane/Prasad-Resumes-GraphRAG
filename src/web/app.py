@@ -18,8 +18,38 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 from src.generators.resume_generator import generate_raw_resume
 from src.generators.pdf_renderer import render_pdf_resume
+from src.query.search_engine import execute_graphrag_query
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
+
+
+class QueryRequest(BaseModel):
+    query: str = Field(..., min_length=1, description="Question for GraphRAG knowledge graph")
+    mode: str = Field(default="local", description="Query mode: 'local' or 'global'")
+
+
+@app.post("/api/query")
+def query_endpoint(req: QueryRequest):
+    """Execute GraphRAG query against Prasad's resumes knowledge graph."""
+    query_clean = req.query.strip()
+    if not query_clean:
+        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+    
+    mode_clean = req.mode.lower().strip()
+    if mode_clean not in ["local", "global"]:
+        mode_clean = "local"
+        
+    try:
+        response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+        return {
+            "status": "success",
+            "query": query_clean,
+            "mode": mode_clean,
+            "response": response_text
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+
 
 # Serve static files if directory exists
 if STATIC_DIR.exists():
@@ -135,3 +165,44 @@ def generate_resume_endpoint(req: GenerateRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+
+class SaveEditRequest(BaseModel):
+    txt_url: str = Field(..., min_length=1, description="Relative URL or path to text file")
+    content: str = Field(..., description="Updated raw resume text content")
+
+
+@app.post("/api/save-edit")
+def save_edit_endpoint(req: SaveEditRequest):
+    """Save updated raw resume text content and re-render the PDF."""
+    txt_path_str = req.txt_url.replace("/api/files/", "")
+    target_txt = (OUTPUT_DIR / txt_path_str).resolve()
+
+    # Security check: ensure path is within OUTPUT_DIR and is a .txt file
+    if not str(target_txt).startswith(str(OUTPUT_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied.")
+    if target_txt.suffix.lower() != ".txt":
+        raise HTTPException(status_code=400, detail="Only .txt resume files can be edited.")
+    
+    try:
+        # Write updated text content to TXT file
+        target_txt.parent.mkdir(parents=True, exist_ok=True)
+        target_txt.write_text(req.content, encoding="utf-8")
+
+        # Re-render PDF
+        pdf_output_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
+        pdf_path = render_pdf_resume(target_txt, pdf_output_target)
+
+        pdf_rel = Path(pdf_path).resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+        txt_rel = target_txt.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+
+        return {
+            "status": "success",
+            "message": "Resume updated and re-rendered successfully.",
+            "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
+            "txt_url": f"/api/files/{txt_rel}",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update resume: {str(e)}")
+
+

@@ -14,9 +14,16 @@
     <div class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <div class="logo-area">
-                <span class="logo-icon">📄</span>
-                <h1>Prasad Resumes <span>GraphRAG</span></h1>
+            <div class="header-left">
+                <div class="logo-area">
+                    <span class="logo-icon">📄</span>
+                    <h1>Prasad Resumes <span>GraphRAG</span></h1>
+                </div>
+                <!-- Top Navigation Tabs -->
+                <nav class="main-nav">
+                    <button id="nav-tailor-btn" class="nav-tab active">✨ Tailor Resume</button>
+                    <button id="nav-chat-btn" class="nav-tab">💬 Ask Me Questions</button>
+                </nav>
             </div>
             <div class="status-badge" id="system-status">
                 <span class="status-dot green"></span> Engine Ready
@@ -25,32 +32,81 @@
 
         <!-- Main Content Layout -->
         <main class="app-main">
-            <!-- Full Width Generator Form -->
-            <section class="panel generator-panel">
-                <div class="panel-header">
-                    <h2>⚡ Tailor New Resume</h2>
-                    <p>Enter the company name and paste the job description to generate an ATS-tailored PDF.</p>
-                </div>
-
-                <form id="resume-form" class="resume-form">
-                    <div class="form-group">
-                        <label for="company-input">Target Company Name <span class="required">*</span></label>
-                        <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, GitHub" required autocomplete="off">
+            <!-- View 1: Generator View (Default) -->
+            <div id="generator-view" class="tab-view">
+                <section class="panel generator-panel">
+                    <div class="panel-header">
+                        <h2>⚡ Tailor New Resume</h2>
+                        <p>Enter the company name and paste the job description to generate an ATS-tailored PDF.</p>
                     </div>
 
-                    <div class="form-group">
-                        <label for="jd-input">Job Description (JD)</label>
-                        <textarea id="jd-input" rows="12" placeholder="Paste full job description requirements, responsibilities, or keywords here..."></textarea>
+                    <form id="resume-form" class="resume-form">
+                        <div class="form-group">
+                            <label for="company-input">Target Company Name <span class="required">*</span></label>
+                            <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, GitHub" required autocomplete="off">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="jd-input">Job Description (JD)</label>
+                            <textarea id="jd-input" rows="12" placeholder="Paste full job description requirements, responsibilities, or keywords here..."></textarea>
+                        </div>
+
+                        <button type="submit" id="generate-btn" class="btn btn-primary">
+                            <span class="btn-text">✨ Generate Tailored Resume</span>
+                            <span class="spinner hidden"></span>
+                        </button>
+                    </form>
+
+                    <div id="form-alert" class="alert hidden"></div>
+                </section>
+            </div>
+
+            <!-- View 2: Chatbot View -->
+            <div id="chatbot-view" class="tab-view hidden">
+                <section class="panel chatbot-panel">
+                    <div class="panel-header flex-between">
+                        <div>
+                            <h2>🤖 Ask Me Questions (GraphRAG Q&A)</h2>
+                            <p>Query Prasad Rane's GraphRAG knowledge graph to explore experience, technical skills, and achievements.</p>
+                        </div>
+                        <div class="mode-select-group">
+                            <label for="query-mode-select">Mode:</label>
+                            <select id="query-mode-select" class="mode-select">
+                                <option value="local" selected>Local (Detailed Context)</option>
+                                <option value="global">Global (High-level Summary)</option>
+                            </select>
+                        </div>
                     </div>
 
-                    <button type="submit" id="generate-btn" class="btn btn-primary">
-                        <span class="btn-text">✨ Generate Tailored Resume</span>
-                        <span class="spinner hidden"></span>
-                    </button>
-                </form>
+                    <!-- Quick Sample Questions -->
+                    <div class="sample-questions">
+                        <span class="sample-label">💡 Sample Questions:</span>
+                        <div class="chips-container">
+                            <button class="chip-btn" data-question="What AWS technologies did Prasad use?">What AWS technologies did Prasad use?</button>
+                            <button class="chip-btn" data-question="What is Prasad's experience with Python & Microservices?">What is Prasad's experience with Python & Microservices?</button>
+                            <button class="chip-btn" data-question="Which companies has Prasad worked for?">Which companies has Prasad worked for?</button>
+                            <button class="chip-btn" data-question="Summarize Prasad's key technical achievements.">Summarize Prasad's key technical achievements.</button>
+                        </div>
+                    </div>
 
-                <div id="form-alert" class="alert hidden"></div>
-            </section>
+                    <!-- Chat Messages History Container -->
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message assistant">
+                            <div class="message-bubble">
+                                👋 Hi! I'm your AI GraphRAG assistant. Ask me anything about Prasad Rane's professional experience, technical skills, or projects, or click one of the sample questions above!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Input Bar -->
+                    <form id="chat-form" class="chat-form">
+                        <input type="text" id="chat-input" placeholder="Type your question about Prasad's experience..." autocomplete="off" required>
+                        <button type="submit" id="chat-send-btn" class="btn btn-primary">
+                            <span class="btn-text">Send ➔</span>
+                        </button>
+                    </form>
+                </section>
+            </div>
         </main>
 
         <!-- Bottom Preview Drawer / Container -->
@@ -61,12 +117,28 @@
                     <h3 id="preview-filename">Resume Preview</h3>
                 </div>
                 <div class="preview-actions">
+                    <div class="view-toggle">
+                        <button id="toggle-pdf-btn" class="btn btn-secondary btn-sm active">📄 PDF Preview</button>
+                        <button id="toggle-edit-btn" class="btn btn-secondary btn-sm">✏️ Edit Raw Content</button>
+                    </div>
                     <a id="preview-open-link" href="#" target="_blank" class="btn btn-secondary btn-sm">Open in New Tab ↗</a>
                     <button id="close-preview-btn" class="btn btn-icon">✖</button>
                 </div>
             </div>
             <div class="preview-body">
-                <iframe id="pdf-iframe" src="about:blank" frameborder="0"></iframe>
+                <div id="pdf-view-container" class="view-container">
+                    <iframe id="pdf-iframe" src="about:blank" frameborder="0"></iframe>
+                </div>
+                <div id="edit-view-container" class="view-container hidden">
+                    <div class="editor-toolbar">
+                        <span>Edit Markdown raw content directly below, then click Re-render PDF:</span>
+                        <button id="save-rerender-btn" class="btn btn-primary btn-sm">
+                            <span class="btn-text">🔄 Save & Re-render PDF</span>
+                            <span class="spinner hidden"></span>
+                        </button>
+                    </div>
+                    <textarea id="raw-edit-textarea" rows="25" spellcheck="false" placeholder="Loading raw content..."></textarea>
+                </div>
             </div>
         </section>
     </div>

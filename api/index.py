@@ -50,26 +50,29 @@ import tempfile
 def get_history():
     return []
 
-@app.post("/api/generate")
-def generate_resume(req: ResumeGenerationRequest):
+class RenderPdfRequest(BaseModel):
+    raw_text: str
+    company: Optional[str] = "Tailored"
+
+@app.post("/api/render_pdf")
+def render_pdf_endpoint(req: RenderPdfRequest):
     try:
         temp_out_dir = Path(tempfile.gettempdir()) / "output"
-        raw_resume_path = generate_raw_resume(req.company, req.jd_text, base_output_dir=temp_out_dir)
-        raw_content = raw_resume_path.read_text(encoding="utf-8")
-        
-        pdf_target = raw_resume_path.parent / "Prasad_Rane_Resume.pdf"
-        render_pdf_resume(raw_resume_path, pdf_target)
-        
+        temp_out_dir.mkdir(parents=True, exist_ok=True)
+        raw_path = temp_out_dir / "edited_raw_resume.txt"
+        raw_path.write_text(req.raw_text, encoding="utf-8")
+
+        pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
+        render_pdf_resume(raw_path, pdf_target)
+
         pdf_bytes = pdf_target.read_bytes()
         b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
         pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
 
         return {
             "status": "success",
-            "company": req.company,
-            "raw_resume": raw_content,
             "pdf_url": pdf_data_uri,
-            "pdf_filename": "Prasad_Rane_Resume.pdf"
+            "raw_resume": req.raw_text
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

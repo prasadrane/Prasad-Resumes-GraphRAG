@@ -3,6 +3,7 @@ test_web_ui.py — Integration and Unit Tests for Web UI FastAPI Backend.
 """
 
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -55,6 +56,48 @@ class TestWebUI(unittest.TestCase):
         response = self.client.post("/api/generate", json={"company": ""})
         self.assertIn(response.status_code, [400, 422])
 
+    def test_save_edit_endpoint(self):
+        """Test POST /api/save-edit updates raw text and re-renders PDF."""
+        # Create mock TXT file
+        test_txt = self.test_output_dir / "Prasad_Rane_Resume.txt"
+        test_txt.write_text("# Prasad Rane\n\n## Professional Summary\nInitial summary.", encoding="utf-8")
+
+        response = self.client.post("/api/save-edit", json={
+            "txt_url": "/api/files/TestCompanyUI/Prasad_Rane_Resume.txt",
+            "content": "# Prasad Rane\n\n## Professional Summary\nUpdated summary line."
+        })
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("pdf_url", data)
+
+        # Verify TXT file updated
+        updated_content = test_txt.read_text(encoding="utf-8")
+        self.assertIn("Updated summary line", updated_content)
+
+        # Cleanup TXT file
+        if test_txt.exists():
+            test_txt.unlink()
+
+
+    def test_query_endpoint_validation(self):
+        """Test POST /api/query validation on empty query."""
+        response = self.client.post("/api/query", json={"query": ""})
+        self.assertIn(response.status_code, [400, 422])
+
+    @patch("src.web.app.execute_graphrag_query")
+    def test_query_endpoint_success(self, mock_query):
+        """Test POST /api/query invokes GraphRAG search engine correctly."""
+        mock_query.return_value = "Prasad used AWS Lambda and S3."
+        response = self.client.post("/api/query", json={"query": "What AWS services did Prasad use?", "mode": "local"})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data["response"], "Prasad used AWS Lambda and S3.")
+        mock_query.assert_called_once_with(query="What AWS services did Prasad use?", mode="local", root_dir=ROOT_DIR)
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
