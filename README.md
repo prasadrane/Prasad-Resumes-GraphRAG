@@ -139,10 +139,26 @@ python src/cli.py generate --company GitHub --jd-file path/to/github_jd.txt
 - `output/<MM-DD-YYYY>/<Company_Name>/raw_resume.txt`
 - `output/<MM-DD-YYYY>/<Company_Name>/Prasad_Rane_Resume.pdf`
 
-### 7. Run Unit Tests
+### 7. Vercel Free Tier Serverless Deployment
+This repository includes a serverless refactor allowing deployment to **Vercel Free Tier** using FastAPI (`api/index.py`), direct OpenRouter/Gemini API gateway (`src/query/serverless_gateway.py`), and pre-computed static graph reader (`src/query/static_graph_reader.py`).
+
+- **Deploy via Vercel CLI:**
+  ```powershell
+  vercel --prod
+  ```
+- **Local Serverless Test:**
+  ```powershell
+  vercel dev
+  ```
+- **Required Environment Variables in Vercel:**
+  - `OPENROUTER_API_KEY`: Key for direct cloud LLM routing
+  - `GEMINI_API_KEY`: Key for direct Google Gemini fallback API
+
+### 8. Run Unit Tests
 ```powershell
 python -m unittest discover -s tests
 ```
+
 
 ---
 

@@ -55,6 +55,15 @@ The [`src/generators/`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/sr
 
 ---
 
+## 4. Vercel Serverless Gateway Architecture
+
+For deployment on serverless platforms like **Vercel Free Tier** where long-running local proxy background processes are unsupported, the application uses **`src/query/serverless_gateway.py`**:
+
+- **Direct OpenRouter Integration:** Uses `OPENROUTER_API_KEY` to directly invoke OpenRouter pool models (`google/gemini-2.5-flash-lite`, etc.) without a local proxy.
+- **Direct Gemini AI Studio API Fallback:** Uses `GEMINI_API_KEY` via direct Google REST endpoints if OpenRouter is unconfigured.
+- **Fast Static Graph Reader:** Uses `src/query/static_graph_reader.py` to query pre-indexed graph entities within < 1 second serverless execution budget.
+
+
 ## 4. Operational Commands
 
 ### Start LiteLLM Proxy (Port 8002)
