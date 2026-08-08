@@ -35,15 +35,15 @@ Senior Software Engineer with 10 years experience in **Python** and **AWS**.
 - B.E. in Electronics & Telecommunication - University of Pune (2013)
 """
         parsed = parse_raw_resume(raw_content)
-        self.assertEqual(parsed["name"], "Prasad Rane")
-        self.assertEqual(len(parsed["jobs"]), 2)
-        self.assertEqual(parsed["jobs"][0]["company"], "Rocket Mortgage")
-        self.assertEqual(parsed["jobs"][1]["company"], "London Computer Systems")
-        self.assertEqual(parsed["jobs"][1]["location"], "Cincinnati, OH")
+        self.assertEqual(parsed.name, "Prasad Rane")
+        self.assertEqual(len(parsed.jobs), 2)
+        self.assertEqual(parsed.jobs[0].company, "Rocket Mortgage")
+        self.assertEqual(parsed.jobs[1].company, "London Computer Systems")
+        self.assertEqual(parsed.jobs[1].location, "Cincinnati, OH")
 
         # Verify education year stripping
-        self.assertNotIn("2019", parsed["education"][0])
-        self.assertNotIn("2013", parsed["education"][1])
+        self.assertNotIn("2019", parsed.education[0])
+        self.assertNotIn("2013", parsed.education[1])
 
     def test_render_pdf_resume_file_not_found(self):
         with self.assertRaises(FileNotFoundError):

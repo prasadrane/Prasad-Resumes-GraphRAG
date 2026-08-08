@@ -1,5 +1,5 @@
 """
-pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus.
+pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus and Pydantic models.
 Enforces exact font sizes, colors, margins, spacing, KeepTogether job blocks, clickable links, and 2-page max guardrail.
 """
 
@@ -35,6 +35,7 @@ from .constants import (
     SECTION_SKILLS,
     SECTION_SUMMARY,
 )
+from .models import JobEntry, ResumeData
 
 # Color Palette Reference
 COLOR_DARK = colors.HexColor("#1a1a2e")      # Name, Section Headers
@@ -71,30 +72,18 @@ def markdown_to_reportlab_html(text: str) -> str:
     text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
     return text.strip()
 
-def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
-    """Parse raw_resume.txt Markdown content into structured data."""
+def parse_raw_resume(raw_content: str) -> ResumeData:
+    """Parse raw_resume.txt Markdown content into structured ResumeData Pydantic model."""
     lines = [l.strip() for l in raw_content.split("\n") if l.strip()]
-    data: Dict[str, Any] = {
-        "name": DEFAULT_CANDIDATE_NAME,
-        "contact_location": DEFAULT_LOCATION,
-        "contact_phone": DEFAULT_PHONE,
-        "contact_email": DEFAULT_EMAIL,
-        "contact_linkedin": DEFAULT_LINKEDIN_URL,
-        "contact_portfolio": DEFAULT_PORTFOLIO_URL,
-        "summary": "",
-        "jobs": [],
-        "skills": [],
-        "certifications": [],
-        "education": []
-    }
+    data = ResumeData()
 
     current_section = None
-    current_job = None
+    current_job: Optional[JobEntry] = None
     summary_lines = []
 
     for line in lines:
         if line.startswith(MARKDOWN_H1_PREFIX):
-            data["name"] = DEFAULT_CANDIDATE_NAME
+            data.name = DEFAULT_CANDIDATE_NAME
             continue
         elif line.startswith(MARKDOWN_H2_PREFIX):
             sec_heading = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
@@ -120,36 +109,36 @@ def parse_raw_resume(raw_content: str) -> Dict[str, Any]:
             if line.startswith(MARKDOWN_H3_PREFIX) or line.startswith(MARKDOWN_H4_PREFIX):
                 raw_job = line.lstrip("#").strip()
                 parsed_heading = parse_job_heading_components(raw_job)
-                current_job = {
-                    "heading": raw_job,
-                    "title": parsed_heading["title"],
-                    "company": parsed_heading["company"],
-                    "location": parsed_heading["location"],
-                    "dates": parsed_heading["dates"],
-                    "bullets": []
-                }
-                data["jobs"].append(current_job)
+                current_job = JobEntry(
+                    heading=raw_job,
+                    title=parsed_heading["title"],
+                    company=parsed_heading["company"],
+                    location=parsed_heading["location"],
+                    dates=parsed_heading["dates"],
+                    bullets=[]
+                )
+                data.jobs.append(current_job)
             elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
                 bullet = line[2:].strip()
                 if current_job:
-                    current_job["bullets"].append(bullet)
-                elif data["jobs"]:
-                    data["jobs"][-1]["bullets"].append(bullet)
+                    current_job.bullets.append(bullet)
+                elif data.jobs:
+                    data.jobs[-1].bullets.append(bullet)
 
         elif current_section == SECTION_SKILLS:
             if line.startswith(MARKDOWN_BULLET_PREFIX):
-                data["skills"].append(line[2:].strip())
+                data.skills.append(line[2:].strip())
 
         elif current_section == SECTION_CERTIFICATIONS:
             if line.startswith(MARKDOWN_BULLET_PREFIX):
-                data["certifications"].append(line[2:].strip())
+                data.certifications.append(line[2:].strip())
 
         elif current_section == SECTION_EDUCATION:
             if line.startswith(MARKDOWN_BULLET_PREFIX):
                 clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
-                data["education"].append(clean_edu)
+                data.education.append(clean_edu)
 
-    data["summary"] = " ".join(summary_lines)
+    data.summary = " ".join(summary_lines)
     return data
 
 def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
@@ -164,23 +153,18 @@ def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
         "dates": parts[3] if len(parts) > 3 else "Jan 2023 - Jul 2025"
     }
 
-def format_job_heading(job_dict: Dict[str, str]) -> str:
+def format_job_heading(job: JobEntry) -> str:
     """Format single line Job Heading: Job Title | Company Name | Location | Dates"""
-    title = job_dict.get("title", "Software Engineer")
-    company = job_dict.get("company", "Rocket Mortgage")
-    location = job_dict.get("location", DEFAULT_LOCATION)
-    dates = job_dict.get("dates", "Jan 2023 - Jul 2025")
-
-    return f'<font color="#0f3460"><b>{title}</b> | <b>{company}</b></font> | <font color="#6b7280"><i>{location}</i> | <i>{dates}</i></font>'
+    return f'<font color="#0f3460"><b>{job.title}</b> | <b>{job.company}</b></font> | <font color="#6b7280"><i>{job.location}</i> | <i>{job.dates}</i></font>'
 
 def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
-    """Render rule-based ATS compliant PDF resume using ReportLab Platypus."""
+    """Render rule-based ATS compliant PDF resume using ReportLab Platypus and Pydantic models."""
     if not raw_resume_path.exists():
         raise FileNotFoundError(f"Raw resume file not found: {raw_resume_path}")
 
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     raw_content = raw_resume_path.read_text(encoding="utf-8")
-    parsed = parse_raw_resume(raw_content)
+    parsed: ResumeData = parse_raw_resume(raw_content)
 
     doc = SimpleDocTemplate(
         str(output_pdf_path),
@@ -302,13 +286,13 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
     story = []
 
     # 1. Header: Name & Clickable Contact Details
-    story.append(Paragraph(DEFAULT_CANDIDATE_NAME, style_name))
+    story.append(Paragraph(parsed.name, style_name))
 
     contact_html = (
-        f'{DEFAULT_LOCATION} | {DEFAULT_PHONE} | '
-        f'<a href="mailto:{DEFAULT_EMAIL}"><font color="#0f3460">{DEFAULT_EMAIL}</font></a> | '
-        f'<a href="{DEFAULT_LINKEDIN_URL}"><font color="#0f3460">linkedin.com/in/rane-prasad</font></a> | '
-        f'<a href="{DEFAULT_PORTFOLIO_URL}"><font color="#0f3460">prasadrane.vercel.app</font></a>'
+        f'{parsed.contact_location} | {parsed.contact_phone} | '
+        f'<a href="mailto:{parsed.contact_email}"><font color="#0f3460">{parsed.contact_email}</font></a> | '
+        f'<a href="{parsed.contact_linkedin}"><font color="#0f3460">linkedin.com/in/rane-prasad</font></a> | '
+        f'<a href="{parsed.contact_portfolio}"><font color="#0f3460">prasadrane.vercel.app</font></a>'
     )
     story.append(Paragraph(contact_html, style_contact))
 
@@ -317,20 +301,20 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
         story.append(Paragraph(title, style_sec_header))
 
     # 2. Professional Summary Section
-    if parsed["summary"]:
+    if parsed.summary:
         add_section_header(SECTION_SUMMARY)
-        sum_html = markdown_to_reportlab_html(parsed["summary"])
+        sum_html = markdown_to_reportlab_html(parsed.summary)
         story.append(Paragraph(sum_html, style_summary))
 
     # 3. Experience Section
-    if parsed["jobs"]:
+    if parsed.jobs:
         add_section_header(SECTION_EXPERIENCE)
-        for job in parsed["jobs"]:
+        for job in parsed.jobs:
             job_flowables = []
             heading_html = format_job_heading(job)
             job_flowables.append(Paragraph(heading_html, style_job_heading))
 
-            for b in job["bullets"]:
+            for b in job.bullets:
                 b_html = markdown_to_reportlab_html(b)
                 bullet_str = f"• {b_html}"
                 job_flowables.append(Paragraph(bullet_str, style_bullet))
@@ -339,12 +323,12 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
             story.append(KeepTogether(job_flowables))
 
     # 4. Skills Section
-    if parsed["skills"]:
+    if parsed.skills:
         skills_flowables = []
         skills_flowables.append(HRFlowable(width="100%", thickness=0.5, color=COLOR_RULE, spaceBefore=6, spaceAfter=6))
         skills_flowables.append(Paragraph(SECTION_SKILLS, style_sec_header))
 
-        for sk in parsed["skills"]:
+        for sk in parsed.skills:
             sk_html = markdown_to_reportlab_html(sk)
             skills_flowables.append(Paragraph(sk_html, style_skill))
 
@@ -352,8 +336,8 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     # 5. Certifications Section
     add_section_header(SECTION_CERTIFICATIONS)
-    if parsed["certifications"]:
-        for cert in parsed["certifications"]:
+    if parsed.certifications:
+        for cert in parsed.certifications:
             if "AWS" in cert and "Credly" not in cert:
                 cert_html = (
                     f'<b><a href="{CREDLY_AWS_CERT_URL}"><font color="#0f3460">AWS Certified Cloud Practitioner</font></a></b> '
@@ -371,8 +355,8 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     # 6. Education Section (Display MS and BE without years)
     add_section_header(SECTION_EDUCATION)
-    if parsed["education"]:
-        for edu in parsed["education"]:
+    if parsed.education:
+        for edu in parsed.education:
             clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
             story.append(Paragraph(markdown_to_reportlab_html(clean_edu), style_edu))
     else:
