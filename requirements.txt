@@ -1,0 +1,14 @@
+# Core GraphRAG & LLM Proxy Dependencies
+graphrag
+litellm
+
+# Document & PDF Processing
+pdfplumber
+pypdf
+pymupdf
+reportlab
+
+# Environment & Utilities
+python-dotenv
+pyyaml
+lancedb
