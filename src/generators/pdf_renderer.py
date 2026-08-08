@@ -1,14 +1,15 @@
 """
 pdf_renderer.py — Rule-based PDF resume generator using ReportLab Platypus, Pydantic models, and pdf_styles.
+Applies SOLID (SRP, OCP) to support rendering directly from Path or pre-parsed ResumeData.
 """
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional, Union
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 
 from .constants import (
     DEFAULT_CANDIDATE_NAME,
@@ -25,7 +26,6 @@ from .constants import (
 )
 from .models import JobEntry, ResumeData
 from .pdf_styles import (
-    COLOR_RULE,
     PageCountCanvas,
     create_section_header_flowables,
     format_contact_paragraph,
@@ -47,7 +47,7 @@ def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
     }
 
 def parse_raw_resume(raw_content: str) -> ResumeData:
-    """Parse raw_resume.txt Markdown content generically into ResumeData Pydantic model."""
+    """Parse raw_resume.txt Markdown content generically into ResumeData Pydantic model (SRP)."""
     lines = [l.strip() for l in raw_content.split("\n") if l.strip()]
     data = ResumeData()
 
@@ -127,14 +127,9 @@ def parse_raw_resume(raw_content: str) -> ResumeData:
     data.summary = " ".join(summary_lines)
     return data
 
-def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
-    """Render rule-based ATS compliant PDF resume using ReportLab Platypus, Pydantic models, and pdf_styles."""
-    if not raw_resume_path.exists():
-        raise FileNotFoundError(f"Raw resume file not found: {raw_resume_path}")
-
+def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
+    """Render PDF document directly from ResumeData Pydantic model (Open/Closed Principle)."""
     output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
-    raw_content = raw_resume_path.read_text(encoding="utf-8")
-    parsed: ResumeData = parse_raw_resume(raw_content)
 
     doc = SimpleDocTemplate(
         str(output_pdf_path),
@@ -197,3 +192,16 @@ def render_pdf_resume(raw_resume_path: Path, output_pdf_path: Path) -> Path:
 
     doc.build(story, canvasmaker=PageCountCanvas)
     return output_pdf_path
+
+def render_pdf_resume(raw_resume_source: Union[Path, str], output_pdf_path: Path, parsed_data: Optional[ResumeData] = None) -> Path:
+    """Render rule-based ATS compliant PDF resume supporting Path or pre-parsed ResumeData (OCP/DIP)."""
+    if parsed_data is not None:
+        return render_pdf_from_model(parsed_data, output_pdf_path)
+
+    raw_path = Path(raw_resume_source)
+    if not raw_path.exists():
+        raise FileNotFoundError(f"Raw resume file not found: {raw_path}")
+
+    raw_content = raw_path.read_text(encoding="utf-8")
+    parsed = parse_raw_resume(raw_content)
+    return render_pdf_from_model(parsed, output_pdf_path)

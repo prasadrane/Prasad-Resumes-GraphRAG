@@ -1,5 +1,6 @@
 """
 resume_structurer.py — Section detection and clean Markdown resume formatting.
+Applies KISS and YAGNI for clean section header matching.
 """
 
 import re
@@ -14,44 +15,34 @@ STANDARD_HEADERS = {
     "COMPETENCIES", "CORE COMPETENCIES", "TECHNICAL COMPETENCIES",
     "TECHNICAL SKILLS & COMPETENCIES", "SKILLS & COMPETENCIES",
     "TECHNICAL SKILLS AND COMPETENCIES", "SKILLS AND COMPETENCIES",
-    "CORE SKILLS & COMPETENCIES",
-    "AREAS OF EXPERTISE", "EXPERTISE", "TECHNOLOGIES", "TOOLS",
+    "CORE SKILLS & COMPETENCIES", "AREAS OF EXPERTISE", "EXPERTISE", "TECHNOLOGIES", "TOOLS",
     # Experience
     "EXPERIENCE", "WORK EXPERIENCE", "PROFESSIONAL EXPERIENCE",
     "EMPLOYMENT HISTORY", "CAREER HISTORY", "WORK HISTORY",
     # Education
-    "EDUCATION", "ACADEMIC BACKGROUND", "QUALIFICATIONS",
-    "ACADEMIC QUALIFICATIONS",
-    # Projects
+    "EDUCATION", "ACADEMIC BACKGROUND", "QUALIFICATIONS", "ACADEMIC QUALIFICATIONS",
+    # Projects & Credentials
     "PROJECTS", "ACADEMIC PROJECTS", "PERSONAL PROJECTS", "KEY PROJECTS",
-    "NOTABLE PROJECTS", "SELECTED PROJECTS",
-    # Other
     "CERTIFICATIONS", "CERTIFICATES", "LICENSES", "CREDENTIALS",
-    "AWARDS", "HONORS", "ACHIEVEMENTS", "ACCOMPLISHMENTS",
-    "PUBLICATIONS", "RESEARCH", "PATENTS",
-    "LEADERSHIP", "VOLUNTEER", "COMMUNITY",
-    "LANGUAGES", "INTERESTS", "HOBBIES",
+    "AWARDS", "HONORS", "ACHIEVEMENTS", "PUBLICATIONS", "LEADERSHIP", "LANGUAGES"
 }
 
 def clean_text(text: str) -> str:
-    """Remove excessive whitespace while preserving line breaks and structure."""
+    """Remove excessive whitespace while preserving line breaks (KISS)."""
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 
 def is_standard_header(line: str) -> bool:
-    """Check if a line matches standard resume section headers."""
+    """Check if a line matches standard resume section headers (KISS)."""
+    if not line or len(line.strip()) > 60:
+        return False
     clean_line = re.sub(r"[^A-Za-z0-9&\s/#-]", "", line).strip().upper()
-    if clean_line in STANDARD_HEADERS or line.strip().upper() in STANDARD_HEADERS:
-        return True
-    return False
+    return clean_line in STANDARD_HEADERS
 
 def structure_resume(raw_text: str) -> str:
-    """Structure raw resume text into standardized Markdown sections."""
-    lines = [line.strip() for line in raw_text.split("\n")]
-    lines = [l for l in lines if l]
-    
+    """Structure raw resume text into standardized Markdown sections (KISS)."""
+    lines = [line.strip() for line in raw_text.split("\n") if line.strip()]
     if not lines:
         return ""
         
@@ -61,27 +52,18 @@ def structure_resume(raw_text: str) -> str:
     start_idx = 1
     
     if is_standard_header(name):
-        start_idx = 0
         name = "Candidate Resume"
+        start_idx = 0
     else:
-        # Check if line 2 is title/designation vs section header vs contact
-        if len(lines) > 1:
+        if len(lines) > 1 and not is_standard_header(lines[1]):
             line2 = lines[1]
-            if not is_standard_header(line2):
-                email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", line2)
-                phone_match = re.search(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", line2)
-                if not (email_match or phone_match or "linkedin.com" in line2.lower() or "github.io" in line2.lower()):
-                    title = line2
-                    start_idx = 2
+            if not any(token in line2.lower() for token in ["@", "phone", "linkedin", "github"]):
+                title = line2
+                start_idx = 2
 
-        # Check for contact info
         if len(lines) > start_idx and not is_standard_header(lines[start_idx]):
-            line_contact = lines[start_idx]
-            email_match = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", line_contact)
-            phone_match = re.search(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", line_contact)
-            if email_match or phone_match or "linkedin.com" in line_contact.lower() or "github.io" in line_contact.lower():
-                contact_info = line_contact
-                start_idx += 1
+            contact_info = lines[start_idx]
+            start_idx += 1
 
     sections: Dict[str, List[str]] = {}
     current_section = "Header"
@@ -94,8 +76,7 @@ def structure_resume(raw_text: str) -> str:
         else:
             sections[current_section].append(line)
             
-    md = []
-    md.append(f"# {name}")
+    md = [f"# {name}"]
     if title:
         md.append(f"**Title:** {title}")
     if contact_info:
@@ -111,8 +92,7 @@ def structure_resume(raw_text: str) -> str:
             
         md.append(f"## {section_name}")
         md.append("")
-        for line in section_lines:
-            md.append(line)
+        md.extend(section_lines)
         md.append("")
         
     return "\n".join(md)
