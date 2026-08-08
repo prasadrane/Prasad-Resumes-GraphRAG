@@ -8,59 +8,18 @@ LLM-powered knowledge graph built over Prasad's **Master Resume** (consolidated 
 
 ## 🏗️ Architecture & System Data Flow
 
-```mermaid
-flowchart TD
-    subgraph InputProcessing["1. Input Preprocessing & Conversion"]
-        A["Raw Resume PDFs & Markdown Docs"] -->|src/cli.py convert| B["PyMuPDF Parser (pdf_parser.py)"]
-        B -->|Spatial Sorting & Clean Whitespace| C["Resume Structurer (resume_structurer.py)"]
-        C -->|Header Normalization H2 Section Headings| D["input/MASTER_RESUME.txt & 03-Story-Bank.txt"]
-    end
+![Architecture & System Data Flow](docs/architecture_diagram.png)
 
-    subgraph IndexingPipeline["2. GraphRAG Indexing Engine"]
-        D -->|src/cli.py index| E["Text Chunking (1000 tokens / 150 overlap)"]
-        E --> F["Entity & Relationship Extraction (10 Custom Types)"]
-        F --> G["Community Detection & Summarization"]
-        G --> H["LanceDB Vector Store (output/lancedb)"]
-        G --> I["Parquet Entity Tables (output/*.parquet)"]
-    end
+<details>
+<summary><b>Click to expand detailed system pipeline workflow specification</b></summary>
 
-    subgraph ProxyRouter["3. LiteLLM Proxy Middleware (Port 8002)"]
-        F -.->|LLM & Embedding Requests| J{"LiteLLM Proxy Router (config/litellm-config.yaml)"}
-        
-        subgraph ChatCascade["Chat LLM Fallback Cascade"]
-            J -->|Primary| K["freellmapi-chat (OpenRouter Pool)"]
-            K -- 429 / Rate Limit --> L["gemini-2.5-flash-lite (1500 RPD)"]
-            L -- Quota Exceeded --> M["gemini-3.1-flash-lite (1500 RPD)"]
-            M -- Quota Exceeded --> N["gemini-3.5-flash-lite (1500 RPD)"]
-            N -- Secondary Fallback --> O["gemini-2.5-flash / gemini-2.0-flash"]
-        end
+1. **Input Preprocessing & Conversion (`src/converters/`):** PyMuPDF & Markdown spatial sorting converts raw input variations into canonical [`input/MASTER_RESUME.txt`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/input/MASTER_RESUME.txt) & [`03-Story-Bank.txt`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/input/03-Story-Bank.txt).
+2. **GraphRAG Indexing Engine (`graphrag index`):** Executes 1000-token chunking, custom entity/relationship extraction, community summarization, and saves vector embeddings to LanceDB (`output/lancedb`) and Parquet tables.
+3. **LiteLLM Proxy Middleware (`config/litellm-config.yaml`):** Runs local port 8002 proxy with multi-model fallback cascade (`freellmapi-chat` -> `gemini-2.5-flash-lite` -> `gemini-3.1-flash-lite` -> `gemini-3.5-flash-lite`).
+4. **Tailored Resume & PDF Generator (`src/generators/`):** Performs ATS keyword extraction against target job descriptions, assembles tailored Markdown, and renders ATS-compliant PDFs via ReportLab (`Prasad_Rane_Resume.pdf`).
+5. **Search & Web UI (`src/web/` & `api/index.py`):** Material Design 3 FastAPI Web interface supporting GraphRAG Q&A with direct OpenRouter/Gemini serverless failover gateway.
 
-        subgraph EmbedCascade["Embedding Fallback Cascade"]
-            J -->|Primary| P["llama-nemotron-embed-vl-1b-v2 (2048 dims)"]
-            P -- 429 / Rate Limit --> Q["gemini-embedding-001 (3072 dims)"]
-            Q -- Fallback --> R["freellmapi-embeddings"]
-        end
-    end
-
-    subgraph TailoredGenerator["4. Tailored Resume & PDF Generation Pipeline"]
-        JD["Job Description Text File"] -->|src/cli.py generate| ATS["ATS Keyword Extraction (ats_matcher.py)"]
-        ATS --> RAW["Raw Resume Assembly (resume_generator.py)"]
-        D -.-> RAW
-        RAW -->|output/<MM-DD-YYYY>/<Company>/raw_resume.txt| PDF["Rule-Based ReportLab PDF Renderer (pdf_renderer.py)"]
-        PDF -->|output/<MM-DD-YYYY>/<Company>/Prasad_Rane_Resume.pdf| FINAL["Standard PDF Resume (Prasad_Rane_Resume.pdf)"]
-    end
-
-    subgraph QueryExecution["5. Search & Query Execution"]
-        S["User Query"] --> T["Unified CLI (src/cli.py query) / scripts/query.py"]
-        T --> U{"LRU Cache (Max 100)"}
-        U -- Cache Hit --> V["Cached Response Output"]
-        U -- Cache Miss --> W["Search Engine (src/query/search_engine.py)"]
-        W -->|Local Search| H
-        W -->|Global Search| I
-        W -.->|LLM Synthesizer| J
-        W --> V
-    end
-```
+</details>
 
 ---
 
