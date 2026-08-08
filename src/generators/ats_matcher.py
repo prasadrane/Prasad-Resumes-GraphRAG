@@ -57,6 +57,8 @@ def match_graphrag_stories(keywords: List[str], root_dir: Path = None) -> List[s
         if root_dir is None:
             root_dir = Path(__file__).resolve().parent.parent.parent
         response = execute_graphrag_query(query_str, mode="local", root_dir=root_dir)
+        if not response:
+            return []
         return [line.strip() for line in response.split("\n") if line.strip()]
     except Exception as e:
         print(f"[WARN] GraphRAG matcher fallback: {e}")

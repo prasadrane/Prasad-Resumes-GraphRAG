@@ -1,5 +1,5 @@
 """
-resume_generator.py — Raw resume builder with ATS keyword bolding and date-based output directory structure.
+resume_generator.py — Tailored raw resume content generator adhering to exact resume generation rules.
 """
 
 import re
@@ -22,22 +22,34 @@ def get_output_dir(company_name: str, base_output_dir: Optional[Path] = None) ->
     target_dir.mkdir(parents=True, exist_ok=True)
     return target_dir
 
-def bold_keywords(text: str, keywords: List[str]) -> str:
-    """Format matching ATS keywords in **bold** while avoiding double bolding."""
+def clean_em_dashes(text: str) -> str:
+    """Remove em dashes and replace with periods or colons per resume rules."""
+    text = text.replace("—", ". ").replace(" – ", ". ")
+    return text
+
+def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3) -> str:
+    """Highlight job description keywords judiciously (max 2-3 phrases, <20% bolded text total)."""
     if not text or not keywords:
-        return text
+        return clean_em_dashes(text)
+
+    text = clean_em_dashes(text)
+    bold_count = 0
 
     for kw in sorted(keywords, key=len, reverse=True):
-        if not kw.strip():
+        if not kw.strip() or len(kw.strip()) < 3:
             continue
-        # Pattern to match keyword if not already enclosed in asterisks
+        if bold_count >= max_bold_phrases:
+            break
         pattern = re.compile(rf"(?<!\*\*)\b({re.escape(kw)})\b(?!\*\*)", re.IGNORECASE)
-        text = pattern.sub(r"**\1**", text)
+        new_text, count = pattern.subn(r"**\1**", text, count=1)
+        if count > 0:
+            text = new_text
+            bold_count += count
 
     return text
 
 def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None) -> Path:
-    """Generate tailored raw_resume.txt with ATS keywords bolded."""
+    """Generate tailored raw_resume.txt adhering to exact ATS nomenclature and section order."""
     out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
     raw_resume_path = out_dir / "raw_resume.txt"
 
@@ -50,8 +62,19 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     else:
         base_content = f"# Prasad Rane\n**Title:** Senior Software Engineer\n\n## SUMMARY\nExperienced Software Engineer specializing in cloud architecture and AI systems.\n"
 
-    # Apply bolding to keywords in resume text
-    tailored_text = bold_keywords(base_content, keywords)
+    # Tailor summary and bullet text with exact ATS keyword nomenclature
+    lines = base_content.split("\n")
+    processed_lines = []
+
+    for line in lines:
+        if line.startswith("- ") or line.startswith("* "):
+            bullet_text = line[2:].strip()
+            bolded_bullet = bold_keywords(bullet_text, keywords, max_bold_phrases=3)
+            processed_lines.append(f"- {bolded_bullet}")
+        else:
+            processed_lines.append(clean_em_dashes(line))
+
+    tailored_text = "\n".join(processed_lines)
 
     # Write raw_resume.txt
     raw_resume_path.write_text(tailored_text, encoding="utf-8")

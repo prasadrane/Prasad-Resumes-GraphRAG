@@ -17,22 +17,29 @@ class TestPDFRenderer(unittest.TestCase):
 ## SUMMARY
 Experienced in **Python**, **AWS**, and **GraphRAG**.
 
+## EXPERIENCE
+### Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 - Jul 2025
+- Built **Python** backend microservices.
+
 ## SKILLS
-Python, C#, AWS, Docker, Kubernetes
+- **Backend & APIs:** Python, C#, AWS, Docker, Kubernetes
 """
         parsed = parse_raw_resume(raw_content)
         self.assertEqual(parsed["name"], "Prasad Rane")
-        self.assertEqual(parsed["title"], "Senior Software Engineer")
-        self.assertIn("SUMMARY", parsed["sections"])
-        self.assertIn("SKILLS", parsed["sections"])
+        self.assertIn("Python", parsed["summary"])
+        self.assertEqual(len(parsed["jobs"]), 1)
+        self.assertEqual(len(parsed["skills"]), 1)
 
     def test_render_pdf_resume(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
             raw_file = tmp_path / "raw_resume.txt"
-            raw_file.write_text("# Prasad Rane\n**Title:** Lead Engineer\n\n## SUMMARY\nExperienced in **Python**.", encoding="utf-8")
+            raw_file.write_text(
+                "# Prasad Rane\n\n## SUMMARY\nExperienced in **Python**.\n\n## EXPERIENCE\n### Lead Engineer | Google | Remote | 2023 - Present\n- Led cloud teams.\n",
+                encoding="utf-8",
+            )
 
-            pdf_file = tmp_path / "Prasad_Rane_Resume.pdf"
+            pdf_file = tmp_path / "Prasad_Rane_Resume_Google.pdf"
             result_file = render_pdf_resume(raw_file, pdf_file)
 
             self.assertTrue(result_file.exists())

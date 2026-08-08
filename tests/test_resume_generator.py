@@ -38,7 +38,7 @@ class TestResumeGenerator(unittest.TestCase):
             self.assertEqual(out_file.name, "raw_resume.txt")
             content = out_file.read_text(encoding="utf-8")
             self.assertIn("Prasad Rane", content)
-            self.assertIn("SUMMARY", content)
+            self.assertIn("Summaries", content)
             self.assertIn("**Python**", content)
 
 if __name__ == "__main__":
