@@ -24,8 +24,18 @@ class ResumeGenerationRequest(BaseModel):
     company: str
     jd_text: str
 
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+STATIC_DIR = ROOT_DIR / "src" / "web" / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 @app.get("/")
 def read_root():
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
     return {"status": "ok", "service": "Prasad-Resumes-GraphRAG Vercel Serverless API"}
 
 @app.post("/api/keywords")
