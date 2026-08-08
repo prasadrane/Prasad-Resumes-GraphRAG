@@ -38,17 +38,51 @@ from src.query.static_graph_reader import read_precomputed_entities, search_stat
 
 @lru_cache(maxsize=100)
 def execute_graphrag_query(query: str, mode: str = "local", root_dir: Path = ROOT_DIR) -> str:
-    """Execute GraphRAG query with fast static graph & LLM fallback for instant UI responses."""
+    """Execute GraphRAG query with LLM-polished responses for natural, structured chatbot output."""
     mode_clean = mode.lower().strip() if mode else "local"
-    # Attempt direct fast serverless or precomputed graph reading
     try:
         entities = read_precomputed_entities()
-        context_snippet = json.dumps(entities[:5], indent=2) if entities else ""
+        # Use more entities for richer context
+        context_snippet = json.dumps(entities[:8], indent=2) if entities else "[]"
+        static_result = search_static_resume(query, mode=mode_clean)
+
         if mode_clean == "global":
-            system_prompt = f"You are an AI GraphRAG assistant in GLOBAL SUMMARY mode. Synthesize high-level executive overviews, career-wide impact summaries, and strategic domain themes for Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
+            system_prompt = (
+                "You are Prasad Rane's AI career assistant, communicating in GLOBAL SUMMARY mode. "
+                "Your role is to synthesize high-level executive narratives about Prasad's career trajectory, "
+                "strategic impact, cross-domain themes, and engineering leadership — drawing from his resume knowledge graph. "
+                "\n\nResponse Guidelines:\n"
+                "- Write in clear, professional, first-person-friendly prose (refer to 'Prasad' or 'he')\n"
+                "- Structure your response with markdown: bold key themes, use bullet points for lists\n"
+                "- Lead with a crisp 1-2 sentence executive summary answering the question directly\n"
+                "- Support with 3-5 specific evidence points (technologies, metrics, outcomes)\n"
+                "- Close with a synthesizing insight about career-level patterns or strategic strengths\n"
+                "- Keep responses focused and under 400 words\n"
+                "- Do NOT make up facts not present in the context\n"
+                f"\n\nResume Knowledge Graph Context:\n{context_snippet}"
+                f"\n\nAdditional Resume Facts:\n{static_result}"
+            )
         else:
-            system_prompt = f"You are an AI GraphRAG assistant in LOCAL CONTEXT mode. Provide granular, specific entity-level facts, exact metrics, project bullets, and technical tool details for Prasad Rane based on his resume knowledge graph.\n\nContext:\n{context_snippet}"
+            system_prompt = (
+                "You are Prasad Rane's AI career assistant, communicating in LOCAL CONTEXT mode. "
+                "Your role is to provide specific, fact-rich, entity-level answers about Prasad's skills, "
+                "technologies, projects, metrics, and work history — drawing from his resume knowledge graph. "
+                "\n\nResponse Guidelines:\n"
+                "- Be precise and specific — cite exact technologies, metrics, company names, dates where known\n"
+                "- Structure your response with markdown: bold key terms, use bullet points for lists\n"
+                "- Start with a direct, 1-sentence answer to the question\n"
+                "- Follow with specific supporting details (tools used, outcomes achieved, scale/metrics)\n"
+                "- If the exact information is not in the context, clearly say so rather than guessing\n"
+                "- Keep responses focused and under 300 words\n"
+                "- Do NOT invent facts not present in the context\n"
+                f"\n\nResume Knowledge Graph Context:\n{context_snippet}"
+                f"\n\nAdditional Resume Facts:\n{static_result}"
+            )
+
         return call_serverless_llm(prompt=query, system_prompt=system_prompt)
+
     except Exception as e:
-        # Dynamic resume search fallback guaranteed to return accurate answer instantly
+        # Graceful fallback: return static resume search result
+        print(f"[WARN] LLM chatbot polish failed: {e}. Falling back to static search.")
         return search_static_resume(query, mode=mode_clean)
+

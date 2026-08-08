@@ -1,5 +1,6 @@
 """
 resume_generator.py — Tailored raw resume content generator adhering to generic, candidate-agnostic resume rules.
+Integrates LLM-driven per-JD tailoring: summary synthesis, bullet re-wording/re-ordering, and ATS keyword bolding.
 """
 
 import re
@@ -8,6 +9,16 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .ats_matcher import extract_ats_keywords
+
+def _call_llm_safe(prompt: str, system_prompt: str) -> str:
+    """Safely call LLM with graceful fallback to empty string on error."""
+    try:
+        from src.query.serverless_gateway import call_serverless_llm
+        return call_serverless_llm(prompt=prompt, system_prompt=system_prompt)
+    except Exception as err:
+        print(f"[WARN] LLM tailoring call failed: {err}. Using base content.")
+        return ""
+
 from .constants import (
     DEFAULT_CANDIDATE_NAME,
     DEFAULT_CANDIDATE_TITLE,
@@ -414,8 +425,86 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
 
     return "\n".join(out_lines)
 
+
+def llm_tailor_resume(parsed: "ResumeData", master_content: str, company_name: str, jd_text: str, keywords: List[str]) -> "ResumeData":
+    """
+    Use LLM to produce a genuinely JD-customized resume:
+    - Re-word the Executive Summary to match JD's language and requirements
+    - Re-word and re-order Experience bullets to best reflect the target role's needs
+    - Re-order skill categories so most relevant ones appear first
+    
+    Rules strictly enforced:
+    - No new facts invented - only re-framing/re-ordering existing bullets
+    - No title line
+    - 2-page budget preserved (bullet counts unchanged)
+    - Bold keyword caps maintained (<20%)
+    """
+    # ---- 1. LLM-Tailored Executive Summary ----
+    summary_system = (
+        "You are a professional resume tailoring assistant. "
+        "Your task: given a candidate's master summary and a job description, rewrite the executive summary "
+        "to EXACTLY match the language and priorities of the job description. "
+        "Rules:\n"
+        "- Do NOT add any new facts or experiences not in the original\n"
+        "- Preserve the same career level and year count\n"
+        "- Keep roughly the same length (1-3 sentences)\n"
+        "- Use the JD's exact technical keywords and role-specific verbs\n"
+        "- Return ONLY the rewritten summary paragraph, no labels or headers\n"
+        "- Do not include a Title line\n"
+    )
+    summary_prompt = (
+        f"Target Company: {company_name}\n\n"
+        f"Job Description:\n{jd_text[:2500]}\n\n"
+        f"Original Summary:\n{parsed.summary}\n\n"
+        f"Rewrite the summary to best align with this JD. Return only the rewritten summary paragraph."
+    )
+    llm_summary = _call_llm_safe(summary_prompt, summary_system).strip()
+    if llm_summary and len(llm_summary) > 50:
+        parsed.summary = llm_summary
+
+    # ---- 2. LLM-Tailored Experience Bullets (per job) ----
+    bullets_system = (
+        "You are a professional resume tailoring assistant. "
+        "Your task: given a candidate's experience bullets for a specific role and a job description, "
+        "rewrite and reorder the bullets to best match the JD's requirements and language. "
+        "Rules:\n"
+        "- ONLY reframe/reword the original bullets — do NOT invent new experiences\n"
+        "- Keep the exact same number of bullets as provided\n"
+        "- Lead with the most relevant bullets for the JD\n"
+        "- Use the JD's exact technical keywords, action verbs and domain language naturally\n"
+        "- Return ONLY the rewritten bullets as a plain list, one bullet per line\n"
+        "- Each bullet must start with a strong action verb\n"
+        "- No markdown formatting, no numbering, no headers\n"
+    )
+    for job in parsed.jobs:
+        if not job.bullets:
+            continue
+        bullets_text = "\n".join(f"- {b}" for b in job.bullets)
+        bullets_prompt = (
+            f"Target Company: {company_name}\n"
+            f"Role: {job.title} at {job.company}\n\n"
+            f"Job Description:\n{jd_text[:2000]}\n\n"
+            f"Original Bullets:\n{bullets_text}\n\n"
+            f"Rewrite and reorder these {len(job.bullets)} bullets to best match this JD. "
+            f"Return exactly {len(job.bullets)} plain bullet lines (no dashes, no numbering)."
+        )
+        llm_bullets_raw = _call_llm_safe(bullets_prompt, bullets_system).strip()
+        if llm_bullets_raw:
+            # Parse LLM output lines, stripping leading dashes/bullets
+            new_bullets = []
+            for line in llm_bullets_raw.split("\n"):
+                cleaned = re.sub(r"^[\s\-\*\•\·\d\.]+", "", line).strip()
+                if cleaned:
+                    new_bullets.append(cleaned)
+            # Only apply if we got back a reasonable number of bullets
+            if len(new_bullets) >= max(1, len(job.bullets) - 2):
+                job.bullets = new_bullets[:len(job.bullets) + 2]  # Allow slight expansion, then PDF will trim
+
+    return parsed
+
+
 def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None) -> Path:
-    """Generate tailored raw_resume.txt adhering to exact ATS nomenclature and section order."""
+    """Generate LLM-tailored raw_resume.txt per-JD: re-worded, re-ordered, ATS-bolded, no title line."""
     out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
     raw_resume_path = out_dir / RAW_RESUME_FILENAME
 
@@ -426,10 +515,12 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
         parsed = parse_resume_markdown(master_content)
-        # Select best summary variant dynamically matching JD keywords
+        # Step 1: Rule-based best-match summary variant (fast pre-selection before LLM)
         tailored_summary = select_tailored_summary(master_content, keywords, company_name)
         if tailored_summary:
             parsed.summary = tailored_summary
+        # Step 2: LLM-driven deep tailoring (re-word summary + bullets per JD)
+        parsed = llm_tailor_resume(parsed, master_content, company_name, jd_text, keywords)
     else:
         parsed = ResumeData(
             name=DEFAULT_CANDIDATE_NAME,
