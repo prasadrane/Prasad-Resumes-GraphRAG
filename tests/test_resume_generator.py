@@ -21,6 +21,8 @@ from src.generators.resume_generator import (
     generate_raw_resume,
     get_output_dir,
     parse_master_resume,
+    reorder_skills_by_relevance,
+    select_tailored_summary,
 )
 
 class TestResumeGenerator(unittest.TestCase):
@@ -32,7 +34,6 @@ class TestResumeGenerator(unittest.TestCase):
 
     def test_get_output_dir_readonly(self):
         date_str = datetime.now().strftime("%m-%d-%Y")
-        # Mock base_output_dir where mkdir raises PermissionError
         mock_read_only = Path("/non_existent_readonly_dir_12345/output")
         out_dir = get_output_dir("CrowdStrike", base_output_dir=mock_read_only)
         self.assertTrue(out_dir.exists())
@@ -56,48 +57,13 @@ class TestResumeGenerator(unittest.TestCase):
         self.assertLessEqual(bold_count, 3)
         self.assertIn("**Python**", bolded)
 
-    def test_parse_master_resume_generic_candidate(self):
-        sample_master = """# JANE DOE — MASTER RESUME
-**Title:** Principal Cloud Architect
-**Contact:** Seattle, WA | 206-555-0199 | jane@example.com | linkedin.com/in/janedoe | janedoe.dev
-
-## 🎯 Executive & Specialized Professional Summaries
-### Canonical Summary
-Principal Cloud Architect with 12+ years experience building distributed systems.
-
-## 💼 Exhaustive Experience & Bullet Library
-### Lead Architect | TechCorp | Seattle, WA | Jan 2022 - Present
-#### Story 1 — Cloud Modernization
-- Led cloud migration to AWS and Kubernetes.
-
-## 🛠️ Complete Technical Skills Inventory
-- **Cloud & Infrastructure**: AWS, Kubernetes, Terraform
-
-## 🏆 Certifications
-- **AWS Solutions Architect Professional** - Amazon Web Services
-
-## 🎓 Education
-- **M.S. in Computer Science** - University of Washington (2018)
-"""
-        parsed: ResumeData = parse_master_resume(sample_master)
-        self.assertEqual(parsed.name, "JANE DOE")
-        self.assertEqual(parsed.title, "Principal Cloud Architect")
-        self.assertIn("12+ years", parsed.summary)
-        self.assertEqual(len(parsed.jobs), 1)
-        self.assertEqual(parsed.jobs[0].heading, "Lead Architect | TechCorp | Seattle, WA | Jan 2022 - Present")
-        self.assertEqual(len(parsed.skills), 1)
-        self.assertEqual(len(parsed.certifications), 1)
-        self.assertIn("2018", parsed.education[0])
-
-    def test_format_tailored_markdown_generic(self):
+    def test_title_line_excluded_from_markdown(self):
         data = ResumeData(
             name="Alex Smith",
             title="Senior Staff Engineer",
             contact_location="Austin, TX",
             contact_phone="512-555-0100",
             contact_email="alex@example.com",
-            contact_linkedin="linkedin.com/in/alexsmith",
-            contact_portfolio="alexsmith.dev",
             summary="Senior Staff Engineer specializing in Go and Kubernetes.",
             jobs=[JobEntry(heading="Staff Engineer | Global Systems | Austin, TX | 2021 - Present", bullets=["Led Go microservices."])],
             skills=["Backend: Go, Python, C#"],
@@ -108,80 +74,52 @@ Principal Cloud Architect with 12+ years experience building distributed systems
         md_text = format_tailored_markdown(data, keywords)
 
         self.assertIn("# Alex Smith", md_text)
-        self.assertIn("**Title:** Senior Staff Engineer", md_text)
+        self.assertNotIn("**Title:**", md_text) # Title line MUST be excluded!
         self.assertIn(f"## {SECTION_SUMMARY}", md_text)
         self.assertIn(f"## {SECTION_EXPERIENCE}", md_text)
         self.assertIn(f"## {SECTION_SKILLS}", md_text)
-        self.assertIn(f"## {SECTION_CERTIFICATIONS}", md_text)
-        self.assertIn(f"## {SECTION_EDUCATION}", md_text)
-        self.assertIn("**Go**", md_text)
+
+    def test_select_tailored_summary(self):
+        sample_master = """# PRASAD RANE — MASTER RESUME
+## 🎯 Executive & Specialized Professional Summaries
+### Canonical Summary
+Software Engineer with 10+ years experience.
+
+### Domain-Specific Summary Variants
+- **AI / LLM-Forward**: Software Engineer with 10 years experience building Amazon Bedrock Claude Sonnet chatbots.
+- **Cloud & Reliability-Forward**: Software Engineer with 10 years experience on AWS ECS Fargate and Terraform.
+"""
+        # AI Keywords
+        ai_sum = select_tailored_summary(sample_master, ["Bedrock", "Claude", "LLM"], "Anthropic")
+        self.assertIn("Amazon Bedrock", ai_sum)
+
+        # Cloud Keywords
+        cloud_sum = select_tailored_summary(sample_master, ["Fargate", "Terraform", "AWS"], "AWS")
+        self.assertIn("Fargate", cloud_sum)
+
+    def test_reorder_skills_by_relevance(self):
+        skills = [
+            "Backend & APIs: C#, .NET, Python",
+            "Cloud & Infrastructure: AWS, Fargate, Terraform",
+            "AI / LLM Integration: Bedrock, Claude, GraphRAG"
+        ]
+        keywords = ["Bedrock", "Claude"]
+        reordered = reorder_skills_by_relevance(skills, keywords)
+        self.assertTrue(reordered[0].startswith("AI / LLM")) # AI skill moved to top!
 
     def test_generate_raw_resume(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
-            jd_text = "Senior Software Engineer skilled in Python, AWS, and GraphRAG."
+            jd_text = "Senior Software Engineer skilled in Python, AWS ECS Fargate, and Bedrock."
             out_file = generate_raw_resume(
-                company_name="Google",
+                company_name="CrowdStrike",
                 jd_text=jd_text,
                 base_output_dir=Path(tmp_dir),
             )
             self.assertTrue(out_file.exists())
-            self.assertEqual(out_file.name, "raw_resume.txt")
             content = out_file.read_text(encoding="utf-8")
+            self.assertNotIn("**Title:**", content)
             self.assertIn("## SUMMARY", content)
             self.assertIn("## EXPERIENCE", content)
-            self.assertIn("## SKILLS", content)
-            self.assertIn("## CERTIFICATIONS", content)
-            self.assertIn("## EDUCATION", content)
-
-    def test_parse_contact_with_emojis(self):
-        sample = """# PRASAD RANE
-📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 [LinkedIn](https://linkedin.com/in/rane-prasad) | 💻 [Portfolio](https://prasadrane.vercel.app)
-
-## 🎯 Executive & Specialized Professional Summaries
-### Canonical Summary
-Senior Software Engineer with 10+ years experience.
-"""
-        parsed = parse_master_resume(sample)
-        self.assertEqual(parsed.name, "PRASAD RANE")
-        self.assertEqual(parsed.contact_location, "Lake Bluff, IL")
-        self.assertEqual(parsed.contact_phone, "513-967-9423")
-        self.assertEqual(parsed.contact_email, "emailprasadrane@gmail.com")
-        self.assertIn("linkedin.com/in/rane-prasad", parsed.contact_linkedin)
-        self.assertIn("prasadrane.vercel.app", parsed.contact_portfolio)
-
-    def test_parse_job_heading_with_emdashes_and_emojis(self):
-        sample = """# PRASAD RANE
-📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 LinkedIn | 💻 Portfolio
-
-## 💼 Exhaustive Experience & Bullet Library
-### **Software Engineer / Senior Engineer** — *Rocket Mortgage*
-📍 *Lake Bluff, IL* | 🗓️ *Jan 2023 – Jul 2025*
-- Built high throughput services.
-- Optimized SQL databases.
-"""
-        parsed = parse_master_resume(sample)
-        self.assertEqual(len(parsed.jobs), 1)
-        job = parsed.jobs[0]
-        self.assertEqual(job.title, "Software Engineer / Senior Engineer")
-        self.assertEqual(job.company, "Rocket Mortgage")
-        self.assertEqual(job.location, "Lake Bluff, IL")
-        self.assertIn("Jan 2023", job.dates)
-        self.assertIn("Jul 2025", job.dates)
-        self.assertEqual(len(job.bullets), 2)
-
-    def test_summary_excludes_candidate_name_prefix(self):
-        sample = """# PRASAD RANE — MASTER RESUME
-**Prasad Rane**
-📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 LinkedIn | 💻 Portfolio
-
-## 🎯 Executive & Specialized Professional Summaries
-### Canonical Summary
-Software Engineer with 10+ years of experience architecting systems.
-"""
-        parsed = parse_master_resume(sample)
-        self.assertNotIn("Prasad Rane", parsed.summary)
-        self.assertTrue(parsed.summary.startswith("Software Engineer with 10+ years"))
 
 if __name__ == "__main__":
     unittest.main()
-

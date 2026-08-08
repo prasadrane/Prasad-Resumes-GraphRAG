@@ -152,6 +152,60 @@ def _parse_contact_line(contact_str: str, data: ResumeData) -> None:
     if len(parts) >= 4: data.contact_linkedin = clean_link_url(parts[3])
     if len(parts) >= 5: data.contact_portfolio = clean_link_url(parts[4])
 
+def extract_summary_variants(content: str) -> Dict[str, str]:
+    """Extract canonical summary and domain variant summaries from MASTER_RESUME text."""
+    variants = {}
+    lines = content.split("\n")
+    current_key = "Canonical"
+    buffer = []
+
+    for line in lines:
+        l = line.strip()
+        if l.startswith("### Canonical Summary"):
+            if buffer and current_key:
+                variants[current_key] = " ".join(buffer).strip()
+            current_key = "Canonical"
+            buffer = []
+        elif l.startswith("### Domain-Specific Summary Variants"):
+            if buffer and current_key:
+                variants[current_key] = " ".join(buffer).strip()
+            current_key = None
+            buffer = []
+        elif current_key == "Canonical" and l and not l.startswith("#") and not l.startswith(">"):
+            buffer.append(l)
+        elif l.startswith("- **") and "**: " in l:
+            match = re.match(r"^-\s*\*\*(.*?)\*\*:\s*(.*)", l)
+            if match:
+                variant_name = match.group(1).strip()
+                variant_text = match.group(2).strip()
+                variants[variant_name] = variant_text
+
+    if buffer and current_key:
+        variants[current_key] = " ".join(buffer).strip()
+
+    return variants
+
+def select_tailored_summary(content: str, keywords: List[str], company_name: str) -> str:
+    """Select best-matching summary variant based on JD keywords."""
+    variants = extract_summary_variants(content)
+    if not variants:
+        return ""
+
+    best_summary = variants.get("Canonical", "")
+    best_score = -1
+
+    for name, summary in variants.items():
+        score = 0
+        s_upper = summary.upper()
+        for kw in keywords:
+            if kw.upper() in s_upper:
+                score += 1
+        if score > best_score:
+            best_score = score
+            best_summary = summary
+
+    return best_summary
+
 def parse_resume_markdown(content: str) -> ResumeData:
     """Unified Markdown resume parser building a generic ResumeData Pydantic model."""
     raw_lines = content.split("\n")
@@ -271,13 +325,12 @@ def parse_resume_markdown(content: str) -> ResumeData:
     data.summary = clean_summary
     return data
 
-# Alias for backwards compatibility
 parse_master_resume = parse_resume_markdown
 
 def score_and_select_bullets(bullets: List[str], keywords: List[str], max_bullets: int) -> List[str]:
-    """Score bullets based on ATS keyword occurrences, returning top max_bullets maintaining relative order."""
-    if len(bullets) <= max_bullets:
-        return bullets
+    """Score and reorder bullets based on ATS keyword occurrences, preserving full bullet counts."""
+    if not bullets:
+        return []
 
     scored = []
     for orig_idx, bullet in enumerate(bullets):
@@ -285,26 +338,45 @@ def score_and_select_bullets(bullets: List[str], keywords: List[str], max_bullet
         bullet_upper = bullet.upper()
         for kw in keywords:
             if kw.strip() and kw.upper() in bullet_upper:
-                score += 1
+                score += 2
         scored.append((score, -orig_idx, bullet))
 
     scored.sort(reverse=True)
-    selected_tuples = scored[:max_bullets]
-    selected_tuples.sort(key=lambda x: -x[1])
+    # Take up to max_bullets or all bullets if max_bullets >= len(bullets)
+    target_count = min(len(bullets), max_bullets)
+    selected_tuples = scored[:target_count]
     return [t[2] for t in selected_tuples]
 
+def reorder_skills_by_relevance(skills: List[str], keywords: List[str]) -> List[str]:
+    """Reorder skill categories by keyword relevance without dropping any category."""
+    if not skills or not keywords:
+        return skills
+
+    scored = []
+    for idx, sk in enumerate(skills):
+        score = 0
+        sk_upper = sk.upper()
+        for kw in keywords:
+            if kw.strip() and kw.upper() in sk_upper:
+                score += 1
+        scored.append((score, -idx, sk))
+
+    scored.sort(reverse=True)
+    return [t[2] for t in scored]
+
 def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
-    """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text."""
+    """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text (excluding Title line)."""
+    # NOTE: Title line is completely excluded as per instructions!
     out_lines = [
         f"{MARKDOWN_H1_PREFIX}{data.name}",
-        f"**Title:** {data.title}",
         f"**Contact:** {data.contact_location} | {data.contact_phone} | {data.contact_email} | {data.contact_linkedin} | {data.contact_portfolio}",
         ""
     ]
 
     # 1. SUMMARY
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SUMMARY}")
-    out_lines.append(bold_keywords(data.summary, keywords, max_bold_phrases=3, max_bold_ratio=0.15))
+    bolded_summary = bold_keywords(data.summary, keywords, max_bold_phrases=3, max_bold_ratio=0.15)
+    out_lines.append(bolded_summary)
     out_lines.append("")
 
     # 2. EXPERIENCE
@@ -313,6 +385,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
         heading_parts = [p for p in [job.title, job.company, job.location, job.dates] if p]
         clean_heading = " | ".join(heading_parts)
         out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
+        # Keep generous bullet budget (7 for primary/recent job, 5 for prior) to preserve length
         max_bullets = 7 if idx == 0 else 5
         selected_bullets = score_and_select_bullets(job.bullets, keywords, max_bullets)
         for b in selected_bullets:
@@ -322,8 +395,10 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
 
     # 3. SKILLS
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SKILLS}")
-    for sk in data.skills:
-        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_em_dashes(sk)}")
+    ordered_skills = reorder_skills_by_relevance(data.skills, keywords)
+    for sk in ordered_skills:
+        bolded_sk = bold_keywords(clean_em_dashes(sk), keywords, max_bold_phrases=2, max_bold_ratio=0.25)
+        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_sk}")
     out_lines.append("")
 
     # 4. CERTIFICATIONS
@@ -351,6 +426,10 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
         parsed = parse_resume_markdown(master_content)
+        # Select best summary variant dynamically matching JD keywords
+        tailored_summary = select_tailored_summary(master_content, keywords, company_name)
+        if tailored_summary:
+            parsed.summary = tailored_summary
     else:
         parsed = ResumeData(
             name=DEFAULT_CANDIDATE_NAME,
