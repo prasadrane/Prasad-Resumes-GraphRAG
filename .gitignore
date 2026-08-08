@@ -1,8 +1,12 @@
 # Environment variables
 .env
 
-# Python virtual environment
+# Python virtual environment & caches
 venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
 
 # GraphRAG outputs & runtime logs/cache
 output/
@@ -10,6 +14,13 @@ cache/
 logs/
 update_output/
 
-# OS specific files
+# Graphify & temporary scratch files
+.graphify/
+scratch/
+*.tmp
+
+# OS & IDE specific files
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
