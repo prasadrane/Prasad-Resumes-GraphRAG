@@ -89,8 +89,7 @@ def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
         return []
     story = create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"])
     for edu in parsed.education:
-        clean_edu = re.sub(r"\s*\(\d{4}\)", "", edu)
-        story.append(Paragraph(markdown_to_reportlab_html(clean_edu), styles["edu"]))
+        story.append(Paragraph(markdown_to_reportlab_html(edu), styles["edu"]))
     return story
 
 def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:

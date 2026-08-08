@@ -16,3 +16,9 @@
 
 - [x] **Track: Tailored resume generation with ATS keyword analysis (raw_resume.txt) and rule-based PDF resume generation (Prasad_Rane_Resume.pdf)**
 *Link: [./tracks/tailored_resume_20260808/](./tracks/tailored_resume_20260808/)*
+
+- [x] **Track: 3-Step Refactoring for Vercel Free Tier Deployment**
+*Link: [./tracks/vercel_refactor_20260808/](./tracks/vercel_refactor_20260808/)*
+
+
+

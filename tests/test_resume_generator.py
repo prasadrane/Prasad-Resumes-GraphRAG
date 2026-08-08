@@ -79,7 +79,7 @@ Principal Cloud Architect with 12+ years experience building distributed systems
         self.assertEqual(parsed.jobs[0].heading, "Lead Architect | TechCorp | Seattle, WA | Jan 2022 - Present")
         self.assertEqual(len(parsed.skills), 1)
         self.assertEqual(len(parsed.certifications), 1)
-        self.assertNotIn("2018", parsed.education[0])
+        self.assertIn("2018", parsed.education[0])
 
     def test_format_tailored_markdown_generic(self):
         data = ResumeData(
@@ -125,5 +125,55 @@ Principal Cloud Architect with 12+ years experience building distributed systems
             self.assertIn("## CERTIFICATIONS", content)
             self.assertIn("## EDUCATION", content)
 
+    def test_parse_contact_with_emojis(self):
+        sample = """# PRASAD RANE
+📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 [LinkedIn](https://linkedin.com/in/rane-prasad) | 💻 [Portfolio](https://prasadrane.vercel.app)
+
+## 🎯 Executive & Specialized Professional Summaries
+### Canonical Summary
+Senior Software Engineer with 10+ years experience.
+"""
+        parsed = parse_master_resume(sample)
+        self.assertEqual(parsed.name, "PRASAD RANE")
+        self.assertEqual(parsed.contact_location, "Lake Bluff, IL")
+        self.assertEqual(parsed.contact_phone, "513-967-9423")
+        self.assertEqual(parsed.contact_email, "emailprasadrane@gmail.com")
+        self.assertIn("linkedin.com/in/rane-prasad", parsed.contact_linkedin)
+        self.assertIn("prasadrane.vercel.app", parsed.contact_portfolio)
+
+    def test_parse_job_heading_with_emdashes_and_emojis(self):
+        sample = """# PRASAD RANE
+📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 LinkedIn | 💻 Portfolio
+
+## 💼 Exhaustive Experience & Bullet Library
+### **Software Engineer / Senior Engineer** — *Rocket Mortgage*
+📍 *Lake Bluff, IL* | 🗓️ *Jan 2023 – Jul 2025*
+- Built high throughput services.
+- Optimized SQL databases.
+"""
+        parsed = parse_master_resume(sample)
+        self.assertEqual(len(parsed.jobs), 1)
+        job = parsed.jobs[0]
+        self.assertEqual(job.title, "Software Engineer / Senior Engineer")
+        self.assertEqual(job.company, "Rocket Mortgage")
+        self.assertEqual(job.location, "Lake Bluff, IL")
+        self.assertIn("Jan 2023", job.dates)
+        self.assertIn("Jul 2025", job.dates)
+        self.assertEqual(len(job.bullets), 2)
+
+    def test_summary_excludes_candidate_name_prefix(self):
+        sample = """# PRASAD RANE — MASTER RESUME
+**Prasad Rane**
+📍 Lake Bluff, IL | 📞 513-967-9423 | ✉️ emailprasadrane@gmail.com | 🌐 LinkedIn | 💻 Portfolio
+
+## 🎯 Executive & Specialized Professional Summaries
+### Canonical Summary
+Software Engineer with 10+ years of experience architecting systems.
+"""
+        parsed = parse_master_resume(sample)
+        self.assertNotIn("Prasad Rane", parsed.summary)
+        self.assertTrue(parsed.summary.startswith("Software Engineer with 10+ years"))
+
 if __name__ == "__main__":
     unittest.main()
+

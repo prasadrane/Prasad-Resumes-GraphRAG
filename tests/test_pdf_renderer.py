@@ -43,8 +43,8 @@ Principal Software Architect with 10 years experience in **Python** and **AWS**.
         self.assertEqual(parsed.jobs[1].company, "CloudSystems")
         self.assertEqual(parsed.jobs[1].location, "San Jose, CA")
 
-        # Verify education year stripping
-        self.assertNotIn("2018", parsed.education[0])
+        # Verify education year preservation
+        self.assertIn("2018", parsed.education[0])
 
     def test_render_pdf_resume_file_not_found(self):
         with self.assertRaises(FileNotFoundError):

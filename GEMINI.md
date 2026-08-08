@@ -76,3 +76,9 @@ python src/cli.py query --mode local "What AWS technologies did Prasad use?"
 ```powershell
 python src/cli.py generate --company <Company_Name> --jd-file <Path_To_JD.txt>
 ```
+
+### Launch Minimalist Web UI
+```powershell
+python src/cli.py ui
+# or: python scripts/run_ui.py
+```

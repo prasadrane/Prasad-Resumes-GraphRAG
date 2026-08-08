@@ -58,5 +58,12 @@ def match_graphrag_stories(keywords: List[str], root_dir: Path = None) -> List[s
             return []
         return [line.strip() for line in response.split("\n") if line.strip()]
     except Exception as e:
-        print(f"[WARN] GraphRAG matcher fallback: {e}")
-        return []
+        print(f"[WARN] GraphRAG matcher fallback to serverless gateway: {e}")
+        try:
+            from src.query.serverless_gateway import call_serverless_llm
+            res = call_serverless_llm(query_str, system_prompt="You are an ATS resume matcher. Extract matching resume bullets for the given keywords.")
+            return [line.strip() for line in res.split("\n") if line.strip()]
+        except Exception as s_err:
+            print(f"[WARN] Serverless gateway fallback error: {s_err}")
+            return []
+

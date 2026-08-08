@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  litellm:
+    build: .
+    ports:
+      - "8002:8002"
+    environment:
+      - GRAPHRAG_API_KEY=${GRAPHRAG_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    restart: unless-stopped
+
+  freellmapi:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - C:/Users/mamat/Github/freellmapi:/app
+    command: npm run dev
+    ports:
+      - "3001:3001"
+    restart: unless-stopped

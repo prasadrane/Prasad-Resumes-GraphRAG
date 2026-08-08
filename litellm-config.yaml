@@ -1,0 +1,97 @@
+model_list:
+  # ── CHAT MODELS ──────────────────────────────────────────────────────────────
+
+  # PRIMARY Chat: FreeLLMAPI (OpenRouter free models — no daily quota cap)
+  - model_name: freellmapi-chat
+    litellm_params:
+      model: openai/auto
+      api_base: http://localhost:3001/v1
+      api_key: "os.environ/FREELLMAPI_API_KEY"
+    model_info:
+      id: freellmapi-chat
+
+  # Fallback Chat 1: Google Gemini 2.5 Flash-Lite (1,500 RPD quota)
+  - model_name: gemini-2.5-flash-lite
+    litellm_params:
+      model: gemini/gemini-2.5-flash-lite
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-2.5-flash-lite
+
+  # Fallback Chat 2: Google Gemini 3.1 Flash-Lite (1,500 RPD quota)
+  - model_name: gemini-3.1-flash-lite
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-3.1-flash-lite
+
+  # Fallback Chat 3: Google Gemini 3.5 Flash-Lite (1,500 RPD quota)
+  - model_name: gemini-3.5-flash-lite
+    litellm_params:
+      model: gemini/gemini-3.5-flash-lite
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-3.5-flash-lite
+
+  # Fallback Chat 4: Google Gemini 2.5 Flash (20 RPD, lower priority)
+  - model_name: gemini-2.5-flash
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-2.5-flash
+
+  # Fallback Chat 5: Google Gemini 2.0 Flash (20 RPD, lower priority)
+  - model_name: gemini-2.0-flash
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-2.0-flash
+
+  # ── EMBEDDING MODELS ─────────────────────────────────────────────────────────
+
+  # PRIMARY Embedding: Nvidia llama-nemotron via FreeLLMAPI -> OpenRouter (2048 dims, no quota cap)
+  - model_name: llama-nemotron-embed-vl-1b-v2
+    litellm_params:
+      model: openai/llama-nemotron-embed-vl-1b-v2
+      api_base: http://localhost:3001/v1
+      api_key: "os.environ/FREELLMAPI_API_KEY"
+    model_info:
+      id: llama-nemotron-embed-vl-1b-v2
+
+  # Fallback Embedding 1: Google gemini-embedding-001 (1,500 RPD, 3072 dims — if quota resets)
+  - model_name: gemini-embedding-001
+    litellm_params:
+      model: gemini/gemini-embedding-001
+      api_key: "os.environ/GRAPHRAG_API_KEY"
+    model_info:
+      id: gemini-embedding-001
+
+  # Fallback Embedding 2: FreeLLMAPI auto (catches all remaining embedding families)
+  - model_name: freellmapi-embeddings
+    litellm_params:
+      model: openai/auto
+      api_base: http://localhost:3001/v1
+      api_key: "os.environ/FREELLMAPI_API_KEY"
+    model_info:
+      id: freellmapi-embeddings
+
+router_settings:
+  fallbacks:
+    # Chat fallback chain: FreeLLMAPI first, Gemini Lite models next, then Flash models last
+    - freellmapi-chat: ["gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+    - gemini-2.5-flash-lite: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+    - gemini-3.1-flash-lite: ["gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+    - gemini-3.5-flash-lite: ["gemini-2.5-flash", "gemini-2.0-flash"]
+    - gemini-2.5-flash: ["gemini-2.0-flash"]
+    # Embedding fallback chain: FreeLLMAPI/Nvidia first, Gemini embedding as fallback
+    - llama-nemotron-embed-vl-1b-v2: ["gemini-embedding-001", "freellmapi-embeddings"]
+    - gemini-embedding-001: ["freellmapi-embeddings"]
+
+litellm_settings:
+  drop_params: true
+  stream: false
+  num_retries: 3
+  request_timeout: 120

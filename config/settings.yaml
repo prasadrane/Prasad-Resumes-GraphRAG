@@ -1,0 +1,104 @@
+### GraphRAG 2.5.0 Settings — Prasad Resumes Knowledge Graph
+### Centralized Enterprise Configuration
+
+models:
+  default_chat_model:
+    type: openai_chat
+    auth_type: api_key
+    api_key: "dummy-key"
+    api_base: http://localhost:8002
+    model: freellmapi-chat
+    encoding_model: cl100k_base
+    model_supports_json: true
+    concurrent_requests: 3
+    concurrency: 3
+    async_mode: threaded
+    retry_strategy: native
+    max_retries: 10
+
+  default_embedding_model:
+    type: openai_embedding
+    auth_type: api_key
+    api_key: "dummy-key"
+    api_base: http://localhost:8002
+    model: llama-nemotron-embed-vl-1b-v2
+    encoding_model: cl100k_base
+    concurrent_requests: 3
+    concurrency: 3
+    async_mode: threaded
+    retry_strategy: native
+    max_retries: 10
+
+input:
+  storage:
+    type: file
+    base_dir: "input"
+  file_type: text
+
+chunks:
+  size: 1000
+  overlap: 150
+  group_by_columns: [id]
+
+output:
+  type: file
+  base_dir: "output"
+
+cache:
+  type: file
+  base_dir: "cache"
+
+reporting:
+  type: file
+  base_dir: "logs"
+
+vector_store:
+  default_vector_store:
+    type: lancedb
+    db_uri: output\lancedb
+    container_name: default
+    overwrite: True
+
+embed_text_units: true
+embed_communities: false
+embed_relationships: false
+embed_entities: false
+
+entity_extraction:
+  entity_types:
+    - Person
+    - Company
+    - Role
+    - Technology
+    - Skill
+    - Competency
+    - Project
+    - Achievement
+    - Story
+    - Metric
+  max_gleanings: 1
+
+summarize_descriptions:
+  max_length: 500
+
+community_reports:
+  max_length: 2000
+  max_input_length: 8000
+
+claim_extraction:
+  enabled: false
+
+local_search:
+  text_unit_prop: 0.5
+  community_prop: 0.1
+  conversation_history_max_turns: 3
+  top_k_mapped_entities: 10
+  top_k_relationships: 10
+  max_tokens: 8000
+
+global_search:
+  max_tokens: 8000
+  data_max_tokens: 8000
+  map_max_tokens: 1000
+  reduce_max_tokens: 2000
+  concurrency: 10

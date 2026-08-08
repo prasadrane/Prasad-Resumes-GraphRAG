@@ -49,16 +49,41 @@ def clean_em_dashes(text: str) -> str:
     text = re.sub(r"\s+\.\s+", ". ", text)
     return text.strip()
 
+def clean_link_url(text: str) -> str:
+    """Extract clean URL from markdown link [Text](url) or return text as is."""
+    match = re.search(r"\[.*?\]\((.*?)\)", text)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
+
 def parse_job_heading_components(heading_str: str) -> Dict[str, str]:
-    """Parse single-line job heading into title, company, location, dates dynamically."""
+    """Parse single-line or multi-line job heading into title, company, location, dates dynamically."""
     cleaned = heading_str.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
-    parts = [p.strip() for p in cleaned.split("|") if p.strip()]
+    
+    if "|" in cleaned:
+        parts = [p.strip() for p in cleaned.split("|") if p.strip()]
+        return {
+            "title": parts[0] if len(parts) > 0 else "",
+            "company": parts[1] if len(parts) > 1 else "",
+            "location": parts[2] if len(parts) > 2 else "",
+            "dates": parts[3] if len(parts) > 3 else ""
+        }
+    
+    title = ""
+    company = ""
+
+    match_dash = re.split(r"\s*[—–-]\s*", cleaned, maxsplit=1)
+    if len(match_dash) == 2:
+        title = match_dash[0].strip()
+        company = match_dash[1].strip()
+    else:
+        title = cleaned
 
     return {
-        "title": parts[0] if len(parts) > 0 else "",
-        "company": parts[1] if len(parts) > 1 else "",
-        "location": parts[2] if len(parts) > 2 else "",
-        "dates": parts[3] if len(parts) > 3 else ""
+        "title": title,
+        "company": company,
+        "location": "",
+        "dates": ""
     }
 
 def create_job_entry(heading: str, bullets: List[str]) -> JobEntry:
@@ -108,16 +133,22 @@ def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max
 
 def _parse_contact_line(contact_str: str, data: ResumeData) -> None:
     """Parse contact header line into structured ResumeData contact fields."""
-    parts = [p.strip() for p in contact_str.split("|") if p.strip()]
+    raw_parts = [p.strip() for p in contact_str.split("|") if p.strip()]
+    parts = []
+    for p in raw_parts:
+        cleaned_p = re.sub(r"[📍📞✉️🌐💻📱📧🏠]", "", p).strip()
+        if cleaned_p:
+            parts.append(cleaned_p)
+
     if len(parts) >= 1: data.contact_location = parts[0]
     if len(parts) >= 2: data.contact_phone = parts[1]
     if len(parts) >= 3: data.contact_email = parts[2]
-    if len(parts) >= 4: data.contact_linkedin = parts[3]
-    if len(parts) >= 5: data.contact_portfolio = parts[4]
+    if len(parts) >= 4: data.contact_linkedin = clean_link_url(parts[3])
+    if len(parts) >= 5: data.contact_portfolio = clean_link_url(parts[4])
 
 def parse_resume_markdown(content: str) -> ResumeData:
     """Unified Markdown resume parser building a generic ResumeData Pydantic model."""
-    lines = [clean_em_dashes(l) for l in content.split("\n")]
+    raw_lines = content.split("\n")
     data = ResumeData()
     
     current_sec = SECTION_SUMMARY
@@ -125,7 +156,8 @@ def parse_resume_markdown(content: str) -> ResumeData:
     current_job_bullets = []
     summary_lines = []
 
-    for line in lines:
+    for raw_line in raw_lines:
+        line = raw_line.strip()
         if not line:
             continue
 
@@ -141,7 +173,7 @@ def parse_resume_markdown(content: str) -> ResumeData:
             data.title = line.replace("**Title:**", "").strip()
             continue
 
-        if line.startswith("**Contact:**"):
+        if line.startswith("**Contact:**") or ((current_sec == SECTION_SUMMARY) and ("✉️" in line or "📞" in line or (line.startswith("📍") and "email" in line.lower()))):
             contact_str = line.replace("**Contact:**", "").strip()
             _parse_contact_line(contact_str, data)
             continue
@@ -171,15 +203,15 @@ def parse_resume_markdown(content: str) -> ResumeData:
             if line.startswith("### Domain-Specific"):
                 current_sec = SECTION_SKIP_SUMMARY_VARIANTS
                 continue
-            if line.startswith("📍") or line.startswith(">") or line.startswith("**Work Authorization:**"):
+            if line.startswith(">") or line.startswith("**Work Authorization:**"):
                 if line.startswith("**") and not data.name:
                     bold_name = re.findall(r"\*\*(.*?)\*\*", line)
                     if bold_name:
                         data.name = bold_name[0]
                 continue
-            if line.startswith("**") and data.name in line and not line.startswith("- "):
+            if (line.startswith("**") or line == data.name) and (data.name.lower() in line.lower() or "master resume" in line.lower()):
                 continue
-            summary_lines.append(line)
+            summary_lines.append(clean_em_dashes(line))
 
         elif current_sec == SECTION_EXPERIENCE:
             if line.startswith(MARKDOWN_H3_PREFIX):
@@ -187,20 +219,36 @@ def parse_resume_markdown(content: str) -> ResumeData:
                     data.jobs.append(create_job_entry(current_job_header, current_job_bullets))
                 current_job_header = line[len(MARKDOWN_H3_PREFIX):].strip()
                 current_job_bullets = []
+            elif line.startswith("📍") or line.startswith("🗓️"):
+                sub_clean = line.replace("**", "").replace("*", "").replace("📍", "").replace("🗓️", "").strip()
+                parts = [p.strip() for p in sub_clean.split("|") if p.strip()]
+                loc_part = ""
+                dates_part = ""
+                for p in parts:
+                    if re.search(r"\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}|Present)\b", p, re.IGNORECASE):
+                        dates_part = p
+                    else:
+                        loc_part = p
+                if current_job_header:
+                    comp = parse_job_heading_components(current_job_header)
+                    t = comp["title"]
+                    c = comp["company"]
+                    l = loc_part or comp["location"]
+                    d = dates_part or comp["dates"]
+                    current_job_header = f"{t} | {c} | {l} | {d}"
             elif line.startswith(MARKDOWN_H4_PREFIX):
                 continue
             elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
-                current_job_bullets.append(line[2:].strip())
+                current_job_bullets.append(clean_em_dashes(line[2:].strip()))
 
         elif current_sec == SECTION_SKILLS and line.startswith(MARKDOWN_BULLET_PREFIX):
-            data.skills.append(line[2:].strip())
+            data.skills.append(clean_em_dashes(line[2:].strip()))
 
         elif current_sec == SECTION_CERTIFICATIONS and line.startswith(MARKDOWN_BULLET_PREFIX):
-            data.certifications.append(line[2:].strip())
+            data.certifications.append(clean_em_dashes(line[2:].strip()))
 
         elif current_sec == SECTION_EDUCATION and line.startswith(MARKDOWN_BULLET_PREFIX):
-            clean_edu = re.sub(r"\s*\(\d{4}\)", "", line[2:].strip())
-            data.education.append(clean_edu)
+            data.education.append(clean_em_dashes(line[2:].strip()))
 
     if current_job_header:
         data.jobs.append(create_job_entry(current_job_header, current_job_bullets))
@@ -210,11 +258,34 @@ def parse_resume_markdown(content: str) -> ResumeData:
     if not data.title:
         data.title = DEFAULT_CANDIDATE_TITLE
 
-    data.summary = " ".join(summary_lines)
+    clean_summary = " ".join(summary_lines)
+    if data.name:
+        clean_summary = re.sub(rf"^(?:\*\*)?{re.escape(data.name)}(?:\*\*)?\s*[\.—–|-]*\s*", "", clean_summary, flags=re.IGNORECASE).strip()
+    clean_summary = re.sub(r"^[\.—–|-]+\s*", "", clean_summary).strip()
+    data.summary = clean_summary
     return data
 
 # Alias for backwards compatibility
 parse_master_resume = parse_resume_markdown
+
+def score_and_select_bullets(bullets: List[str], keywords: List[str], max_bullets: int) -> List[str]:
+    """Score bullets based on ATS keyword occurrences, returning top max_bullets maintaining relative order."""
+    if len(bullets) <= max_bullets:
+        return bullets
+
+    scored = []
+    for orig_idx, bullet in enumerate(bullets):
+        score = 0
+        bullet_upper = bullet.upper()
+        for kw in keywords:
+            if kw.strip() and kw.upper() in bullet_upper:
+                score += 1
+        scored.append((score, -orig_idx, bullet))
+
+    scored.sort(reverse=True)
+    selected_tuples = scored[:max_bullets]
+    selected_tuples.sort(key=lambda x: -x[1])
+    return [t[2] for t in selected_tuples]
 
 def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text."""
@@ -233,10 +304,12 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     # 2. EXPERIENCE
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EXPERIENCE}")
     for idx, job in enumerate(data.jobs):
-        clean_heading = clean_em_dashes(job.heading)
+        heading_parts = [p for p in [job.title, job.company, job.location, job.dates] if p]
+        clean_heading = " | ".join(heading_parts)
         out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
-        max_bullets = 4 if idx == 0 else 3
-        for b in job.bullets[:max_bullets]:
+        max_bullets = 7 if idx == 0 else 5
+        selected_bullets = score_and_select_bullets(job.bullets, keywords, max_bullets)
+        for b in selected_bullets:
             bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
             out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
         out_lines.append("")
@@ -256,8 +329,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     # 5. EDUCATION
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EDUCATION}")
     for edu in data.education:
-        clean_edu = re.sub(r"\s*\(\d{4}\)", "", clean_em_dashes(edu))
-        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_edu}")
+        out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{clean_em_dashes(edu)}")
 
     return "\n".join(out_lines)
 
