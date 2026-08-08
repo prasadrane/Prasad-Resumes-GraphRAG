@@ -135,7 +135,7 @@ def serve_output_file(filepath: str):
         raise HTTPException(status_code=404, detail="Requested file not found.")
 
     media_type = "application/pdf" if target_file.suffix.lower() == ".pdf" else "text/plain"
-    return FileResponse(str(target_file), media_type=media_type, filename=target_file.name)
+    return FileResponse(str(target_file), media_type=media_type, content_disposition_type="inline")
 
 
 @app.post("/api/generate")

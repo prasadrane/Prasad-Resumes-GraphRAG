@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         previewSection: document.getElementById('preview-section'),
         previewFilename: document.getElementById('preview-filename'),
         previewOpenLink: document.getElementById('preview-open-link'),
+        previewDownloadLink: document.getElementById('preview-download-link'),
         pdfIframe: document.getElementById('pdf-iframe'),
         closePreviewBtn: document.getElementById('close-preview-btn'),
         
@@ -127,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.currentTxtUrl = txtUrl;
             this.previewFilename.textContent = title;
             this.previewOpenLink.href = pdfUrl;
+            if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
             this.pdfIframe.src = pdfUrl;
             this.switchDrawerMode('pdf');
             this.previewSection.classList.remove('hidden');
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.currentPdfUrl = pdfUrl;
             this.previewFilename.textContent = title;
             this.previewOpenLink.href = pdfUrl;
+            if (this.previewDownloadLink) this.previewDownloadLink.href = pdfUrl;
             this.pdfIframe.src = pdfUrl;
             this.switchDrawerMode('edit');
             this.previewSection.classList.remove('hidden');
