@@ -780,3 +780,202 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     tailored_text = format_tailored_markdown(parsed, keywords)
     raw_resume_path.write_text(tailored_text, encoding="utf-8")
     return raw_resume_path
+
+
+def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None):
+    """Generate LLM-tailored raw_resume.txt and PDF resume stepwise, yielding progress."""
+    from .pdf_renderer import render_pdf_resume  # dynamic import to avoid circular dependency
+
+    out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
+    raw_resume_path = out_dir / RAW_RESUME_FILENAME
+    pdf_path = out_dir / "Prasad_Rane_Resume.pdf"
+
+    # Step 1: extracting_keywords (8%)
+    yield ("extracting_keywords", "Extracting ATS keywords", 8, "Extracting ATS keywords from job description...")
+    keywords = extract_ats_keywords(jd_text)
+
+    # Step 2: loading_master (15%)
+    yield ("loading_master", "Loading master resume", 15, "Reading and parsing MASTER_RESUME.txt...")
+    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    if master_path.exists():
+        master_content = master_path.read_text(encoding="utf-8")
+        parsed = parse_resume_markdown(master_content)
+    else:
+        master_content = ""
+        parsed = ResumeData(
+            name=DEFAULT_CANDIDATE_NAME,
+            title=DEFAULT_CANDIDATE_TITLE,
+            summary=f"{DEFAULT_CANDIDATE_TITLE} with experience building high-throughput software applications.",
+            jobs=[create_job_entry("Software Engineer | Tech Corp | Remote | Jan 2023 - Present", ["Built scalable microservices."])],
+            skills=["Backend & APIs: C#, Python, Cloud"],
+            certifications=["Cloud Certification"],
+            education=["B.S. in Computer Science"]
+        )
+
+    # Step 3: selecting_summary (25%)
+    yield ("selecting_summary", "Selecting best summary variant", 25, "Selecting best matching executive summary variant...")
+    if master_content:
+        tailored_summary = select_tailored_summary(master_content, keywords, company_name, jd_text=jd_text)
+        if tailored_summary:
+            parsed.summary = tailored_summary
+
+    # Step 4: tailoring_summary (38%)
+    yield ("tailoring_summary", "LLM tailoring summary", 38, "LLM tailoring of executive summary to match target role...")
+    if master_content:
+        graphrag_context = _get_graphrag_context(jd_text, keywords)
+        gap_framing = _extract_gap_framing(master_content, jd_text)
+        top_metrics = _extract_top_metrics(parsed)
+
+        summary_system = (
+            "You are an elite technical resume strategist who has placed 500+ senior engineers "
+            "at top-tier technology companies. You specialize in transforming generic professional "
+            "summaries into compelling, role-specific executive narratives that make hiring managers "
+            "immediately see the candidate as the ideal hire.\n\n"
+            "Your approach:\n"
+            "- Lead with the candidate's single strongest quantified achievement relevant to THIS specific role\n"
+            "- Mirror the job description's seniority language and domain terminology naturally\n"
+            "- Weave in 2-3 specific metrics that demonstrate impact at the scale this role requires\n"
+            "- Position the candidate as someone who has ALREADY solved the problems this role will face\n"
+            "- Write in a confident, executive tone — not a mechanical skills inventory\n\n"
+            "Strict rules:\n"
+            "- Do NOT invent any facts, experiences, metrics, or technologies not in the source material\n"
+            "- Do NOT produce a mechanical list of skills or technologies — write a compelling narrative\n"
+            "- Do NOT use clichés: 'Results-driven', 'Highly motivated', 'Passionate about', 'Detail-oriented', "
+            "'Proven track record of excellence'\n"
+            "- Do NOT start with an adjective — start with the role title and years of experience\n"
+            "- Preserve the exact career level and year count from the original\n"
+            "- Keep length to 2-4 sentences (match the original summary length)\n"
+            "- Return ONLY the rewritten summary paragraph — no labels, headers, quotes, or explanations\n"
+        )
+
+        summary_prompt_parts = [
+            f"## Target Role\nCompany: {company_name}\n",
+            f"## Full Job Description\n{jd_text}\n",
+            f"## Original Summary\n{parsed.summary}\n",
+        ]
+
+        if top_metrics:
+            summary_prompt_parts.append(
+                f"## Candidate's Strongest Impact Metrics (choose the most relevant for this role)\n{top_metrics}\n"
+            )
+
+        if graphrag_context:
+            summary_prompt_parts.append(
+                f"## Relevant Candidate Achievements (from Knowledge Graph)\n{graphrag_context}\n"
+            )
+
+        if gap_framing:
+            summary_prompt_parts.append(
+                f"## Skill Bridging Notes\n"
+                f"For skills the JD requires that the candidate doesn't directly have, use these framing strategies:\n"
+                f"{gap_framing}\n"
+            )
+
+        summary_prompt_parts.append(
+            "Rewrite the summary to position this candidate as the ideal hire for this specific role. "
+            "Return only the rewritten summary paragraph."
+        )
+
+        summary_prompt = "\n".join(summary_prompt_parts)
+        llm_summary = _call_llm_safe(summary_prompt, summary_system).strip()
+        llm_summary = re.sub(r'^["\']|["\']$', '', llm_summary).strip()
+        llm_summary = re.sub(r'^#+\s+.*\n', '', llm_summary).strip()
+        if llm_summary and len(llm_summary) > 50:
+            parsed.summary = llm_summary
+    else:
+        graphrag_context = ""
+        gap_framing = ""
+
+    # Step 5: tailoring_bullets (55%)
+    yield ("tailoring_bullets", "LLM tailoring experience bullets", 55, "LLM tailoring of experience bullets per job...")
+    if master_content:
+        bullets_system = (
+            "You are an elite technical resume strategist specializing in rewriting experience bullets "
+            "to maximize relevance for a specific job description while preserving complete authenticity.\n\n"
+            "Your approach:\n"
+            "- Reorder bullets so the most JD-relevant achievements appear FIRST\n"
+            "- Reframe each bullet to emphasize the aspects most relevant to the target role\n"
+            "- Use the JD's exact technical terminology and domain language where the candidate has matching experience\n"
+            "- Every bullet MUST follow: Strong Action Verb → Technical Context → Measurable Impact\n\n"
+            "CRITICAL rules — violations will produce a rejected resume:\n"
+            "- NEVER change, drop, round, or omit any number, percentage, time duration, or dollar amount\n"
+            "  (e.g., '99.95%' must stay '99.95%', '40%' must stay '40%', '70% reduction' must stay '70% reduction')\n"
+            "- NEVER invent new experiences, technologies, projects, or outcomes not in the originals\n"
+            "- NEVER genericize specific technologies (e.g., do NOT turn 'DynamoDB' into 'NoSQL database', "
+            "do NOT turn 'SemaphoreSlim' into 'concurrency control')\n"
+            "- NEVER drop the problem statement or context — the reader needs to understand WHAT was broken/needed\n"
+            "- Keep the EXACT same number of bullets as provided\n"
+            "- Each bullet must start with a past-tense action verb (Led, Architected, Designed, Built, Diagnosed, etc.)\n"
+            "- Return ONLY the rewritten bullets as plain text, one per line\n"
+            "- No dashes, no numbering, no headers, no explanations\n"
+        )
+
+        for job in parsed.jobs:
+            if not job.bullets:
+                continue
+
+            bullets_with_context = []
+            current_story = ""
+            for i, b in enumerate(job.bullets):
+                story = job.bullet_stories[i] if i < len(job.bullet_stories) else ""
+                if story and story != current_story:
+                    bullets_with_context.append(f"\n[Story Context: {story}]")
+                    current_story = story
+                bullets_with_context.append(f"- {b}")
+
+            bullets_text = "\n".join(bullets_with_context)
+
+            bullets_prompt_parts = [
+                f"## Target Role\nCompany: {company_name}\n",
+                f"## Full Job Description\n{jd_text}\n",
+                f"## Role Being Rewritten\n{job.title} at {job.company} ({job.dates})\n",
+                f"## Original Bullets (with story context for your understanding — do not include story labels in output)\n{bullets_text}\n",
+            ]
+
+            if graphrag_context:
+                bullets_prompt_parts.append(
+                    f"## Relevant Candidate Achievements (from Knowledge Graph)\n{graphrag_context}\n"
+                )
+
+            if gap_framing:
+                bullets_prompt_parts.append(
+                    f"## Skill Bridging Notes\n{gap_framing}\n"
+                )
+
+            bullets_prompt_parts.append(
+                f"Rewrite and reorder these {len(job.bullets)} bullets to maximize relevance for this JD. "
+                f"Return exactly {len(job.bullets)} plain bullet lines (no dashes, no numbering)."
+            )
+
+            bullets_prompt = "\n".join(bullets_prompt_parts)
+            llm_bullets_raw = _call_llm_safe(bullets_prompt, bullets_system).strip()
+            if llm_bullets_raw:
+                new_bullets = []
+                for line in llm_bullets_raw.split("\n"):
+                    cleaned = re.sub(r"^[\s\-\*\•\·\d\.]+", "", line).strip()
+                    if cleaned:
+                        new_bullets.append(cleaned)
+                if len(new_bullets) >= max(1, len(job.bullets) - 2):
+                    job.bullets = new_bullets[:len(job.bullets) + 2]
+
+    # Step 6: formatting (72%)
+    yield ("formatting", "Formatting & bold marking", 72, "Formatting tailored markdown and marking bold keywords...")
+    tailored_text = format_tailored_markdown(parsed, keywords)
+    raw_resume_path.write_text(tailored_text, encoding="utf-8")
+
+    # Step 7: rendering_pdf (88%)
+    yield ("rendering_pdf", "Rendering PDF", 88, "Rendering standard 2-page PDF resume using ReportLab...")
+    render_pdf_resume(raw_resume_path, pdf_path)
+
+    # Step 8: complete (100%)
+    yield (
+        "complete",
+        "Done",
+        100,
+        {
+            "raw_resume_path": str(raw_resume_path),
+            "raw_resume": tailored_text,
+            "pdf_path": str(pdf_path)
+        }
+    )
+

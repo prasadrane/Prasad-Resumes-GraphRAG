@@ -732,3 +732,243 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* Progress Stepper & M3 Linear Progress */
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.progress-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+}
+
+.progress-pct {
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    font-size: 1.1rem;
+}
+
+.m3-linear-progress {
+    width: 100%;
+    height: 4px;
+    background-color: var(--md-sys-color-surface-container-high);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.progress-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--md-sys-color-primary), #8ab4f8);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stepper-container {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-left: 12px;
+}
+
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    position: relative;
+    padding-bottom: 20px;
+}
+
+/* Stepper vertical connector line */
+.step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 26px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--md-sys-color-outline-variant);
+    transition: background-color var(--md-sys-motion-duration-medium);
+}
+
+.step-item.completed:not(:last-child)::after {
+    background-color: var(--md-sys-color-primary);
+}
+
+.step-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--md-sys-shape-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    flex-shrink: 0;
+    z-index: 1;
+    transition: all var(--md-sys-motion-duration-medium);
+}
+
+.step-item.pending .step-icon {
+    border: 2px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    background-color: var(--md-sys-color-surface-container-low);
+}
+
+.step-item.active .step-icon {
+    border: 2px solid var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    background-color: var(--md-sys-color-primary);
+    box-shadow: 0 0 0 4px rgba(168, 199, 250, 0.2);
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(168, 199, 250, 0.2); }
+    50% { box-shadow: 0 0 0 8px rgba(168, 199, 250, 0.4); }
+}
+
+.step-item.completed .step-icon {
+    border: 2px solid var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    background-color: var(--md-sys-color-primary);
+    animation: scaleIn var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-emphasized);
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.8); }
+    to { transform: scale(1); }
+}
+
+.step-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-top: 2px;
+}
+
+.step-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.step-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: color var(--md-sys-motion-duration-medium);
+}
+
+.step-item.pending .step-label {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.step-item.active .step-label {
+    color: var(--md-sys-color-primary);
+}
+
+.step-item.completed .step-label {
+    color: var(--md-sys-color-on-surface);
+}
+
+.step-detail {
+    font-size: 0.82rem;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all var(--md-sys-motion-duration-medium);
+}
+
+.step-item.active .step-detail {
+    opacity: 1;
+    max-height: 40px;
+    margin-top: 2px;
+}
+
+.step-elapsed {
+    font-size: 0.8rem;
+    background-color: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 2px 8px;
+    border-radius: var(--md-sys-shape-small);
+    font-weight: 500;
+}
+
+.step-item.pending .step-elapsed {
+    display: none;
+}
+
+/* Chatbot Typing Indicator & streaming styles */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px;
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background-color: var(--md-sys-color-primary);
+    border-radius: var(--md-sys-shape-full);
+    animation: bounceDots 1.4s infinite ease-in-out both;
+}
+
+.typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+.typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounceDots {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+.message-streaming::after {
+    content: '▋';
+    display: inline-block;
+    color: var(--md-sys-color-primary);
+    animation: blinkCursor 0.8s step-end infinite;
+    margin-left: 2px;
+}
+
+@keyframes blinkCursor {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.source-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    animation: fadeIn var(--md-sys-motion-duration-medium);
+}
+
+.source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 4px 10px;
+    border-radius: var(--md-sys-shape-small);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.source-chip .material-symbols-outlined {
+    font-size: 14px;
+    color: var(--md-sys-color-primary);
+}

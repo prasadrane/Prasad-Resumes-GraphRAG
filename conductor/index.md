@@ -22,5 +22,5 @@
 
 ---
 
-- [ ] **Track: Live Progress Updates + LLM-Powered Chatbot**
+- [x] **Track: Live Progress Updates + LLM-Powered Chatbot**
 *Link: [./tracks/live_progress_chatbot_20260809/](./tracks/live_progress_chatbot_20260809/)*

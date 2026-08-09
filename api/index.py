@@ -15,8 +15,9 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.generators.ats_matcher import extract_ats_keywords
-from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown
+from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
+from fastapi.responses import FileResponse, StreamingResponse
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
 
@@ -24,7 +25,6 @@ class ResumeGenerationRequest(BaseModel):
     company: str
     jd_text: str
 
-from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = ROOT_DIR / "src" / "web" / "static"
@@ -136,11 +136,96 @@ def render_pdf_endpoint(req: RenderPdfRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {str(e)}")
 
+
+@app.post("/api/generate-stream")
+def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
+    import json
+    import tempfile
+    import base64
+    try:
+        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to resolve temp dir: {str(e)}")
+
+    def event_generator():
+        try:
+            for step_id, label, pct, detail in generate_raw_resume_stepwise(
+                company_name=req.company, 
+                jd_text=req.jd_text, 
+                base_output_dir=temp_out_dir
+            ):
+                if step_id == "complete" and isinstance(detail, dict):
+                    pdf_path = Path(detail["pdf_path"])
+                    pdf_bytes = pdf_path.read_bytes()
+                    b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+                    pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+                    
+                    complete_payload = {
+                        "status": "success",
+                        "company": req.company,
+                        "pdf_url": pdf_data_uri,
+                        "txt_url": "",
+                        "raw_resume": detail["raw_resume"]
+                    }
+                    yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': detail})}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 from src.query.search_engine import execute_graphrag_query
+from src.query.static_graph_reader import read_precomputed_entities
 
 class QueryRequest(BaseModel):
     query: str
     mode: Optional[str] = "local"
+
+
+@app.post("/api/chat-stream")
+def chat_stream_endpoint(req: QueryRequest):
+    import json
+    query_clean = req.query.strip()
+    if not query_clean:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    
+    mode_clean = req.mode.lower().strip() if req.mode else "local"
+    if mode_clean not in ["local", "global"]:
+        mode_clean = "local"
+        
+    def event_generator():
+        try:
+            # 1. Search sources
+            keywords = [w.strip("?,.()\"'") for w in query_clean.lower().split() if len(w) > 3]
+            entities = read_precomputed_entities()
+            sources = []
+            if entities and keywords:
+                for entity in entities:
+                    title = entity.get("title", "")
+                    content = entity.get("content", "")
+                    text = (title + " " + content).lower()
+                    if any(kw in text for kw in keywords):
+                        sources.append(title)
+            sources = list(set(sources))[:5]
+            
+            # Emit sources
+            yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
+            
+            # 2. Get LLM response
+            response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+            
+            # Emit token
+            yield f"event: token\ndata: {json.dumps({'token': response_text})}\n\n"
+            
+            # Emit done
+            yield f"event: done\ndata: {json.dumps({'response': response_text, 'sources': sources})}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 @app.post("/api/query")
 def query_endpoint(req: QueryRequest):

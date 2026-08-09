@@ -101,5 +101,63 @@ class TestWebUI(unittest.TestCase):
         self.assertEqual(data["response"], "Prasad used AWS Lambda and S3.")
         mock_query.assert_called_once_with(query="What AWS services did Prasad use?", mode="local", root_dir=ROOT_DIR)
 
+    def test_generate_stream_returns_sse(self):
+        """Test POST /api/generate-stream returns correct content type."""
+        response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": "Need AWS"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("text/event-stream", response.headers.get("content-type", ""))
+
+    def test_generate_stream_all_steps_emitted(self):
+        """Test POST /api/generate-stream emits all expected progress steps in SSE format."""
+        # Use patch to ensure we avoid real LLM calls during web UI test
+        with patch("src.generators.resume_generator._call_llm_safe", return_value="Mocked LLM content"):
+            response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": "Need AWS"})
+            self.assertEqual(response.status_code, 200)
+            
+            lines = [line.decode("utf-8") if hasattr(line, "decode") else line for line in response.iter_lines() if line]
+            data_lines = [line for line in lines if line.startswith("data: ")]
+            self.assertGreater(len(data_lines), 0)
+            
+            # Verify we get the expected step payloads
+            import json
+            steps_received = []
+            for dl in data_lines:
+                payload = json.loads(dl[6:])
+                steps_received.append(payload.get("step"))
+            
+            expected_steps = [
+                "extracting_keywords",
+                "loading_master",
+                "selecting_summary",
+                "tailoring_summary",
+                "tailoring_bullets",
+                "formatting",
+                "rendering_pdf",
+                "complete"
+            ]
+            for step in expected_steps:
+                self.assertIn(step, steps_received)
+
+    def test_generate_stream_validation_error(self):
+        """Test POST /api/generate-stream with empty company returns validation error."""
+        response = self.client.post("/api/generate-stream", json={"company": "", "jd_text": "some jd"})
+        self.assertIn(response.status_code, [400, 422])
+
+    def test_chat_stream_returns_sse(self):
+        """Test POST /api/chat-stream returns event stream."""
+        with patch("src.query.serverless_gateway.call_serverless_llm", return_value="Mock LLM Answer"):
+            response = self.client.post("/api/chat-stream", json={"query": "What AWS services did Prasad use?", "mode": "local"})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("text/event-stream", response.headers.get("content-type", ""))
+
+            lines = [line.decode("utf-8") if hasattr(line, "decode") else line for line in response.iter_lines() if line]
+            data_lines = [line for line in lines if line.startswith("data: ")]
+            self.assertGreater(len(data_lines), 0)
+
+    def test_chat_stream_validation(self):
+        """Test POST /api/chat-stream validation on empty query."""
+        response = self.client.post("/api/chat-stream", json={"query": "", "mode": "local"})
+        self.assertIn(response.status_code, [400, 422])
+
 if __name__ == "__main__":
     unittest.main()

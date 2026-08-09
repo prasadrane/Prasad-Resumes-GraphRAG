@@ -331,6 +331,23 @@ document.addEventListener('DOMContentLoaded', () => {
         jdCharCount: document.getElementById('jd-char-count'),
         generateBtn: document.getElementById('generate-btn'),
         formAlert: document.getElementById('form-alert'),
+        progressContainer: document.getElementById('generation-progress'),
+        progressPct: document.getElementById('progress-pct'),
+        progressFill: document.getElementById('progress-fill'),
+        stepperContainer: document.getElementById('stepper-container'),
+
+        stepsList: [
+            { id: 'extracting_keywords', label: 'Extracting ATS keywords' },
+            { id: 'loading_master', label: 'Loading master resume' },
+            { id: 'selecting_summary', label: 'Selecting best summary variant' },
+            { id: 'tailoring_summary', label: 'LLM tailoring summary' },
+            { id: 'tailoring_bullets', label: 'LLM tailoring experience bullets' },
+            { id: 'formatting', label: 'Formatting & bold marking' },
+            { id: 'rendering_pdf', label: 'Rendering PDF' },
+            { id: 'complete', label: 'Done' }
+        ],
+        stepStartTime: {},
+        stepTimers: {},
 
         init() {
             if (!this.form) return;
@@ -364,6 +381,112 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+        initializeStepper() {
+            this.progressContainer.classList.remove('hidden');
+            this.progressPct.textContent = '0%';
+            this.progressFill.style.width = '0%';
+            this.stepperContainer.innerHTML = '';
+            
+            this.stepsList.forEach((step, idx) => {
+                const item = document.createElement('div');
+                item.className = 'step-item pending';
+                item.id = `step-${step.id}`;
+                
+                item.innerHTML = `
+                    <div class="step-icon">${idx + 1}</div>
+                    <div class="step-content">
+                        <div class="step-info">
+                            <span class="step-label">${step.label}</span>
+                            <span class="step-detail">Pending...</span>
+                        </div>
+                        <span class="step-elapsed hidden">0.0s</span>
+                    </div>
+                `;
+                this.stepperContainer.appendChild(item);
+            });
+            this.stepStartTime = {};
+            this.stepTimers = {};
+        },
+
+        updateStep(stepId, progressPct, detailText) {
+            this.progressPct.textContent = `${progressPct}%`;
+            this.progressFill.style.width = `${progressPct}%`;
+            
+            const activeItem = this.stepperContainer.querySelector('.step-item.active');
+            if (activeItem) {
+                activeItem.classList.remove('active');
+                activeItem.classList.add('completed');
+                
+                const prevId = activeItem.id.replace('step-', '');
+                if (this.stepTimers[prevId]) {
+                    clearInterval(this.stepTimers[prevId]);
+                }
+                const elapsedSec = ((Date.now() - this.stepStartTime[prevId]) / 1000).toFixed(1);
+                const elapsedBadge = activeItem.querySelector('.step-elapsed');
+                elapsedBadge.textContent = `${elapsedSec}s`;
+                elapsedBadge.classList.remove('hidden');
+                
+                activeItem.querySelector('.step-icon').innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">check</span>';
+            }
+            
+            const targetItem = document.getElementById(`step-${stepId}`);
+            if (targetItem) {
+                targetItem.classList.remove('pending');
+                targetItem.classList.add('active');
+                
+                const detailEl = targetItem.querySelector('.step-detail');
+                if (detailEl && detailText && typeof detailText === 'string') {
+                    detailEl.textContent = detailText;
+                }
+                
+                this.stepStartTime[stepId] = Date.now();
+                const elapsedBadge = targetItem.querySelector('.step-elapsed');
+                elapsedBadge.classList.remove('hidden');
+                elapsedBadge.textContent = '0.0s';
+                
+                this.stepTimers[stepId] = setInterval(() => {
+                    const sec = ((Date.now() - this.stepStartTime[stepId]) / 1000).toFixed(1);
+                    elapsedBadge.textContent = `${sec}s`;
+                }, 100);
+            }
+        },
+
+        completeStepper() {
+            Object.values(this.stepTimers).forEach(timer => clearInterval(timer));
+            
+            const items = this.stepperContainer.querySelectorAll('.step-item');
+            items.forEach(item => {
+                if (!item.classList.contains('completed')) {
+                    item.classList.remove('pending', 'active');
+                    item.classList.add('completed');
+                    item.querySelector('.step-icon').innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">check</span>';
+                    
+                    const stepId = item.id.replace('step-', '');
+                    const elapsedBadge = item.querySelector('.step-elapsed');
+                    elapsedBadge.classList.remove('hidden');
+                    if (this.stepStartTime[stepId]) {
+                        const sec = ((Date.now() - this.stepStartTime[stepId]) / 1000).toFixed(1);
+                        elapsedBadge.textContent = `${sec}s`;
+                    } else {
+                        elapsedBadge.textContent = '0.0s';
+                    }
+                }
+            });
+            this.progressPct.textContent = '100%';
+            this.progressFill.style.width = '100%';
+        },
+
+        failStepper(errorMsg) {
+            Object.values(this.stepTimers).forEach(timer => clearInterval(timer));
+            const activeItem = this.stepperContainer.querySelector('.step-item.active');
+            if (activeItem) {
+                activeItem.classList.remove('active');
+                activeItem.classList.add('pending');
+                const detailEl = activeItem.querySelector('.step-detail');
+                if (detailEl) detailEl.textContent = `❌ Error: ${errorMsg}`;
+            }
+        },
+
         async handleSubmit(e) {
             e.preventDefault();
             this.hideAlert();
@@ -376,25 +499,65 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            this.initializeStepper();
             this.setLoading(true);
+            document.getElementById('preview-section').classList.add('hidden');
 
             try {
-                const response = await fetch('/api/generate', {
+                const response = await fetch('/api/generate-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ company: company, jd_text: jdText })
                 });
 
-                const data = await response.json();
                 if (!response.ok) {
+                    const data = await response.json();
                     throw new Error(data.detail || 'Failed to generate tailored resume.');
                 }
 
-                this.showAlert(`Success! Tailored resume created for ${company}.`, 'success');
-                if (data.pdf_url) {
-                    PreviewController.openPdf(data.pdf_url, `${company} — Resume PDF`, data.txt_url || '', data.raw_resume || '');
+                if (!response.body) {
+                    throw new Error('ReadableStream not supported by this browser/network.');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+
+                        if (trimmed.startsWith('event: error')) {
+                            continue;
+                        }
+
+                        if (trimmed.startsWith('data: ')) {
+                            const rawData = trimmed.slice(6);
+                            const payload = JSON.parse(rawData);
+
+                            if (payload.step === 'complete') {
+                                this.completeStepper();
+                                const detail = payload.detail;
+                                this.showAlert(`Success! Tailored resume created for ${company}.`, 'success');
+                                if (detail.pdf_url) {
+                                    PreviewController.openPdf(detail.pdf_url, `${company} — Resume PDF`, detail.txt_url || '', detail.raw_resume || '');
+                                }
+                            } else {
+                                this.updateStep(payload.step, payload.progress, payload.detail);
+                            }
+                        }
+                    }
                 }
             } catch (err) {
+                this.failStepper(err.message);
                 this.showAlert(err.message, 'error');
             } finally {
                 this.setLoading(false);
@@ -446,30 +609,145 @@ document.addEventListener('DOMContentLoaded', () => {
             this.appendUserMessage(query);
             this.chatInput.value = '';
 
-            const loadingId = this.appendLoadingMessage();
+            const assistantMsgDiv = document.createElement('div');
+            assistantMsgDiv.className = 'message assistant';
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            typingDiv.innerHTML = '<span></span><span></span><span></span>';
+            bubbleDiv.appendChild(typingDiv);
+            assistantMsgDiv.appendChild(bubbleDiv);
+
+            this.chatMessages.appendChild(assistantMsgDiv);
+            this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+
             this.setLoading(true);
 
             try {
-                const response = await fetch('/api/query', {
+                const response = await fetch('/api/chat-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ query: query, mode: this.currentMode })
                 });
 
-                const data = await response.json();
-                this.removeMessage(loadingId);
-
                 if (!response.ok) {
+                    const data = await response.json();
                     throw new Error(data.detail || 'Query execution failed.');
                 }
 
-                this.appendAssistantMessage(data.response || 'No response returned.');
+                if (!response.body) {
+                    throw new Error('ReadableStream not supported by this browser.');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let sources = [];
+                let fullResponse = '';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed) continue;
+
+                        if (trimmed.startsWith('event: error')) {
+                            continue;
+                        }
+
+                        if (trimmed.startsWith('data: ')) {
+                            const rawData = trimmed.slice(6);
+                            const payload = JSON.parse(rawData);
+
+                            if (payload.sources) {
+                                sources = payload.sources;
+                            }
+                            if (payload.token) {
+                                fullResponse = payload.token;
+                                bubbleDiv.innerHTML = '';
+                                bubbleDiv.classList.add('message-streaming');
+                                await this.simulateTypewriter(bubbleDiv, fullResponse);
+                                bubbleDiv.classList.remove('message-streaming');
+                            }
+                        }
+                    }
+                }
+
+                if (sources && sources.length > 0) {
+                    const chipsDiv = document.createElement('div');
+                    chipsDiv.className = 'source-chips';
+                    sources.forEach(src => {
+                        const chip = document.createElement('span');
+                        chip.className = 'source-chip';
+                        chip.innerHTML = `<span class="material-symbols-outlined">description</span> ${src}`;
+                        chipsDiv.appendChild(chip);
+                    });
+                    assistantMsgDiv.appendChild(chipsDiv);
+                }
+
+                this.addCopyButton(bubbleDiv, fullResponse);
+                this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+
             } catch (err) {
-                this.removeMessage(loadingId);
-                this.appendAssistantMessage(`❌ Error: ${err.message}`);
+                bubbleDiv.innerHTML = `❌ Error: ${err.message}`;
             } finally {
                 this.setLoading(false);
             }
+        },
+
+        simulateTypewriter(element, text) {
+            return new Promise((resolve) => {
+                const words = text.split(' ');
+                let currentWordIndex = 0;
+                let displayedText = '';
+
+                if (words.length <= 1) {
+                    element.innerHTML = Utils.formatMarkdown(text);
+                    resolve();
+                    return;
+                }
+
+                const interval = setInterval(() => {
+                    if (currentWordIndex >= words.length) {
+                        clearInterval(interval);
+                        element.innerHTML = Utils.formatMarkdown(text);
+                        resolve();
+                        return;
+                    }
+
+                    displayedText += (currentWordIndex === 0 ? '' : ' ') + words[currentWordIndex];
+                    element.innerHTML = Utils.formatMarkdown(displayedText);
+                    currentWordIndex++;
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 20);
+            });
+        },
+
+        addCopyButton(bubbleDiv, text) {
+            // Check if copy button already exists to avoid duplication
+            if (bubbleDiv.querySelector('.copy-msg-btn')) return;
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'copy-msg-btn';
+            copyBtn.title = 'Copy response to clipboard';
+            copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(text).then(() => {
+                    copyBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#6ee7b7">check</span>';
+                    setTimeout(() => {
+                        copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+                    }, 1500);
+                });
+            });
+            bubbleDiv.appendChild(copyBtn);
         },
 
         appendUserMessage(text) {
@@ -491,21 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (text.includes('#') || text.includes('**') || text.includes('- ') || text.includes('• ')) {
                 bubbleDiv.innerHTML = Utils.formatMarkdown(text);
-                
-                // Append Copy to Clipboard Button for Assistant messages
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-msg-btn';
-                copyBtn.title = 'Copy response to clipboard';
-                copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
-                copyBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(text).then(() => {
-                        copyBtn.innerHTML = '<span class="material-symbols-outlined" style="color:#6ee7b7">check</span>';
-                        setTimeout(() => {
-                            copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
-                        }, 1500);
-                    });
-                });
-                bubbleDiv.appendChild(copyBtn);
+                this.addCopyButton(bubbleDiv, text);
             } else {
                 bubbleDiv.textContent = text;
             }

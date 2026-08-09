@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -16,9 +16,10 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = ROOT_DIR / "output"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown
+from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.query.search_engine import execute_graphrag_query
+from src.query.static_graph_reader import read_precomputed_entities
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
 
@@ -199,6 +200,87 @@ def generate_resume_endpoint(req: GenerateRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+
+@app.post("/api/generate-stream")
+def generate_resume_stream_endpoint(req: GenerateRequest):
+    """Generate a tailored raw resume text and rule-based PDF with step-by-step progress SSE stream."""
+    import json
+    company_clean = req.company.strip()
+    if not company_clean:
+        raise HTTPException(status_code=400, detail="Company name cannot be empty.")
+
+    def event_generator():
+        try:
+            for step_id, label, pct, detail in generate_raw_resume_stepwise(
+                company_name=company_clean, 
+                jd_text=req.jd_text or ""
+            ):
+                if step_id == "complete" and isinstance(detail, dict):
+                    pdf_path = Path(detail["pdf_path"])
+                    raw_resume_path = Path(detail["raw_resume_path"])
+                    pdf_rel = pdf_path.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+                    txt_rel = raw_resume_path.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+                    
+                    complete_payload = {
+                        "status": "success",
+                        "message": f"Resume tailored successfully for {company_clean}.",
+                        "company": company_clean,
+                        "pdf_url": f"/api/files/{pdf_rel}",
+                        "txt_url": f"/api/files/{txt_rel}",
+                        "raw_resume": detail["raw_resume"]
+                    }
+                    yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': detail})}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/chat-stream")
+def chat_stream_endpoint(req: QueryRequest):
+    """Chat stream endpoint yielding sources and responses via SSE."""
+    import json
+    query_clean = req.query.strip()
+    if not query_clean:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+    
+    mode_clean = req.mode.lower().strip() if req.mode else "local"
+    if mode_clean not in ["local", "global"]:
+        mode_clean = "local"
+        
+    def event_generator():
+        try:
+            # 1. Search sources
+            keywords = [w.strip("?,.()\"'") for w in query_clean.lower().split() if len(w) > 3]
+            entities = read_precomputed_entities()
+            sources = []
+            if entities and keywords:
+                for entity in entities:
+                    title = entity.get("title", "")
+                    content = entity.get("content", "")
+                    text = (title + " " + content).lower()
+                    if any(kw in text for kw in keywords):
+                        sources.append(title)
+            sources = list(set(sources))[:5]
+            
+            # Emit sources
+            yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
+            
+            # 2. Get LLM response
+            response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+            
+            # Emit token/response
+            yield f"event: token\ndata: {json.dumps({'token': response_text})}\n\n"
+            
+            # Emit done
+            yield f"event: done\ndata: {json.dumps({'response': response_text, 'sources': sources})}\n\n"
+        except Exception as e:
+            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+            
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 class SaveEditRequest(BaseModel):

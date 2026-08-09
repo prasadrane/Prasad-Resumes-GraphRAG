@@ -122,6 +122,20 @@
                     <div id="form-alert" class="m3-alert hidden"></div>
                 </section>
 
+                <!-- Generation Progress Stepper -->
+                <section id="generation-progress" class="m3-card hidden slide-up" style="margin-top: 1.5rem;">
+                    <div class="progress-header">
+                        <h3><span class="material-symbols-outlined">rocket_launch</span> Generating Resume</h3>
+                        <span id="progress-pct" class="progress-pct">0%</span>
+                    </div>
+                    <div class="m3-linear-progress" id="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="stepper-container" id="stepper-container">
+                        <!-- Steps populated by JS -->
+                    </div>
+                </section>
+
                 <!-- Tailored Resume Preview Drawer (Inside Generator View) -->
                 <section id="preview-section" class="m3-preview-drawer hidden slide-up" style="margin-top: 1.5rem;">
                     <div class="preview-header">
