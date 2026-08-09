@@ -11,8 +11,9 @@ An evolving, extensible AI-powered knowledge retrieval platform designed for Pra
 # Core Capabilities & Roadmap
 1. **Local & Global Graph Queries:** Fast, accurate retrieval of specific technical experience (local) and high-level thematic profiles (global).
 2. **Structured Resume & Story Bank Extraction:** Automatic extraction and alignment of STAR behavioral stories and custom resume sections.
-3. **Interactive Q&A & Conversational Search:** Sub-second query execution backed by LRU caching and LanceDB vector search.
-4. **Evolving Extensibility:** Modular architecture built to continuously incorporate new features, analysis pipelines, and custom automation workflows as project usage expands.
+3. **Interactive Q&A & Conversational Search:** Sub-second query execution backed by LRU caching and LanceDB vector search, featuring simulated typewriter streaming, typing indicators, and source entity chips.
+4. **Stepwise progress updates:** Real-time generation feedback via an SSE-driven progress stepper UI, eliminating blocking interface freezes.
+5. **Evolving Extensibility:** Modular architecture built to continuously incorporate new features, analysis pipelines, and custom automation workflows as project usage expands.
 
 # Key Success Metrics
 - **Zero Quota / Rate-Limit Stalls:** 100% index and query availability using LiteLLM proxy multi-model fallback cascades.
