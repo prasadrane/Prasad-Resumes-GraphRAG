@@ -20,7 +20,7 @@
 - [x] **Track: Top Navigation Tabs (Tailor Resume / Ask Me Questions GraphRAG Chatbot), Modular UI Refactoring, and Chrome DevTools Smoke Testing**
 *Link: [./tracks/nav_chatbot_20260808/](./tracks/nav_chatbot_20260808/)*
 
+---
 
-
-
-
+- [ ] **Track: Live Progress Updates + LLM-Powered Chatbot**
+*Link: [./tracks/live_progress_chatbot_20260809/](./tracks/live_progress_chatbot_20260809/)*
