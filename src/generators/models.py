@@ -13,6 +13,7 @@ class JobEntry(BaseModel):
     location: str = ""
     dates: str = ""
     bullets: List[str] = Field(default_factory=list)
+    bullet_stories: List[str] = Field(default_factory=list)
 
 class ResumeData(BaseModel):
     """Pydantic model representing the complete structured resume data."""
