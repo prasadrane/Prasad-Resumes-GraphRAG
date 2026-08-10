@@ -63,6 +63,24 @@ def app_server():
     )
     try:
         _wait_until_healthy(base_url)
+    except RuntimeError as exc:
+        # Health check failed — drain captured output so the uvicorn
+        # traceback is visible in the failure message, not just the urllib
+        # error that triggered the timeout.
+        proc.terminate()
+        tail = ""
+        try:
+            out, _ = proc.communicate(timeout=2)
+            if out:
+                tail = out.decode("utf-8", errors="replace")[-4000:]
+        except Exception:
+            pass
+        msg = str(exc)
+        if tail:
+            msg += f"\n--- subprocess output (tail) ---\n{tail}"
+        raise RuntimeError(msg) from exc
+
+    try:
         yield base_url
     finally:
         proc.terminate()
