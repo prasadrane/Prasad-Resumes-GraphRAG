@@ -112,7 +112,7 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
 @app.post("/api/save-edit")
 def render_pdf_endpoint(req: RenderPdfRequest):
     try:
-        text_content = req.raw_text or req.content or ""
+        text_content = req.raw_text or ""
         if not text_content:
             raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
             
@@ -133,6 +133,8 @@ def render_pdf_endpoint(req: RenderPdfRequest):
             "pdf_url": pdf_data_uri,
             "raw_resume": text_content
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF rendering failed: {str(e)}")
 

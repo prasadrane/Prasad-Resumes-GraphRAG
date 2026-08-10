@@ -64,5 +64,18 @@ class TestVercelAPI(unittest.TestCase):
 
         self.assertNotEqual(text_comp, text_aws)
 
+    def test_render_pdf_empty_text_returns_400(self):
+        """Regression: empty raw_text must yield 400, not a masked 500 AttributeError."""
+        response = self.client.post("/api/render_pdf", json={"raw_text": ""})
+        self.assertEqual(response.status_code, 400)
+
+    def test_render_pdf_with_text_returns_pdf_data_uri(self):
+        raw = "# Prasad Rane\n\n## Professional Summary\nSenior software engineer.\n"
+        response = self.client.post("/api/render_pdf", json={"raw_text": raw})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertTrue(data["pdf_url"].startswith("data:application/pdf;base64,"))
+
 if __name__ == "__main__":
     unittest.main()
