@@ -10,16 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .ats_matcher import extract_ats_keywords
-
-
-def _call_llm_safe(prompt: str, system_prompt: str, temperature: float = 0.3, timeout: int = 30) -> str:
-    """Safely call LLM with graceful fallback to empty string on error."""
-    try:
-        from src.query.serverless_gateway import call_serverless_llm
-        return call_serverless_llm(prompt=prompt, system_prompt=system_prompt, temperature=temperature, timeout=timeout)
-    except Exception as err:
-        print(f"[WARN] LLM tailoring call failed: {err}. Using base content.")
-        return ""
+from src.llm.service import call_llm_safe as _call_llm_safe
 
 
 from .constants import (

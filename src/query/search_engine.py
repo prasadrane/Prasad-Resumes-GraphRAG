@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from src.config import ROOT_DIR
+from src.query.serverless_gateway import call_serverless_llm
+from src.query.static_graph_reader import read_precomputed_entities, search_static_resume
 
 # Command Runner Protocol type hint
 CommandRunner = Callable[[list, str], subprocess.CompletedProcess]
@@ -32,9 +34,6 @@ def _run_graphrag_query_uncached(query: str, mode: str, root_dir: Path, runner: 
         err_msg = result.stderr.strip() if result.stderr else (result.stdout.strip() if result.stdout else "Unknown GraphRAG execution error")
         raise RuntimeError(f"GraphRAG query execution failed (code {result.returncode}):\n{err_msg}")
     return result.stdout
-
-from src.query.serverless_gateway import call_serverless_llm
-from src.query.static_graph_reader import read_precomputed_entities, search_static_resume
 
 @lru_cache(maxsize=100)
 def execute_graphrag_query(query: str, mode: str = "local", root_dir: Path = ROOT_DIR) -> str:
