@@ -6,3 +6,8 @@ lancedb
 pdfplumber
 pypdf
 pymupdf
+
+# E2E test stack (Phase 0 safety net)
+pytest
+pytest-playwright
+httpx
