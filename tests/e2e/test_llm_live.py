@@ -6,14 +6,13 @@ gateway) and therefore cost credits and can be slow/flaky. They are marked
 Run explicitly with:  pytest tests/e2e/ -m live
 """
 
+import httpx
 import pytest
 
 pytestmark = pytest.mark.live
 
 
 def test_query_returns_response(app_server):
-    import httpx
-
     resp = httpx.post(
         f"{app_server}/api/query",
         json={"query": "What AWS technologies did Prasad use?", "mode": "local"},
@@ -26,8 +25,6 @@ def test_query_returns_response(app_server):
 
 
 def test_generate_returns_resume(app_server):
-    import httpx
-
     jd_text = (
         "Looking for a senior engineer with Python, AWS, Kubernetes, and "
         "experience building LLM-powered platform tooling."
@@ -44,8 +41,6 @@ def test_generate_returns_resume(app_server):
 
 
 def test_chat_stream_emits_done(app_server):
-    import httpx
-
     with httpx.stream(
         "POST",
         f"{app_server}/api/chat-stream",
