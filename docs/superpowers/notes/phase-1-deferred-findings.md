@@ -49,3 +49,15 @@ Final gate at HEAD: unittest 67 OK; E2E baseline 16 passed / 3 deselected / exit
   2-line `except HTTPException: raise` amendment was kept.
 - Security follow-up remains owner-deferred (spec §9): rotate leaked keys,
   scrub git history. Not done in Phase 1 by design.
+
+## Resolved in Phase 2 (branch refactor/phase-2-architecture, Task 7)
+
+1. Exception-message leakage — all 500 handlers in both apps and the shared
+   router now return generic details; exceptions are logged server-side via
+   logger.exception.
+2. `except Exception → 500` swallow — app.py `save_edit_endpoint` now
+   re-raises HTTPException (its inner 403 guard previously got masked as 500).
+3. Contract divergence — unified `SaveEditRequest` / `ResumeGenerationRequest`
+   / `QueryRequest` in `src/shared/api_models.py`, consumed by both apps
+   (Task 5); Vercel entrypoint accepts the `content` alias.
+4. `rglob` comment — added to `serve_pdf_legacy`.

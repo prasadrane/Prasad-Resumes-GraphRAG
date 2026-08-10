@@ -4,6 +4,7 @@ Provides stateless serverless endpoints for ATS keyword extraction, tailored res
 """
 
 from fastapi import FastAPI, HTTPException
+import logging
 import sys
 from pathlib import Path
 
@@ -19,6 +20,8 @@ from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR
 from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
 from src.shared.api_routes import shared_router
 from fastapi.responses import FileResponse, StreamingResponse
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
 app.include_router(shared_router)
@@ -79,8 +82,9 @@ def get_default_resume_endpoint():
             "txt_url": None,
             "raw_resume": clean_raw_resume
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load default resume: {str(e)}")
+    except Exception:
+        logger.exception("Failed to load default resume")
+        raise HTTPException(status_code=500, detail="Failed to load default resume.")
 
 @app.post("/api/generate")
 def generate_resume_endpoint(req: ResumeGenerationRequest):
@@ -102,8 +106,9 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
             "pdf_url": pdf_data_uri,
             "raw_resume": raw_path.read_text(encoding="utf-8")
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+    except Exception:
+        logger.exception("Resume generation failed")
+        raise HTTPException(status_code=500, detail="Generation failed. Please try again later.")
 
 @app.post("/api/render_pdf")
 @app.post("/api/save-edit")
@@ -132,8 +137,9 @@ def render_pdf_endpoint(req: SaveEditRequest):
         }
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF rendering failed: {str(e)}")
+    except Exception:
+        logger.exception("PDF rendering failed")
+        raise HTTPException(status_code=500, detail="PDF rendering failed.")
 
 
 @app.post("/api/generate-stream")
@@ -146,8 +152,9 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
     try:
         temp_out_dir = Path(tempfile.gettempdir()) / "output"
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to resolve temp dir: {str(e)}")
+    except Exception:
+        logger.exception("Failed to resolve temp dir")
+        raise HTTPException(status_code=500, detail="Failed to resolve temp dir.")
 
     def event_generator():
         try:
@@ -172,7 +179,8 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
                 else:
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': detail})}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+        except Exception:
+            logger.exception("Resume generation stream failed")
+            yield f"event: error\ndata: {json.dumps({'detail': 'Generation failed. Please try again later.'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

@@ -6,6 +6,7 @@ src/web/app.py and api/index.py. Both apps include this router.
 """
 
 import json
+import logging
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -14,6 +15,8 @@ from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
 from src.query.static_graph_reader import read_precomputed_entities
 from src.shared.api_models import QueryRequest
+
+logger = logging.getLogger(__name__)
 
 shared_router = APIRouter()
 
@@ -37,8 +40,9 @@ def query_endpoint(req: QueryRequest):
             "mode": mode_clean,
             "response": response_text
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+    except Exception:
+        logger.exception("GraphRAG query failed")
+        raise HTTPException(status_code=500, detail="Query failed. Please try again later.")
 
 
 @shared_router.post("/api/chat-stream")
@@ -78,7 +82,8 @@ def chat_stream_endpoint(req: QueryRequest):
 
             # Emit done
             yield f"event: done\ndata: {json.dumps({'response': response_text, 'sources': sources})}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+        except Exception:
+            logger.exception("Chat stream failed")
+            yield f"event: error\ndata: {json.dumps({'detail': 'Chat query failed. Please try again later.'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

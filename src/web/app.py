@@ -2,6 +2,7 @@
 app.py — FastAPI Web Backend for Prasad Resumes GraphRAG UI.
 """
 
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ from src.shared.api_models import QueryRequest, ResumeGenerationRequest, SaveEdi
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.shared.api_routes import shared_router
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
 app.include_router(shared_router)
@@ -75,8 +78,9 @@ def get_default_resume_endpoint():
             "txt_url": f"/api/files/{txt_rel}",
             "raw_resume": clean_raw_resume
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load default resume: {str(e)}")
+    except Exception:
+        logger.exception("Failed to load default resume")
+        raise HTTPException(status_code=500, detail="Failed to load default resume.")
 
 
 @app.get("/api/history", response_model=List[ResumeHistoryItem])
@@ -120,6 +124,8 @@ def serve_pdf_legacy(company: str, filename: str):
     if ".." in company or ".." in filename:
         raise HTTPException(status_code=403, detail="Access denied.")
     # Find matching PDF file under company
+    # Company folders are nested under output/<date>/<company>/, so rglob is
+    # required to locate the requested PDF at any nesting depth.
     matches = list(OUTPUT_DIR.rglob(f"**/{company}/{filename}"))
     if not matches:
         raise HTTPException(status_code=404, detail="Requested PDF resume not found.")
@@ -171,8 +177,9 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
             "txt_url": f"/api/files/{txt_rel}",
             "raw_resume": raw_text_path.read_text(encoding="utf-8"),
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+    except Exception:
+        logger.exception("Resume generation failed")
+        raise HTTPException(status_code=500, detail="Generation failed. Please try again later.")
 
 
 @app.post("/api/generate-stream")
@@ -206,8 +213,9 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
                 else:
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': detail})}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
+        except Exception:
+            logger.exception("Resume generation stream failed")
+            yield f"event: error\ndata: {json.dumps({'detail': 'Generation failed. Please try again later.'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -224,7 +232,7 @@ def save_edit_endpoint(req: SaveEditRequest):
         if req.txt_url and req.txt_url.startswith("/api/files/"):
             txt_path_str = req.txt_url.replace("/api/files/", "")
             target_txt = (OUTPUT_DIR / txt_path_str).resolve()
-            if not str(target_txt).startswith(str(OUTPUT_DIR.resolve())):
+            if not target_txt.is_relative_to(OUTPUT_DIR.resolve()):
                 raise HTTPException(status_code=403, detail="Access denied.")
             if raw_content:
                 target_txt.write_text(raw_content, encoding="utf-8")
@@ -256,7 +264,10 @@ def save_edit_endpoint(req: SaveEditRequest):
                 "txt_url": None,
                 "raw_resume": raw_content
             }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update resume: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Failed to update resume")
+        raise HTTPException(status_code=500, detail="Failed to update resume.")
 
 
