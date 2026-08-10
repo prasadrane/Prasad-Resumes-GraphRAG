@@ -6,8 +6,11 @@ Reads graph entities directly from pre-computed output parquet/json files or ful
 import os
 import re
 import json
+import logging
 from pathlib import Path
 from typing import List, Dict, Any
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = ROOT_DIR / "output"
@@ -20,7 +23,11 @@ def read_precomputed_entities() -> List[Dict[str, Any]]:
             with open(json_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            pass
+            logger.warning(
+                "Failed to parse %s; falling back to master resume sections.",
+                json_path,
+                exc_info=True,
+            )
     
     master_resume = ROOT_DIR / "input" / "MASTER_RESUME.txt"
     if master_resume.exists():
@@ -36,7 +43,11 @@ def read_precomputed_entities() -> List[Dict[str, Any]]:
                     entities.append({"title": header, "content": content})
                 return entities
         except Exception:
-            pass
+            logger.warning(
+                "Failed to read %s; returning empty entity list.",
+                master_resume,
+                exc_info=True,
+            )
             
     return []
 
