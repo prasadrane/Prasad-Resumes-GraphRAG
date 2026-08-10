@@ -41,7 +41,7 @@ from .constants import (
 )
 from .models import JobEntry, ResumeData
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+from src.config import MASTER_RESUME_PATH, ROOT_DIR
 
 # ── Domain-category mapping for intelligent summary variant selection ──────────
 DOMAIN_KEYWORDS = {
@@ -756,7 +756,7 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     keywords = extract_ats_keywords(jd_text)
 
     # Read base MASTER_RESUME.txt if available
-    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    master_path = MASTER_RESUME_PATH
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
         parsed = parse_resume_markdown(master_content)
@@ -796,7 +796,7 @@ def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_di
 
     # Step 2: loading_master (15%)
     yield ("loading_master", "Loading master resume", 15, "Reading and parsing MASTER_RESUME.txt...")
-    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    master_path = MASTER_RESUME_PATH
     if master_path.exists():
         master_content = master_path.read_text(encoding="utf-8")
         parsed = parse_resume_markdown(master_content)

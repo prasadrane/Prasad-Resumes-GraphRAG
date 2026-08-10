@@ -17,6 +17,7 @@ if str(ROOT_DIR) not in sys.path:
 from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
+from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR
 from fastapi.responses import FileResponse, StreamingResponse
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
@@ -27,7 +28,7 @@ class ResumeGenerationRequest(BaseModel):
 
 from fastapi.staticfiles import StaticFiles
 
-STATIC_DIR = ROOT_DIR / "src" / "web" / "static"
+STATIC_DIR = WEB_STATIC_DIR
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -54,7 +55,7 @@ def get_history():
 @app.get("/api/default_resume")
 def get_default_resume_endpoint():
     """Fetch default master resume raw text and base64 PDF preview for Vercel serverless."""
-    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    master_path = MASTER_RESUME_PATH
     if not master_path.exists():
         raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
 

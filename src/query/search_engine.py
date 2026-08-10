@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Optional
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+from src.config import ROOT_DIR
 
 # Command Runner Protocol type hint
 CommandRunner = Callable[[list, str], subprocess.CompletedProcess]

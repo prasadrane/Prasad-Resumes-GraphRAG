@@ -12,8 +12,7 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-OUTPUT_DIR = ROOT_DIR / "output"
+from src.config import OUTPUT_DIR, ROOT_DIR
 
 def read_precomputed_entities() -> List[Dict[str, Any]]:
     """Read pre-computed entities from output graph artifacts or full MASTER_RESUME.txt."""

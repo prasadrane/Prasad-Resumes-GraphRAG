@@ -12,9 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-OUTPUT_DIR = ROOT_DIR / "output"
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+from src.config import ROOT_DIR, OUTPUT_DIR, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
@@ -84,7 +82,7 @@ def read_root():
 @app.get("/api/default_resume")
 def get_default_resume_endpoint():
     """Fetch default master resume raw text and PDF preview."""
-    master_path = ROOT_DIR / "input" / "MASTER_RESUME.txt"
+    master_path = MASTER_RESUME_PATH
     if not master_path.exists():
         raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
 

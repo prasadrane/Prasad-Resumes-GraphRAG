@@ -5,6 +5,7 @@ ats_matcher.py — ATS keyword extraction from Job Descriptions and GraphRAG sto
 import re
 from typing import List
 from pathlib import Path
+from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
 from .constants import COMMON_ATS_KEYWORDS
 
@@ -91,7 +92,7 @@ def match_graphrag_stories(keywords: List[str], root_dir: Path = None) -> List[s
     query_str = f"Find relevant experience and metrics for: {', '.join(keywords)}"
     try:
         if root_dir is None:
-            root_dir = Path(__file__).resolve().parent.parent.parent
+            root_dir = ROOT_DIR
         response = execute_graphrag_query(query_str, mode="local", root_dir=root_dir)
         if not response:
             return []
