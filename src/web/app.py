@@ -10,9 +10,10 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.config import ROOT_DIR, OUTPUT_DIR, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
+from src.shared.api_models import QueryRequest, ResumeGenerationRequest, SaveEditRequest
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
@@ -20,11 +21,6 @@ from src.query.search_engine import execute_graphrag_query
 from src.query.static_graph_reader import read_precomputed_entities
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
-
-
-class QueryRequest(BaseModel):
-    query: str = Field(..., min_length=1, description="Question for GraphRAG knowledge graph")
-    mode: str = Field(default="local", description="Query mode: 'local' or 'global'")
 
 
 @app.post("/api/query")
@@ -53,11 +49,6 @@ def query_endpoint(req: QueryRequest):
 # Serve static files if directory exists
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-
-class GenerateRequest(BaseModel):
-    company: str = Field(..., min_length=1, description="Target company name")
-    jd_text: Optional[str] = Field(default="", description="Job description text")
 
 
 class ResumeHistoryItem(BaseModel):
@@ -178,7 +169,7 @@ def serve_output_file(filepath: str):
 
 
 @app.post("/api/generate")
-def generate_resume_endpoint(req: GenerateRequest):
+def generate_resume_endpoint(req: ResumeGenerationRequest):
     """Generate a tailored raw resume text and rule-based PDF."""
     company_clean = req.company.strip()
     if not company_clean:
@@ -208,7 +199,7 @@ def generate_resume_endpoint(req: GenerateRequest):
 
 
 @app.post("/api/generate-stream")
-def generate_resume_stream_endpoint(req: GenerateRequest):
+def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
     """Generate a tailored raw resume text and rule-based PDF with step-by-step progress SSE stream."""
     import json
     company_clean = req.company.strip()
@@ -286,13 +277,6 @@ def chat_stream_endpoint(req: QueryRequest):
             yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
             
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
-class SaveEditRequest(BaseModel):
-    txt_url: Optional[str] = Field(default=None, description="Relative URL or path to text file")
-    raw_text: Optional[str] = Field(default=None, description="Updated raw resume text content")
-    content: Optional[str] = Field(default=None, description="Updated raw resume text content")
-    company: Optional[str] = Field(default="Tailored", description="Company name")
 
 
 @app.post("/api/save-edit")

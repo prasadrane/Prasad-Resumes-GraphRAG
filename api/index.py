@@ -18,13 +18,10 @@ from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR
+from src.shared.api_models import QueryRequest, ResumeGenerationRequest, SaveEditRequest
 from fastapi.responses import FileResponse, StreamingResponse
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
-
-class ResumeGenerationRequest(BaseModel):
-    company: str
-    jd_text: str
 
 from fastapi.staticfiles import StaticFiles
 
@@ -85,15 +82,14 @@ def get_default_resume_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load default resume: {str(e)}")
 
-class RenderPdfRequest(BaseModel):
-    raw_text: str
-    company: Optional[str] = "Tailored"
-
 @app.post("/api/generate")
 def generate_resume_endpoint(req: ResumeGenerationRequest):
+    company_clean = req.company.strip()
+    if not company_clean:
+        raise HTTPException(status_code=400, detail="Company name cannot be empty.")
     try:
         temp_out_dir = Path(tempfile.gettempdir()) / "output"
-        raw_path = generate_raw_resume(req.company, req.jd_text, base_output_dir=temp_out_dir)
+        raw_path = generate_raw_resume(company_clean, req.jd_text, base_output_dir=temp_out_dir)
         pdf_target = raw_path.parent / "Prasad_Rane_Resume.pdf"
         render_pdf_resume(raw_path, pdf_target)
 
@@ -111,9 +107,9 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
 
 @app.post("/api/render_pdf")
 @app.post("/api/save-edit")
-def render_pdf_endpoint(req: RenderPdfRequest):
+def render_pdf_endpoint(req: SaveEditRequest):
     try:
-        text_content = req.raw_text or ""
+        text_content = req.raw_text or req.content or ""
         if not text_content:
             raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
             
@@ -145,6 +141,9 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
     import json
     import tempfile
     import base64
+    company_clean = req.company.strip()
+    if not company_clean:
+        raise HTTPException(status_code=400, detail="Company name cannot be empty.")
     try:
         temp_out_dir = Path(tempfile.gettempdir()) / "output"
     except Exception as e:
@@ -153,8 +152,8 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
     def event_generator():
         try:
             for step_id, label, pct, detail in generate_raw_resume_stepwise(
-                company_name=req.company, 
-                jd_text=req.jd_text, 
+                company_name=company_clean,
+                jd_text=req.jd_text,
                 base_output_dir=temp_out_dir
             ):
                 if step_id == "complete" and isinstance(detail, dict):
@@ -162,10 +161,10 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
                     pdf_bytes = pdf_path.read_bytes()
                     b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
                     pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
-                    
+
                     complete_payload = {
                         "status": "success",
-                        "company": req.company,
+                        "company": company_clean,
                         "pdf_url": pdf_data_uri,
                         "txt_url": "",
                         "raw_resume": detail["raw_resume"]
@@ -181,10 +180,6 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
 
 from src.query.search_engine import execute_graphrag_query
 from src.query.static_graph_reader import read_precomputed_entities
-
-class QueryRequest(BaseModel):
-    query: str
-    mode: Optional[str] = "local"
 
 
 @app.post("/api/chat-stream")
