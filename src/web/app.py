@@ -159,7 +159,7 @@ def serve_pdf_legacy(company: str, filename: str):
         raise HTTPException(status_code=404, detail="Requested PDF resume not found.")
     target_file = matches[0].resolve()
     # Security check: ensure path is within OUTPUT_DIR (same guard as serve_output_file)
-    if not str(target_file).startswith(str(OUTPUT_DIR.resolve())):
+    if not target_file.is_relative_to(OUTPUT_DIR.resolve()):
         raise HTTPException(status_code=403, detail="Access denied.")
     return FileResponse(str(target_file), media_type="application/pdf", filename=filename)
 
@@ -170,7 +170,7 @@ def serve_output_file(filepath: str):
     target_file = (OUTPUT_DIR / filepath).resolve()
 
     # Security check: ensure path is within OUTPUT_DIR
-    if not str(target_file).startswith(str(OUTPUT_DIR.resolve())):
+    if not target_file.is_relative_to(OUTPUT_DIR.resolve()):
         raise HTTPException(status_code=403, detail="Access denied.")
     if not target_file.exists() or not target_file.is_file():
         raise HTTPException(status_code=404, detail="Requested file not found.")
