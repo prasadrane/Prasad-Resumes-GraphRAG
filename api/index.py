@@ -4,8 +4,6 @@ Provides stateless serverless endpoints for ATS keyword extraction, tailored res
 """
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List
 import sys
 from pathlib import Path
 
@@ -18,10 +16,12 @@ from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR
-from src.shared.api_models import QueryRequest, ResumeGenerationRequest, SaveEditRequest
+from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
+from src.shared.api_routes import shared_router
 from fastapi.responses import FileResponse, StreamingResponse
 
 app = FastAPI(title="Prasad Resumes GraphRAG Vercel API", version="1.0.0")
+app.include_router(shared_router)
 
 from fastapi.staticfiles import StaticFiles
 
@@ -176,74 +176,3 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
             yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
-from src.query.search_engine import execute_graphrag_query
-from src.query.static_graph_reader import read_precomputed_entities
-
-
-@app.post("/api/chat-stream")
-def chat_stream_endpoint(req: QueryRequest):
-    import json
-    query_clean = req.query.strip()
-    if not query_clean:
-        raise HTTPException(status_code=400, detail="Query cannot be empty.")
-    
-    mode_clean = req.mode.lower().strip() if req.mode else "local"
-    if mode_clean not in ["local", "global"]:
-        mode_clean = "local"
-        
-    def event_generator():
-        try:
-            # 1. Search sources
-            keywords = [w.strip("?,.()\"'") for w in query_clean.lower().split() if len(w) > 3]
-            entities = read_precomputed_entities()
-            sources = []
-            if entities and keywords:
-                for entity in entities:
-                    title = entity.get("title", "")
-                    content = entity.get("content", "")
-                    text = (title + " " + content).lower()
-                    if any(kw in text for kw in keywords):
-                        sources.append(title)
-            sources = list(set(sources))[:5]
-            
-            # Emit sources
-            yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
-            
-            # 2. Get LLM response
-            response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
-            
-            # Emit token
-            yield f"event: token\ndata: {json.dumps({'token': response_text})}\n\n"
-            
-            # Emit done
-            yield f"event: done\ndata: {json.dumps({'response': response_text, 'sources': sources})}\n\n"
-        except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'detail': str(e)})}\n\n"
-            
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
-@app.post("/api/query")
-def query_endpoint(req: QueryRequest):
-    query_clean = req.query.strip()
-    if not query_clean:
-        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
-    
-    mode_clean = req.mode.lower().strip() if req.mode else "local"
-    if mode_clean not in ["local", "global"]:
-        mode_clean = "local"
-        
-    try:
-        response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
-        return {
-            "status": "success",
-            "query": query_clean,
-            "mode": mode_clean,
-            "response": response_text
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
-
-

@@ -90,7 +90,7 @@ class TestWebUI(unittest.TestCase):
         response = self.client.post("/api/query", json={"query": ""})
         self.assertIn(response.status_code, [400, 422])
 
-    @patch("src.web.app.execute_graphrag_query")
+    @patch("src.shared.api_routes.execute_graphrag_query")
     def test_query_endpoint_success(self, mock_query):
         """Test POST /api/query invokes GraphRAG search engine correctly."""
         mock_query.return_value = "Prasad used AWS Lambda and S3."
