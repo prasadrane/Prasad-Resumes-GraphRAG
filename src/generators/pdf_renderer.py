@@ -27,7 +27,7 @@ from .pdf_styles import (
     get_resume_styles,
     markdown_to_reportlab_html,
 )
-from .resume_generator import parse_resume_markdown
+from .resume_parser import parse_resume_markdown
 
 # Alias for backward compatibility
 parse_raw_resume = parse_resume_markdown
