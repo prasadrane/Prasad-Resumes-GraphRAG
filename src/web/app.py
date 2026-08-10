@@ -150,11 +150,18 @@ def get_resume_history():
 @app.get("/api/pdf/{company}/{filename}")
 def serve_pdf_legacy(company: str, filename: str):
     """Legacy route: Serve requested PDF file."""
+    # Reject traversal attempts before globbing user input
+    if ".." in company or ".." in filename:
+        raise HTTPException(status_code=403, detail="Access denied.")
     # Find matching PDF file under company
     matches = list(OUTPUT_DIR.rglob(f"**/{company}/{filename}"))
     if not matches:
         raise HTTPException(status_code=404, detail="Requested PDF resume not found.")
-    return FileResponse(str(matches[0]), media_type="application/pdf", filename=filename)
+    target_file = matches[0].resolve()
+    # Security check: ensure path is within OUTPUT_DIR (same guard as serve_output_file)
+    if not str(target_file).startswith(str(OUTPUT_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied.")
+    return FileResponse(str(target_file), media_type="application/pdf", filename=filename)
 
 
 @app.get("/api/files/{filepath:path}")
