@@ -12,7 +12,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from src.cli import get_default_source_dir
 from src.converters.input_converter import convert_documents
 
 INPUT_DIR = ROOT_DIR / "input"
@@ -22,7 +21,7 @@ def main():
     parser.add_argument(
         "--source",
         type=str,
-        default=str(get_default_source_dir()),
+        required=True,
         help="Source directory containing PDFs and MD files",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing output files even if unchanged")
