@@ -3,7 +3,6 @@ pdf_parser.py — PDF text extraction using PyMuPDF (fitz) with layout sorting.
 """
 
 from pathlib import Path
-from typing import Tuple
 
 try:
     import fitz  # PyMuPDF
@@ -13,7 +12,7 @@ except ImportError:
 
 from .resume_structurer import clean_text, structure_resume
 
-def extract_pdf_text(pdf_path: Path) -> Tuple[bool, str]:
+def extract_pdf_text(pdf_path: Path) -> tuple[bool, str]:
     """Extract text from a PDF file with layout ordering.
     Returns (success_flag, extracted_or_structured_text)."""
     if not PDF_SUPPORT:
