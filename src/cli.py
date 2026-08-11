@@ -53,9 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("query_string", type=str, help="Search query string")
 
     # UI sub-command
-    ui_parser = subparsers.add_parser("ui", help="Launch the Web UI server")
-    ui_parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address to bind")
-    ui_parser.add_argument("--port", type=int, default=8000, help="Port to run Web UI on")
+    subparsers.add_parser("ui", help="Launch the Web UI server via vercel dev")
 
     return parser
 
@@ -127,9 +125,11 @@ def main() -> None:
             sys.exit(1)
 
     elif args.command == "ui":
-        import uvicorn
-        print(f"[CLI] Starting Web UI server on http://{args.host}:{args.port}...")
-        uvicorn.run("src.web.app:app", host=args.host, port=args.port, reload=False)
+        print("[CLI] Starting Web UI via vercel dev...")
+        res = subprocess.run(["vercel", "dev"], cwd=str(ROOT_DIR))
+        if res.returncode != 0:
+            print(f"[CLI ERROR] vercel dev exited with code {res.returncode}")
+            sys.exit(res.returncode)
 
     else:
         parser.print_help()

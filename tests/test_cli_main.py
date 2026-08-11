@@ -93,11 +93,10 @@ class TestCLIMain(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
 
     def test_ui_command(self):
-        with patch("uvicorn.run") as mock_run:
-            self._run_main(["ui", "--port", "8123"])
-        mock_run.assert_called_once_with(
-            "src.web.app:app", host="127.0.0.1", port=8123, reload=False
-        )
+        with patch("src.cli.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            self._run_main(["ui"])
+        mock_run.assert_called_once_with(["vercel", "dev"], cwd=ANY)
 
     def test_no_command_prints_help(self):
         captured = io.StringIO()

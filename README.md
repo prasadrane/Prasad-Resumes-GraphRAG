@@ -85,9 +85,9 @@ The proxy runs on port 8002 and routes `freellmapi-chat` → OpenRouter/Gemini f
 ### 3. Launch Web UI (FastAPI Server)
 ```powershell
 python src/cli.py ui
-# Or directly: python scripts/run_ui.py
 ```
-Open **http://127.0.0.1:8000** in your browser.
+This runs `vercel dev` under the hood, matching the production Vercel deployment path. Requires the Vercel CLI: `npm i -g vercel`.
+Open **http://localhost:3000** in your browser (port assigned by `vercel dev`).
 
 ### 4. Generate Tailored Resume via CLI
 ```powershell
@@ -146,6 +146,6 @@ All endpoints are available on both the local server (`src/web/app.py`, port 800
 |---------|-------|-----|
 | `graphrag index` fails with connection error | LiteLLM proxy not running | Start it: `python src/cli.py proxy` |
 | Chatbot returns raw entity dump, no LLM synthesis | Missing `OPENROUTER_API_KEY` and `GEMINI_API_KEY` | Add at least one to `.env` |
-| `Address already in use: 8000` | Another process on port 8000 | Kill it or use `python src/cli.py ui --port 8001` |
+| `vercel dev` fails to start | Port conflict or Vercel CLI not installed | Kill conflicting process on port 3000, or run `vercel dev --port 3001` |
 | `Address already in use: 8002` | LiteLLM proxy already running | Use the existing instance |
 | PDF not generated on Vercel | Read-only filesystem | Output is auto-redirected to `/tmp/output` — check Vercel function logs |
