@@ -59,6 +59,12 @@ OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
 
 # Fallback LLM Provider (Google Gemini AI Studio API)
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# GraphRAG Indexer (points at Gemini via LiteLLM proxy)
+GRAPHRAG_API_KEY=your_gemini_api_key_here
+
+# FreeLLMAPI (primary model in settings.yaml, routed via LiteLLM proxy)
+FREELLMAPI_API_KEY=your_freellmapi_api_key_here
 ```
 
 ---
@@ -70,29 +76,35 @@ GEMINI_API_KEY=your_gemini_api_key_here
 .\venv\Scripts\Activate.ps1
 ```
 
-### 2. Launch Web UI (FastAPI Server)
+### 2. Start LiteLLM Proxy (required for GraphRAG indexing)
+```powershell
+python src/cli.py proxy
+```
+The proxy runs on port 8002 and routes `freellmapi-chat` → OpenRouter/Gemini fallback chain.
+
+### 3. Launch Web UI (FastAPI Server)
 ```powershell
 python src/cli.py ui
 # Or directly: python scripts/run_ui.py
 ```
 Open **http://127.0.0.1:8000** in your browser.
 
-### 3. Generate Tailored Resume via CLI
+### 4. Generate Tailored Resume via CLI
 ```powershell
 python src/cli.py generate --company <Company_Name> --jd-file <Path_To_JD.txt>
 ```
 
-### 4. Query Knowledge Graph via CLI
+### 5. Query Knowledge Graph via CLI
 ```powershell
 python src/cli.py query --mode local "What AWS technologies did Prasad use?"
 ```
 
-### 5. Build or Re-Index Knowledge Graph
+### 6. Build or Re-Index Knowledge Graph
 ```powershell
 python -m graphrag index --root .
 ```
 
-### 6. Run Unit Test Suite
+### 7. Run Unit Test Suite
 ```powershell
 .\venv\Scripts\python.exe -m unittest discover tests
 ```
@@ -108,3 +120,32 @@ vercel --prod
 ```
 
 Ensure `OPENROUTER_API_KEY` and `GEMINI_API_KEY` are configured in Vercel project environment variables.
+
+---
+
+## API Reference
+
+All endpoints are available on both the local server (`src/web/app.py`, port 8000) and Vercel (`api/index.py`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Web UI (local only) |
+| `POST` | `/api/generate` | Generate tailored resume from company + JD text |
+| `POST` | `/api/render_pdf` | Render PDF from raw resume markdown |
+| `POST` | `/api/save-edit` | Save edited raw resume and re-render |
+| `POST` | `/api/query` | GraphRAG Q&A query |
+| `POST` | `/api/chat-stream` | Streaming chatbot (SSE) |
+| `GET` | `/api/default-resume` | Get default master resume content |
+| `GET` | `/output/{path}` | Serve generated PDFs (local only) |
+
+---
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `graphrag index` fails with connection error | LiteLLM proxy not running | Start it: `python src/cli.py proxy` |
+| Chatbot returns raw entity dump, no LLM synthesis | Missing `OPENROUTER_API_KEY` and `GEMINI_API_KEY` | Add at least one to `.env` |
+| `Address already in use: 8000` | Another process on port 8000 | Kill it or use `python src/cli.py ui --port 8001` |
+| `Address already in use: 8002` | LiteLLM proxy already running | Use the existing instance |
+| PDF not generated on Vercel | Read-only filesystem | Output is auto-redirected to `/tmp/output` — check Vercel function logs |
