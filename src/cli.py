@@ -3,7 +3,6 @@ cli.py — Unified Command Line Interface for Prasad Resumes GraphRAG.
 """
 
 import argparse
-import os
 import re
 import subprocess
 import sys
@@ -19,16 +18,6 @@ from src.proxy.litellm_runner import start_proxy_server, check_proxy_health
 from src.generators.resume_generator import generate_raw_resume
 from src.generators.pdf_renderer import render_pdf_resume
 
-def get_default_source_dir() -> Path:
-    """Resolve default source directory from environment variable or relative path."""
-    env_dir = os.getenv("SOURCE_RESUMES_DIR")
-    if env_dir:
-        return Path(env_dir)
-    default_rel = ROOT_DIR.parent / "Prasad-Resumes"
-    if default_rel.exists():
-        return default_rel
-    return Path(r"C:\Users\mamat\Github\Prasad-Resumes")
-
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
     parser = argparse.ArgumentParser(description="Prasad Resumes GraphRAG CLI Engine")
@@ -39,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument(
         "--source",
         type=str,
-        default=str(get_default_source_dir()),
+        required=True,
         help="Source directory containing PDFs and MD files",
     )
     convert_parser.add_argument("--force", action="store_true", help="Overwrite existing output files")
