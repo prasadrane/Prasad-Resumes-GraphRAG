@@ -12,6 +12,8 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
 
 from .constants import (
+    MARGIN_LEFT_RIGHT,
+    MARGIN_TOP_BOTTOM,
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
     SECTION_EXPERIENCE,
@@ -104,10 +106,10 @@ def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
     doc = SimpleDocTemplate(
         str(output_pdf_path),
         pagesize=letter,
-        leftMargin=0.55 * inch,
-        rightMargin=0.55 * inch,
-        topMargin=0.45 * inch,
-        bottomMargin=0.45 * inch,
+        leftMargin=MARGIN_LEFT_RIGHT,
+        rightMargin=MARGIN_LEFT_RIGHT,
+        topMargin=MARGIN_TOP_BOTTOM,
+        bottomMargin=MARGIN_TOP_BOTTOM,
     )
 
     styles = get_resume_styles()

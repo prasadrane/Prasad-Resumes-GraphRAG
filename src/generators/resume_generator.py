@@ -14,12 +14,14 @@ from src.llm.service import call_llm_safe as _call_llm_safe
 
 
 from .constants import (
+    BOLD_CAP_PCT,
     DEFAULT_CANDIDATE_NAME,
     DEFAULT_CANDIDATE_TITLE,
     MARKDOWN_BULLET_PREFIX,
     MARKDOWN_H1_PREFIX,
     MARKDOWN_H2_PREFIX,
     MARKDOWN_H3_PREFIX,
+    MAX_BOLD_PHRASES_PER_BULLET,
     RAW_RESUME_FILENAME,
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
@@ -168,7 +170,7 @@ def _can_bold_keyword(matched_len: int, current_bold_chars: int, total_chars: in
     new_ratio = (current_bold_chars + matched_len) / total_chars
     return new_ratio <= (max_bold_ratio + 0.05)
 
-def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = 3, max_bold_ratio: float = 0.20) -> str:
+def bold_keywords(text: str, keywords: List[str], max_bold_phrases: int = MAX_BOLD_PHRASES_PER_BULLET, max_bold_ratio: float = BOLD_CAP_PCT / 100) -> str:
     """Highlight job description keywords judiciously (max 2-3 phrases, <20% bolded text total)."""
     if not text or not keywords:
         return clean_em_dashes(text)
@@ -303,7 +305,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
 
     # 1. SUMMARY
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SUMMARY}")
-    bolded_summary = bold_keywords(data.summary, keywords, max_bold_phrases=3, max_bold_ratio=0.15)
+    bolded_summary = bold_keywords(data.summary, keywords, max_bold_phrases=MAX_BOLD_PHRASES_PER_BULLET, max_bold_ratio=0.15)
     out_lines.append(bolded_summary)
     out_lines.append("")
 
@@ -319,7 +321,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
             job.bullets, keywords, max_bullets, bullet_stories=job.bullet_stories
         )
         for b in selected_bullets:
-            bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=3, max_bold_ratio=0.20)
+            bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=MAX_BOLD_PHRASES_PER_BULLET, max_bold_ratio=BOLD_CAP_PCT / 100)
             out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
         out_lines.append("")
 

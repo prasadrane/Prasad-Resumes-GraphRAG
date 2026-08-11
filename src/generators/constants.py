@@ -4,6 +4,8 @@ constants.py — Generic constants for resume generation and PDF rendering.
 
 from typing import List
 
+from reportlab.lib.units import inch
+
 # Generic Candidate Defaults
 DEFAULT_CANDIDATE_NAME = "Candidate Name"
 DEFAULT_CANDIDATE_TITLE = "Software Engineer"
@@ -46,3 +48,12 @@ COMMON_ATS_KEYWORDS: List[str] = [
     "OAuth2", "JWT", "Copilot", "Bedrock", "LLM", "Prompt Engineering", "Billing",
     "Licensing", "Payments", "Subscriptions", "Agile", "Scrum", "TDD"
 ]
+
+# PDF Page Layout
+MARGIN_LEFT_RIGHT = 0.55 * inch
+MARGIN_TOP_BOTTOM = 0.45 * inch
+MAX_PAGES = 2
+
+# ATS Bolding Constraints
+BOLD_CAP_PCT = 20  # percent (use as BOLD_CAP_PCT / 100 for ratio)
+MAX_BOLD_PHRASES_PER_BULLET = 3
