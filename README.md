@@ -15,7 +15,7 @@ GraphRAG knowledge graph engine and automated ATS resume generator built over Pr
 2. **GraphRAG Indexing Engine (`graphrag index`):** Extracts entities, relationships, communities, and stores embeddings in LanceDB (`output/lancedb`) & Parquet tables.
 3. **Primary LLM Gateway (`src/query/serverless_gateway.py`):** Routes requests primarily to **OpenRouter API**, with automatic failover & model rotation across **Google Gemini AI Studio API** (`gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`).
 4. **GraphRAG Pre-Retrieval & Tailored Resume Generator (`src/generators/`):** Performs local NLP & GraphRAG node pre-retrieval, adapts executive summary variants, reorders skills by JD relevance, bolds keywords (<20% cap), excludes title headers, and renders standard 2-page ATS PDFs (`Prasad_Rane_Resume.pdf`).
-5. **FastAPI Web UI & Serverless Gateway (`src/web/` & `api/index.py`):** Single-page Material Design 3 interface featuring ATS Resume Tailoring, instant raw content markdown editor, and interactive GraphRAG Q&A Chatbot.
+5. **FastAPI Web UI (`src/web/app.py` → wrapped by `api/index.py` for Vercel):** Single-page Material Design 3 interface featuring ATS Resume Tailoring, instant raw content markdown editor, and interactive GraphRAG Q&A Chatbot. A single entrypoint serves both local development and production.
 
 </details>
 
@@ -113,7 +113,9 @@ python -m graphrag index --root .
 
 ## Vercel Serverless Deployment
 
-Deploy to **Vercel Free Tier** using FastAPI (`api/index.py`):
+The application uses a unified deployment model — `api/index.py` wraps `src/web/app.py`, so local development (`python src/cli.py ui` → `vercel dev`) and production use the same code path.
+
+Deploy to **Vercel Free Tier**:
 
 ```powershell
 vercel --prod
@@ -136,7 +138,6 @@ All endpoints are available on both the local server (`python src/cli.py ui` run
 | `POST` | `/api/query` | GraphRAG Q&A query |
 | `POST` | `/api/chat-stream` | Streaming chatbot (SSE) |
 | `GET` | `/api/default-resume` | Get default master resume content |
-| `GET` | `/output/{path}` | Serve generated PDFs (local only) |
 
 ---
 

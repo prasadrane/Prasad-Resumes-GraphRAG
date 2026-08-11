@@ -91,5 +91,5 @@ python src/cli.py generate --company <Company_Name> --jd-file <Path_To_JD.txt>
 ### Launch Minimalist Web UI
 ```powershell
 python src/cli.py ui
-# or: python scripts/run_ui.py
+# Runs `vercel dev` under the hood on port 3000 (matches production path)
 ```
