@@ -8,7 +8,7 @@
 ## Code Organization & Structure
 - **Subsystem Isolation:** Keep operational logic in `src/` modules (`src/converters/`, `src/query/`, `src/proxy/`).
 - **Clean Imports:** Order imports: standard library first, third-party packages second, internal modules third.
-- **No Hardcoded Absolute Paths:** Use `Path` objects and environment variable defaults (`SOURCE_RESUMES_DIR`).
+- **No Hardcoded Absolute Paths:** Use `Path` objects and relative path resolution; the `convert` command requires an explicit `--source` flag.
 
 ## Error Handling & Diagnostics
 - **Explicit Exceptions:** Raise descriptive exceptions (`RuntimeError`, `FileNotFoundError`) instead of returning generic empty fallbacks.

@@ -9,6 +9,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
 from reportlab.platypus import HRFlowable, Paragraph
 
+from .constants import MAX_PAGES
 from .models import JobEntry, ResumeData
 
 # Color Palette Reference
@@ -29,8 +30,8 @@ class PageCountCanvas(canvas.Canvas):
         super().showPage()
 
     def save(self):
-        if self._page_count > 2:
-            print(f"[WARN] PDF Resume exceeded 2-page constraint ({self._page_count} pages). Adjusting content spacing recommended.")
+        if self._page_count > MAX_PAGES:
+            print(f"[WARN] PDF Resume exceeded {MAX_PAGES}-page constraint ({self._page_count} pages). Adjusting content spacing recommended.")
         super().save()
 
 def get_resume_styles() -> Dict[str, ParagraphStyle]:

@@ -4,20 +4,15 @@ Unit tests for CLI parser and subcommands.
 
 import unittest
 from unittest.mock import patch, MagicMock
-from pathlib import Path
-from src.cli import build_parser, get_default_source_dir
+from src.cli import build_parser
 
 class TestCLI(unittest.TestCase):
 
-    def test_default_source_dir_env(self):
-        with patch.dict("os.environ", {"SOURCE_RESUMES_DIR": "/custom/source/dir"}):
-            source_dir = get_default_source_dir()
-            self.assertEqual(source_dir, Path("/custom/source/dir"))
-
     def test_parser_convert(self):
         parser = build_parser()
-        args = parser.parse_args(["convert", "--force"])
+        args = parser.parse_args(["convert", "--source", "/tmp/src", "--force"])
         self.assertEqual(args.command, "convert")
+        self.assertEqual(args.source, "/tmp/src")
         self.assertTrue(args.force)
 
     def test_parser_query(self):

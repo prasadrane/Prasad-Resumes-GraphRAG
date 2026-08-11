@@ -14,7 +14,7 @@ services:
     image: node:20-alpine
     working_dir: /app
     volumes:
-      - C:/Users/mamat/Github/freellmapi:/app
+      - ${FREELLMAPI_PATH:-./freellmapi}:/app
     command: npm run dev
     ports:
       - "3001:3001"

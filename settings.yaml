@@ -1,5 +1,5 @@
 ### GraphRAG 2.5.0 Settings — Prasad Resumes Knowledge Graph
-### LLM: Google Gemini (via LiteLLM) | Input: PDFs + Markdown converted to .txt
+### LLM: FreeLLMAPI → OpenRouter (via LiteLLM proxy) with Gemini fallback | Input: PDFs + Markdown converted to .txt
 
 models:
   default_chat_model:
@@ -65,7 +65,7 @@ reporting:
 vector_store:
   default_vector_store:
     type: lancedb
-    db_uri: output\lancedb
+    db_uri: output/lancedb
     container_name: default
     overwrite: True
     # Note: IVF_PQ index requires at least nlist*39 vectors; disabled for small corpora

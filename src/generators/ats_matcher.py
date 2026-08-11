@@ -3,7 +3,7 @@ ats_matcher.py — ATS keyword extraction from Job Descriptions and GraphRAG sto
 """
 
 import re
-from typing import List
+from typing import Optional
 from pathlib import Path
 from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
@@ -48,7 +48,7 @@ KNOWN_TECH_PATTERNS = [
     r"\bDevEx\b",
 ]
 
-def extract_ats_keywords(jd_text: str) -> List[str]:
+def extract_ats_keywords(jd_text: str) -> list[str]:
     """Extract ATS keywords, technologies, and competencies dynamically from job description text."""
     if not jd_text or not jd_text.strip():
         return []
@@ -84,7 +84,7 @@ def extract_ats_keywords(jd_text: str) -> List[str]:
 
     return sorted(list(found), key=lambda x: (len(x), x), reverse=True)
 
-def match_graphrag_stories(keywords: List[str], root_dir: Path = None) -> List[str]:
+def match_graphrag_stories(keywords: list[str], root_dir: Optional[Path] = None) -> list[str]:
     """Query GraphRAG knowledge graph using keywords to retrieve candidate achievements."""
     if not keywords:
         return []
