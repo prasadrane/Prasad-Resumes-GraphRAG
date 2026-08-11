@@ -1,0 +1,20 @@
+# Coverage configuration (Phase 3). Run with:
+#   venv/Scripts/python.exe -m coverage run -m pytest tests/ -m "not live" --ignore=tests/e2e
+#   venv/Scripts/python.exe -m coverage report -m
+[run]
+source =
+    src
+    api
+omit =
+    tests/*
+    */tests/*
+    venv/*
+    .venv/*
+    */site-packages/*
+
+[report]
+show_missing = true
+skip_covered = false
+exclude_lines =
+    pragma: no cover
+    if __name__ == "__main__":

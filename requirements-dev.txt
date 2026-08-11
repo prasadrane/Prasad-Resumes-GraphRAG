@@ -9,3 +9,6 @@ pymupdf
 pytest
 pytest-playwright
 httpx
+
+# Unit coverage tooling (Phase 3)
+coverage

@@ -24,3 +24,8 @@ scratch/
 Thumbs.db
 .vscode/
 .idea/
+
+# Coverage reports (Phase 3)
+.coverage
+coverage.xml
+htmlcov/
