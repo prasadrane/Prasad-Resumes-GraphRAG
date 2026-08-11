@@ -16,7 +16,7 @@ if str(ROOT_DIR) not in sys.path:
 from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
-from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR
+from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR, OUTPUT_DIR_PATH
 from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
 from src.shared.api_routes import shared_router
 from fastapi.responses import FileResponse, StreamingResponse
@@ -45,7 +45,6 @@ def get_keywords(req: ResumeGenerationRequest):
     return {"company": req.company, "keywords": kws}
 
 import base64
-import tempfile
 
 @app.get("/api/history")
 def get_history():
@@ -64,7 +63,7 @@ def get_default_resume_endpoint():
         parsed = parse_resume_markdown(master_content)
         clean_raw_resume = format_tailored_markdown(parsed, [])
 
-        temp_out_dir = Path(tempfile.gettempdir()) / "output" / "Default"
+        temp_out_dir = OUTPUT_DIR_PATH / "Default"
         temp_out_dir.mkdir(parents=True, exist_ok=True)
         raw_path = temp_out_dir / "master_raw_resume.txt"
         raw_path.write_text(clean_raw_resume, encoding="utf-8")
@@ -92,7 +91,7 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
     if not company_clean:
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
     try:
-        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+        temp_out_dir = OUTPUT_DIR_PATH
         raw_path = generate_raw_resume(company_clean, req.jd_text, base_output_dir=temp_out_dir)
         pdf_target = raw_path.parent / "Prasad_Rane_Resume.pdf"
         render_pdf_resume(raw_path, pdf_target)
@@ -118,7 +117,7 @@ def render_pdf_endpoint(req: SaveEditRequest):
         if not text_content:
             raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
             
-        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+        temp_out_dir = OUTPUT_DIR_PATH
         temp_out_dir.mkdir(parents=True, exist_ok=True)
         raw_path = temp_out_dir / "edited_raw_resume.txt"
         raw_path.write_text(text_content, encoding="utf-8")
@@ -145,13 +144,12 @@ def render_pdf_endpoint(req: SaveEditRequest):
 @app.post("/api/generate-stream")
 def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
     import json
-    import tempfile
     import base64
     company_clean = req.company.strip()
     if not company_clean:
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
     try:
-        temp_out_dir = Path(tempfile.gettempdir()) / "output"
+        temp_out_dir = OUTPUT_DIR_PATH
     except Exception:
         logger.exception("Failed to resolve temp dir")
         raise HTTPException(status_code=500, detail="Failed to resolve temp dir.")

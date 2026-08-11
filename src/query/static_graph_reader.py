@@ -12,11 +12,11 @@ from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-from src.config import OUTPUT_DIR, ROOT_DIR
+from src.config import OUTPUT_DIR_PATH, ROOT_DIR
 
 def read_precomputed_entities() -> List[Dict[str, Any]]:
     """Read pre-computed entities from output graph artifacts or full MASTER_RESUME.txt."""
-    json_path = OUTPUT_DIR / "graph_entities.json"
+    json_path = OUTPUT_DIR_PATH / "graph_entities.json"
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:

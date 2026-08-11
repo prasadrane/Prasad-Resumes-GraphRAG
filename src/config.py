@@ -8,10 +8,12 @@ Bootstrap exceptions: api/index.py and src/cli.py compute their own ROOT_DIR
 before any src.* import, because they need it on sys.path first.
 """
 
+import os
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 INPUT_DIR = ROOT_DIR / "input"
-OUTPUT_DIR = ROOT_DIR / "output"
+OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
+OUTPUT_DIR_PATH = ROOT_DIR / OUTPUT_DIR
 MASTER_RESUME_PATH = INPUT_DIR / "MASTER_RESUME.txt"
 WEB_STATIC_DIR = ROOT_DIR / "src" / "web" / "static"

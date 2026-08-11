@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src.config import ROOT_DIR, OUTPUT_DIR, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
+from src.config import ROOT_DIR, OUTPUT_DIR_PATH, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
 from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
@@ -62,15 +62,15 @@ def get_default_resume_endpoint():
         parsed = parse_resume_markdown(master_content)
         clean_raw_resume = format_tailored_markdown(parsed, [])
 
-        out_dir = OUTPUT_DIR / "Default"
+        out_dir = OUTPUT_DIR_PATH / "Default"
         out_dir.mkdir(parents=True, exist_ok=True)
         txt_target = out_dir / "raw_resume.txt"
         txt_target.write_text(clean_raw_resume, encoding="utf-8")
         pdf_target = out_dir / "Prasad_Rane_Default_Resume.pdf"
         render_pdf_resume(txt_target, pdf_target)
 
-        pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
-        txt_rel = txt_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+        pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
+        txt_rel = txt_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
 
         return {
             "status": "success",
@@ -87,19 +87,19 @@ def get_default_resume_endpoint():
 def get_resume_history():
     """Fetch history of tailored resumes from the output directory (recursively scanning all company folders)."""
     history = []
-    if not OUTPUT_DIR.exists():
+    if not OUTPUT_DIR_PATH.exists():
         return history
 
     # Scan output directory recursively for PDF files
-    for pdf_path in OUTPUT_DIR.rglob("*.pdf"):
+    for pdf_path in OUTPUT_DIR_PATH.rglob("*.pdf"):
         if pdf_path.is_file():
-            rel_path = pdf_path.relative_to(OUTPUT_DIR).as_posix()
+            rel_path = pdf_path.relative_to(OUTPUT_DIR_PATH).as_posix()
             company_name = pdf_path.parent.name
             mod_time = datetime.fromtimestamp(pdf_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
             
             # Check matching TXT file in same folder
             txt_path = pdf_path.parent / pdf_path.name.replace(".pdf", ".txt")
-            txt_rel_path = txt_path.relative_to(OUTPUT_DIR).as_posix() if txt_path.exists() else None
+            txt_rel_path = txt_path.relative_to(OUTPUT_DIR_PATH).as_posix() if txt_path.exists() else None
 
             history.append(
                 ResumeHistoryItem(
@@ -126,12 +126,12 @@ def serve_pdf_legacy(company: str, filename: str):
     # Find matching PDF file under company
     # Company folders are nested under output/<date>/<company>/, so rglob is
     # required to locate the requested PDF at any nesting depth.
-    matches = list(OUTPUT_DIR.rglob(f"**/{company}/{filename}"))
+    matches = list(OUTPUT_DIR_PATH.rglob(f"**/{company}/{filename}"))
     if not matches:
         raise HTTPException(status_code=404, detail="Requested PDF resume not found.")
     target_file = matches[0].resolve()
-    # Security check: ensure path is within OUTPUT_DIR (same guard as serve_output_file)
-    if not target_file.is_relative_to(OUTPUT_DIR.resolve()):
+    # Security check: ensure path is within OUTPUT_DIR_PATH (same guard as serve_output_file)
+    if not target_file.is_relative_to(OUTPUT_DIR_PATH.resolve()):
         raise HTTPException(status_code=403, detail="Access denied.")
     return FileResponse(str(target_file), media_type="application/pdf", filename=filename)
 
@@ -139,10 +139,10 @@ def serve_pdf_legacy(company: str, filename: str):
 @app.get("/api/files/{filepath:path}")
 def serve_output_file(filepath: str):
     """Serve requested PDF/TXT file dynamically by relative path under output directory."""
-    target_file = (OUTPUT_DIR / filepath).resolve()
+    target_file = (OUTPUT_DIR_PATH / filepath).resolve()
 
-    # Security check: ensure path is within OUTPUT_DIR
-    if not target_file.is_relative_to(OUTPUT_DIR.resolve()):
+    # Security check: ensure path is within OUTPUT_DIR_PATH
+    if not target_file.is_relative_to(OUTPUT_DIR_PATH.resolve()):
         raise HTTPException(status_code=403, detail="Access denied.")
     if not target_file.exists() or not target_file.is_file():
         raise HTTPException(status_code=404, detail="Requested file not found.")
@@ -166,8 +166,8 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
         pdf_output_target = raw_text_path.parent / "Prasad_Rane_Resume.pdf"
         pdf_path = render_pdf_resume(raw_text_path, pdf_output_target)
 
-        pdf_rel = Path(pdf_path).resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
-        txt_rel = Path(raw_text_path).resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+        pdf_rel = Path(pdf_path).resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
+        txt_rel = Path(raw_text_path).resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
 
         return {
             "status": "success",
@@ -199,8 +199,8 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
                 if step_id == "complete" and isinstance(detail, dict):
                     pdf_path = Path(detail["pdf_path"])
                     raw_resume_path = Path(detail["raw_resume_path"])
-                    pdf_rel = pdf_path.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
-                    txt_rel = raw_resume_path.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+                    pdf_rel = pdf_path.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
+                    txt_rel = raw_resume_path.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
                     
                     complete_payload = {
                         "status": "success",
@@ -231,8 +231,8 @@ def save_edit_endpoint(req: SaveEditRequest):
     try:
         if req.txt_url and req.txt_url.startswith("/api/files/"):
             txt_path_str = req.txt_url.replace("/api/files/", "")
-            target_txt = (OUTPUT_DIR / txt_path_str).resolve()
-            if not target_txt.is_relative_to(OUTPUT_DIR.resolve()):
+            target_txt = (OUTPUT_DIR_PATH / txt_path_str).resolve()
+            if not target_txt.is_relative_to(OUTPUT_DIR_PATH.resolve()):
                 raise HTTPException(status_code=403, detail="Access denied.")
             if raw_content:
                 target_txt.write_text(raw_content, encoding="utf-8")
@@ -240,7 +240,7 @@ def save_edit_endpoint(req: SaveEditRequest):
                 raw_content = target_txt.read_text(encoding="utf-8")
             pdf_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
             render_pdf_resume(target_txt, pdf_target)
-            pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR.resolve()).as_posix()
+            pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
             return {
                 "status": "success",
                 "message": "Resume updated and re-rendered successfully.",
@@ -250,7 +250,7 @@ def save_edit_endpoint(req: SaveEditRequest):
             }
         else:
             import tempfile, base64
-            temp_out_dir = Path(tempfile.gettempdir()) / "output"
+            temp_out_dir = OUTPUT_DIR_PATH
             temp_out_dir.mkdir(parents=True, exist_ok=True)
             raw_path = temp_out_dir / "edited_raw_resume.txt"
             raw_path.write_text(raw_content, encoding="utf-8")

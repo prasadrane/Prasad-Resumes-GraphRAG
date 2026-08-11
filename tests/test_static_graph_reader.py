@@ -2,7 +2,7 @@
 Unit tests for src/query/static_graph_reader.py.
 
 All file I/O is redirected at temp directories by patching the module-level
-OUTPUT_DIR / ROOT_DIR names the reader resolves at call time. Pytest-style
+OUTPUT_DIR_PATH / ROOT_DIR names the reader resolves at call time. Pytest-style
 (uses tmp_path, monkeypatch, conftest fixtures); not collected by unittest.
 """
 
@@ -12,7 +12,7 @@ import src.query.static_graph_reader as reader
 
 
 def _patch_dirs(monkeypatch, out_dir, root_dir):
-    monkeypatch.setattr(reader, "OUTPUT_DIR", out_dir)
+    monkeypatch.setattr(reader, "OUTPUT_DIR_PATH", out_dir)
     monkeypatch.setattr(reader, "ROOT_DIR", root_dir)
 
 

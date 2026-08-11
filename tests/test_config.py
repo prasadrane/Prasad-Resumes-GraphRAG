@@ -4,7 +4,7 @@ Unit tests for centralized path configuration.
 
 import unittest
 
-from src.config import ROOT_DIR, INPUT_DIR, OUTPUT_DIR, MASTER_RESUME_PATH, WEB_STATIC_DIR
+from src.config import ROOT_DIR, INPUT_DIR, OUTPUT_DIR, OUTPUT_DIR_PATH, MASTER_RESUME_PATH, WEB_STATIC_DIR
 
 
 class TestConfig(unittest.TestCase):
@@ -15,7 +15,8 @@ class TestConfig(unittest.TestCase):
 
     def test_derived_paths(self):
         self.assertEqual(INPUT_DIR, ROOT_DIR / "input")
-        self.assertEqual(OUTPUT_DIR, ROOT_DIR / "output")
+        self.assertEqual(OUTPUT_DIR, "output")
+        self.assertEqual(OUTPUT_DIR_PATH, ROOT_DIR / "output")
         self.assertEqual(MASTER_RESUME_PATH, ROOT_DIR / "input" / "MASTER_RESUME.txt")
         self.assertEqual(WEB_STATIC_DIR, ROOT_DIR / "src" / "web" / "static")
 

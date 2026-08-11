@@ -42,7 +42,7 @@ from .resume_parser import (
 )
 from .pdf_renderer import render_pdf_resume
 
-from src.config import MASTER_RESUME_PATH, ROOT_DIR
+from src.config import MASTER_RESUME_PATH, ROOT_DIR, OUTPUT_DIR_PATH
 
 # ── Domain-category mapping for intelligent summary variant selection ──────────
 DOMAIN_KEYWORDS = {
@@ -147,7 +147,7 @@ def _extract_top_metrics(parsed: "ResumeData") -> str:
 def get_output_dir(company_name: str, base_output_dir: Optional[Path] = None) -> Path:
     """Return output directory: output/<MM-DD-YYYY>/<company_name>/."""
     if base_output_dir is None:
-        base_output_dir = ROOT_DIR / "output"
+        base_output_dir = OUTPUT_DIR_PATH
     
     date_str = datetime.now().strftime("%m-%d-%Y")
     clean_company = re.sub(r"[^A-Za-z0-9_-]", "_", company_name.strip())
