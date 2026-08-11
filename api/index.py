@@ -17,7 +17,7 @@ from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.config import MASTER_RESUME_PATH, WEB_STATIC_DIR, OUTPUT_DIR_PATH
-from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
+from src.shared.api_models import ResumeGenerationRequest
 from src.shared.api_routes import shared_router
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -108,37 +108,6 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
     except Exception:
         logger.exception("Resume generation failed")
         raise HTTPException(status_code=500, detail="Generation failed. Please try again later.")
-
-@app.post("/api/render_pdf")
-@app.post("/api/save-edit")
-def render_pdf_endpoint(req: SaveEditRequest):
-    try:
-        text_content = req.raw_text or req.content or ""
-        if not text_content:
-            raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
-            
-        temp_out_dir = OUTPUT_DIR_PATH
-        temp_out_dir.mkdir(parents=True, exist_ok=True)
-        raw_path = temp_out_dir / "edited_raw_resume.txt"
-        raw_path.write_text(text_content, encoding="utf-8")
-
-        pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
-        render_pdf_resume(raw_path, pdf_target)
-
-        pdf_bytes = pdf_target.read_bytes()
-        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
-
-        return {
-            "status": "success",
-            "pdf_url": pdf_data_uri,
-            "raw_resume": text_content
-        }
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("PDF rendering failed")
-        raise HTTPException(status_code=500, detail="PDF rendering failed.")
 
 
 @app.post("/api/generate-stream")

@@ -3,18 +3,17 @@ app.py — FastAPI Web Backend for Prasad Resumes GraphRAG UI.
 """
 
 import logging
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
-from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
+from src.shared.api_models import ResumeGenerationRequest
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
@@ -69,13 +68,15 @@ def get_default_resume_endpoint():
         pdf_target = out_dir / "Prasad_Rane_Default_Resume.pdf"
         render_pdf_resume(txt_target, pdf_target)
 
-        pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
-        txt_rel = txt_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
+        import base64
+        pdf_bytes = pdf_target.read_bytes()
+        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
 
         return {
             "status": "success",
-            "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
-            "txt_url": f"/api/files/{txt_rel}",
+            "pdf_url": pdf_data_uri,
+            "txt_url": None,
             "raw_resume": clean_raw_resume
         }
     except Exception:
@@ -86,6 +87,7 @@ def get_default_resume_endpoint():
 @app.get("/api/history", response_model=List[ResumeHistoryItem])
 def get_resume_history():
     """Fetch history of tailored resumes from the output directory (recursively scanning all company folders)."""
+    import base64
     history = []
     if not OUTPUT_DIR_PATH.exists():
         return history
@@ -93,22 +95,26 @@ def get_resume_history():
     # Scan output directory recursively for PDF files
     for pdf_path in OUTPUT_DIR_PATH.rglob("*.pdf"):
         if pdf_path.is_file():
-            rel_path = pdf_path.relative_to(OUTPUT_DIR_PATH).as_posix()
             company_name = pdf_path.parent.name
             mod_time = datetime.fromtimestamp(pdf_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
-            
-            # Check matching TXT file in same folder
-            txt_path = pdf_path.parent / pdf_path.name.replace(".pdf", ".txt")
-            txt_rel_path = txt_path.relative_to(OUTPUT_DIR_PATH).as_posix() if txt_path.exists() else None
+
+            # Encode PDF as base64 data URI
+            try:
+                pdf_bytes = pdf_path.read_bytes()
+                b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+                pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+            except Exception:
+                logger.warning("Failed to read PDF for history: %s", pdf_path)
+                continue
 
             history.append(
                 ResumeHistoryItem(
                     company=company_name,
                     date=mod_time,
                     pdf_filename=pdf_path.name,
-                    pdf_url=f"/api/files/{rel_path}",
-                    txt_filename=txt_path.name if txt_path.exists() else None,
-                    txt_url=f"/api/files/{txt_rel_path}" if txt_rel_path else None,
+                    pdf_url=pdf_data_uri,
+                    txt_filename=None,
+                    txt_url=None,
                 )
             )
 
@@ -136,20 +142,6 @@ def serve_pdf_legacy(company: str, filename: str):
     return FileResponse(str(target_file), media_type="application/pdf", filename=filename)
 
 
-@app.get("/api/files/{filepath:path}")
-def serve_output_file(filepath: str):
-    """Serve requested PDF/TXT file dynamically by relative path under output directory."""
-    target_file = (OUTPUT_DIR_PATH / filepath).resolve()
-
-    # Security check: ensure path is within OUTPUT_DIR_PATH
-    if not target_file.is_relative_to(OUTPUT_DIR_PATH.resolve()):
-        raise HTTPException(status_code=403, detail="Access denied.")
-    if not target_file.exists() or not target_file.is_file():
-        raise HTTPException(status_code=404, detail="Requested file not found.")
-
-    media_type = "application/pdf" if target_file.suffix.lower() == ".pdf" else "text/plain"
-    return FileResponse(str(target_file), media_type=media_type, content_disposition_type="inline")
-
 
 @app.post("/api/generate")
 def generate_resume_endpoint(req: ResumeGenerationRequest):
@@ -166,15 +158,17 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
         pdf_output_target = raw_text_path.parent / "Prasad_Rane_Resume.pdf"
         pdf_path = render_pdf_resume(raw_text_path, pdf_output_target)
 
-        pdf_rel = Path(pdf_path).resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
-        txt_rel = Path(raw_text_path).resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
+        import base64
+        pdf_bytes = Path(pdf_path).read_bytes()
+        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
 
         return {
             "status": "success",
             "message": f"Resume tailored successfully for {company_clean}.",
             "company": company_clean,
-            "pdf_url": f"/api/files/{pdf_rel}",
-            "txt_url": f"/api/files/{txt_rel}",
+            "pdf_url": pdf_data_uri,
+            "txt_url": None,
             "raw_resume": raw_text_path.read_text(encoding="utf-8"),
         }
     except Exception:
@@ -191,23 +185,24 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
 
     def event_generator():
+        import base64
         try:
             for step_id, label, pct, detail in generate_raw_resume_stepwise(
-                company_name=company_clean, 
+                company_name=company_clean,
                 jd_text=req.jd_text or ""
             ):
                 if step_id == "complete" and isinstance(detail, dict):
                     pdf_path = Path(detail["pdf_path"])
-                    raw_resume_path = Path(detail["raw_resume_path"])
-                    pdf_rel = pdf_path.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
-                    txt_rel = raw_resume_path.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
-                    
+                    pdf_bytes = pdf_path.read_bytes()
+                    b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+                    pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+
                     complete_payload = {
                         "status": "success",
                         "message": f"Resume tailored successfully for {company_clean}.",
                         "company": company_clean,
-                        "pdf_url": f"/api/files/{pdf_rel}",
-                        "txt_url": f"/api/files/{txt_rel}",
+                        "pdf_url": pdf_data_uri,
+                        "txt_url": "",
                         "raw_resume": detail["raw_resume"]
                     }
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
@@ -219,55 +214,5 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-
-@app.post("/api/save-edit")
-@app.post("/api/render_pdf")
-def save_edit_endpoint(req: SaveEditRequest):
-    """Save updated raw resume text content and re-render the PDF."""
-    raw_content = req.raw_text or req.content or ""
-    if not raw_content and not req.txt_url:
-        raise HTTPException(status_code=400, detail="Raw resume text content cannot be empty.")
-        
-    try:
-        if req.txt_url and req.txt_url.startswith("/api/files/"):
-            txt_path_str = req.txt_url.replace("/api/files/", "")
-            target_txt = (OUTPUT_DIR_PATH / txt_path_str).resolve()
-            if not target_txt.is_relative_to(OUTPUT_DIR_PATH.resolve()):
-                raise HTTPException(status_code=403, detail="Access denied.")
-            if raw_content:
-                target_txt.write_text(raw_content, encoding="utf-8")
-            else:
-                raw_content = target_txt.read_text(encoding="utf-8")
-            pdf_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
-            render_pdf_resume(target_txt, pdf_target)
-            pdf_rel = pdf_target.resolve().relative_to(OUTPUT_DIR_PATH.resolve()).as_posix()
-            return {
-                "status": "success",
-                "message": "Resume updated and re-rendered successfully.",
-                "pdf_url": f"/api/files/{pdf_rel}?t={int(datetime.now().timestamp())}",
-                "txt_url": req.txt_url,
-                "raw_resume": raw_content
-            }
-        else:
-            import tempfile, base64
-            temp_out_dir = OUTPUT_DIR_PATH
-            temp_out_dir.mkdir(parents=True, exist_ok=True)
-            raw_path = temp_out_dir / "edited_raw_resume.txt"
-            raw_path.write_text(raw_content, encoding="utf-8")
-            pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
-            render_pdf_resume(raw_path, pdf_target)
-            b64_pdf = base64.b64encode(pdf_target.read_bytes()).decode("utf-8")
-            return {
-                "status": "success",
-                "message": "Resume updated and re-rendered successfully.",
-                "pdf_url": f"data:application/pdf;base64,{b64_pdf}",
-                "txt_url": None,
-                "raw_resume": raw_content
-            }
-    except HTTPException:
-        raise
-    except Exception:
-        logger.exception("Failed to update resume")
-        raise HTTPException(status_code=500, detail="Failed to update resume.")
 
 
