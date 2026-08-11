@@ -17,7 +17,7 @@ from src.shared.api_models import ResumeGenerationRequest
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
-from src.shared.api_routes import shared_router
+from src.shared.api_routes import shared_router, _pdf_to_data_uri
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,7 @@ def get_default_resume_endpoint():
         pdf_target = out_dir / "Prasad_Rane_Default_Resume.pdf"
         render_pdf_resume(txt_target, pdf_target)
 
-        import base64
-        pdf_bytes = pdf_target.read_bytes()
-        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+        pdf_data_uri = _pdf_to_data_uri(pdf_target)
 
         return {
             "status": "success",
@@ -87,7 +84,6 @@ def get_default_resume_endpoint():
 @app.get("/api/history", response_model=List[ResumeHistoryItem])
 def get_resume_history():
     """Fetch history of tailored resumes from the output directory (recursively scanning all company folders)."""
-    import base64
     history = []
     if not OUTPUT_DIR_PATH.exists():
         return history
@@ -100,9 +96,7 @@ def get_resume_history():
 
             # Encode PDF as base64 data URI
             try:
-                pdf_bytes = pdf_path.read_bytes()
-                b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-                pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+                pdf_data_uri = _pdf_to_data_uri(pdf_path)
             except Exception:
                 logger.warning("Failed to read PDF for history: %s", pdf_path)
                 continue
@@ -158,10 +152,7 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
         pdf_output_target = raw_text_path.parent / "Prasad_Rane_Resume.pdf"
         pdf_path = render_pdf_resume(raw_text_path, pdf_output_target)
 
-        import base64
-        pdf_bytes = Path(pdf_path).read_bytes()
-        b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+        pdf_data_uri = _pdf_to_data_uri(Path(pdf_path))
 
         return {
             "status": "success",
@@ -185,7 +176,6 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
 
     def event_generator():
-        import base64
         try:
             for step_id, label, pct, detail in generate_raw_resume_stepwise(
                 company_name=company_clean,
@@ -193,9 +183,7 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
             ):
                 if step_id == "complete" and isinstance(detail, dict):
                     pdf_path = Path(detail["pdf_path"])
-                    pdf_bytes = pdf_path.read_bytes()
-                    b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-                    pdf_data_uri = f"data:application/pdf;base64,{b64_pdf}"
+                    pdf_data_uri = _pdf_to_data_uri(pdf_path)
 
                     complete_payload = {
                         "status": "success",

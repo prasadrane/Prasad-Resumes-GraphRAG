@@ -33,12 +33,12 @@ def test_default_resume_returns_pdf(app_server):
     body = resp.json()
     assert body["status"] == "success"
     assert len(body["raw_resume"]) > 0
-    # Local server returns a path URL, not a data URI. Follow it to get bytes.
+    # Local server returns a data URI (same contract as serverless).
     pdf_url = body["pdf_url"]
-    assert pdf_url.startswith("/api/files/")
-    pdf_resp = httpx.get(app_server + pdf_url, timeout=60.0)
-    assert pdf_resp.status_code == 200
-    assert pdf_resp.content[:4] == b"%PDF"
+    assert pdf_url.startswith("data:application/pdf;base64,")
+    # Decode and verify PDF magic bytes
+    b64_data = pdf_url.split(",", 1)[1]
+    assert base64.b64decode(b64_data)[:4] == b"%PDF"
 
 
 def test_render_pdf_from_raw_text(app_server):
