@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.config import ROOT_DIR, OUTPUT_DIR, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
-from src.shared.api_models import QueryRequest, ResumeGenerationRequest, SaveEditRequest
+from src.shared.api_models import ResumeGenerationRequest, SaveEditRequest
 
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
