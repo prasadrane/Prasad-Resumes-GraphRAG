@@ -25,7 +25,7 @@ class TestErrorSanitization(unittest.TestCase):
     def test_vercel_generate_500_does_not_leak_exception_text(self):
         from api.index import app
         client = TestClient(app)
-        with patch("api.index.generate_raw_resume", side_effect=RuntimeError("SECRET_API_KEY")):
+        with patch("src.web.app.generate_raw_resume", side_effect=RuntimeError("SECRET_API_KEY")):
             response = client.post("/api/generate", json={"company": "LeakCo", "jd_text": "Python"})
         self.assertEqual(response.status_code, 500)
         self.assertNotIn("SECRET_API_KEY", response.json()["detail"])

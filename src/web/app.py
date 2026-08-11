@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
 from src.shared.api_models import ResumeGenerationRequest
 
+from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.pdf_renderer import render_pdf_resume
 from src.shared.api_routes import shared_router, _pdf_to_data_uri
@@ -46,6 +47,13 @@ def read_root():
     if index_path.exists():
         return FileResponse(str(index_path))
     return JSONResponse({"message": "Prasad Resumes GraphRAG API Server Active. UI static assets missing."})
+
+
+@app.post("/api/keywords")
+def get_keywords(req: ResumeGenerationRequest):
+    """Extract ATS keywords from job description text."""
+    kws = extract_ats_keywords(req.jd_text)
+    return {"company": req.company, "keywords": kws}
 
 
 @app.get("/api/default-resume")
