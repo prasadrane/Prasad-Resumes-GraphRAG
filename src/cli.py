@@ -126,7 +126,11 @@ def main() -> None:
 
     elif args.command == "ui":
         print("[CLI] Starting Web UI via vercel dev...")
-        res = subprocess.run(["vercel", "dev"], cwd=str(ROOT_DIR))
+        try:
+            res = subprocess.run(["vercel", "dev"], cwd=str(ROOT_DIR))
+        except FileNotFoundError:
+            print("[CLI ERROR] vercel CLI not found. Install it: npm i -g vercel")
+            sys.exit(1)
         if res.returncode != 0:
             print(f"[CLI ERROR] vercel dev exited with code {res.returncode}")
             sys.exit(res.returncode)

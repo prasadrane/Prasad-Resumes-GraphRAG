@@ -125,7 +125,7 @@ Ensure `OPENROUTER_API_KEY` and `GEMINI_API_KEY` are configured in Vercel projec
 
 ## API Reference
 
-All endpoints are available on both the local server (`src/web/app.py`, port 8000) and Vercel (`api/index.py`).
+All endpoints are available on both the local server (`python src/cli.py ui` runs `vercel dev` on port 3000) and Vercel (`api/index.py`).
 
 | Method | Path | Description |
 |--------|------|-------------|
