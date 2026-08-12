@@ -125,15 +125,46 @@ def main() -> None:
             sys.exit(1)
 
     elif args.command == "ui":
-        print("[CLI] Starting Web UI via vercel dev...")
+        import importlib.util
+
+        # Try vercel dev first, fall back to uvicorn
+        vercel_available = False
         try:
-            res = subprocess.run(["vercel", "dev"], cwd=str(ROOT_DIR))
+            res = subprocess.run(
+                ["vercel", "--version"],
+                capture_output=True,
+                cwd=str(ROOT_DIR),
+            )
+            if res.returncode == 0:
+                vercel_available = True
         except FileNotFoundError:
-            print("[CLI ERROR] vercel CLI not found. Install it: npm i -g vercel")
-            sys.exit(1)
-        if res.returncode != 0:
-            print(f"[CLI ERROR] vercel dev exited with code {res.returncode}")
-            sys.exit(res.returncode)
+            pass
+
+        if vercel_available:
+            print("[CLI] Starting Web UI via vercel dev...")
+            res = subprocess.run(["vercel", "dev"], cwd=str(ROOT_DIR))
+            if res.returncode != 0:
+                print(f"[CLI ERROR] vercel dev exited with code {res.returncode}")
+                sys.exit(res.returncode)
+        else:
+            # Fallback: start uvicorn directly
+            spec = importlib.util.find_spec("uvicorn")
+            if spec is None:
+                print("[CLI ERROR] vercel CLI not found and uvicorn not installed.")
+                print("       Install uvicorn: pip install uvicorn[standard]")
+                print("       Or install vercel CLI: npm i -g vercel")
+                sys.exit(1)
+            print("[CLI] Starting Web UI via uvicorn (port 3000)...")
+            res = subprocess.run(
+                [
+                    sys.executable, "-m", "uvicorn",
+                    "src.web.app:app", "--host", "0.0.0.0", "--port", "3000"
+                ],
+                cwd=str(ROOT_DIR),
+            )
+            if res.returncode != 0:
+                print(f"[CLI ERROR] uvicorn exited with code {res.returncode}")
+                sys.exit(res.returncode)
 
     else:
         parser.print_help()

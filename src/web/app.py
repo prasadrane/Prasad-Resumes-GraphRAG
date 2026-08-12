@@ -40,6 +40,12 @@ class ResumeHistoryItem(BaseModel):
     txt_url: Optional[str] = None
 
 
+@app.get("/api/health")
+def health_check():
+    """Health check endpoint for container monitoring."""
+    return {"status": "ok"}
+
+
 @app.get("/")
 def read_root():
     """Serve main single-page interface."""
