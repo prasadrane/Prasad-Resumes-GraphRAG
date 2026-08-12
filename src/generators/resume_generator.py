@@ -4,6 +4,7 @@ Integrates LLM-driven per-JD tailoring: summary synthesis, bullet re-wording/re-
 Enhanced with GraphRAG knowledge graph context, gap-framing intelligence, and semantic bullet scoring.
 """
 
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +18,7 @@ from .constants import (
     BOLD_CAP_PCT,
     DEFAULT_CANDIDATE_NAME,
     DEFAULT_CANDIDATE_TITLE,
+    GRAPHRAG_STORY_CAP,
     MARKDOWN_BULLET_PREFIX,
     MARKDOWN_H1_PREFIX,
     MARKDOWN_H2_PREFIX,
@@ -43,6 +45,8 @@ from .resume_parser import (
 from .pdf_renderer import render_pdf_resume
 
 from src.config import MASTER_RESUME_PATH, ROOT_DIR, OUTPUT_DIR_PATH
+
+log = logging.getLogger(__name__)
 
 # ── Domain-category mapping for intelligent summary variant selection ──────────
 DOMAIN_KEYWORDS = {
@@ -94,10 +98,10 @@ def _get_graphrag_context(jd_text: str, keywords: List[str]) -> str:
         from .ats_matcher import match_graphrag_stories
         stories = match_graphrag_stories(keywords)
         if stories:
-            # Cap at 20 lines to avoid prompt bloat
-            return "\n".join(stories[:20])
+            # Cap story lines to avoid prompt bloat
+            return "\n".join(stories[:GRAPHRAG_STORY_CAP])
     except Exception as err:
-        print(f"[WARN] GraphRAG context retrieval failed: {err}")
+        log.warning("GraphRAG context retrieval failed: %s", err)
     return ""
 
 
@@ -483,7 +487,7 @@ def tailor_resume_with_llm_single_call(parsed: "ResumeData", company_name: str, 
     prompt = "\n".join(prompt_parts)
 
     # Use qwen3.7-plus for resume tailoring with 5-minute timeout
-    from src.query.serverless_gateway import ALIBABA_RESUME_MODEL
+    from src.gateway import ALIBABA_RESUME_MODEL
     llm_response = _call_llm_safe(prompt, SUMMARY_SYSTEM_PROMPT, timeout=300, model=ALIBABA_RESUME_MODEL).strip()
 
     if not llm_response:

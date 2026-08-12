@@ -57,3 +57,19 @@ MAX_PAGES = 2
 # ATS Bolding Constraints
 BOLD_CAP_PCT = 20  # percent (use as BOLD_CAP_PCT / 100 for ratio)
 MAX_BOLD_PHRASES_PER_BULLET = 3
+
+# ── LLM / Embedding Configuration Constants ─────────────────────────────
+
+EMBEDDING_DIM = 2048          # Target embedding dimension (LanceDB index)
+LLM_MAX_TOKENS = 4096         # Default max tokens per LLM response
+LLM_DEFAULT_TIMEOUT = 300     # Default LLM request timeout (seconds)
+GRAPHRAG_STORY_CAP = 20       # Maximum story lines injected into prompts
+
+# Unified rate-limit detection tags — exported for gateway.lazy consumers.
+RATE_LIMIT_TAGS: tuple[str, ...] = (
+    "rate_limit",
+    "rate limited",
+    "429",
+    "resource_exhausted",
+    "quota",
+)

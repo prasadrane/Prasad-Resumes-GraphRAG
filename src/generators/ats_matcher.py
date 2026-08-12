@@ -2,12 +2,15 @@
 ats_matcher.py — ATS keyword extraction from Job Descriptions and GraphRAG story matching.
 """
 
+import logging
 import re
 from typing import Optional
 from pathlib import Path
 from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
 from .constants import COMMON_ATS_KEYWORDS
+
+log = logging.getLogger(__name__)
 
 KNOWN_TECH_PATTERNS = [
     r"\b\.NET\s*(?:Core|[6789])?\b",
@@ -98,11 +101,11 @@ def match_graphrag_stories(keywords: list[str], root_dir: Optional[Path] = None)
             return []
         return [line.strip() for line in response.split("\n") if line.strip()]
     except Exception as e:
-        print(f"[WARN] GraphRAG matcher fallback to serverless gateway: {e}")
+        log.warning("GraphRAG matcher fallback to serverless gateway: %s", e)
         try:
             from src.llm.service import call_llm
             res = call_llm(query_str, system_prompt="You are an ATS resume matcher. Extract matching resume bullets for the given keywords.")
             return [line.strip() for line in res.split("\n") if line.strip()]
         except Exception as s_err:
-            print(f"[WARN] Serverless gateway fallback error: {s_err}")
+            log.warning("Serverless gateway fallback error: %s", s_err)
             return []
