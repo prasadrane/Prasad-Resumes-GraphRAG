@@ -576,6 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         actionChips: document.querySelectorAll('.m3-action-chip'),
 
         currentMode: 'local',
+        sessionId: localStorage.getItem('graphrag_session') || null,
 
         init() {
             if (!this.chatForm) return;
@@ -599,6 +600,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
             });
+
+            if (!this.sessionId) {
+                this.sessionId = crypto.randomUUID();
+                localStorage.setItem('graphrag_session', this.sessionId);
+            }
         },
 
         async handleSubmit(e) {
@@ -613,13 +619,9 @@ document.addEventListener('DOMContentLoaded', () => {
             assistantMsgDiv.className = 'message assistant';
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
+            bubbleDiv.innerHTML = '<span style="color:#888">⏳ Querying knowledge graph...</span>';
 
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'typing-indicator';
-            typingDiv.innerHTML = '<span></span><span></span><span></span>';
-            bubbleDiv.appendChild(typingDiv);
             assistantMsgDiv.appendChild(bubbleDiv);
-
             this.chatMessages.appendChild(assistantMsgDiv);
             this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
@@ -629,7 +631,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/chat-stream', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query, mode: this.currentMode })
+                    body: JSON.stringify({
+                        query: query,
+                        mode: this.currentMode,
+                        session_id: this.sessionId
+                    })
                 });
 
                 if (!response.ok) {
@@ -638,13 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (!response.body) {
-                    throw new Error('ReadableStream not supported by this browser.');
+                    throw new Error('ReadableStream not supported.');
                 }
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder('utf-8');
                 let buffer = '';
-                let sources = [];
                 let fullResponse = '';
 
                 while (true) {
@@ -653,47 +658,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
-                    buffer = lines.pop();
+                    buffer = lines.pop() || '';
 
                     for (const line of lines) {
                         const trimmed = line.trim();
                         if (!trimmed) continue;
 
-                        if (trimmed.startsWith('event: error')) {
-                            continue;
-                        }
-
                         if (trimmed.startsWith('data: ')) {
                             const rawData = trimmed.slice(6);
-                            const payload = JSON.parse(rawData);
+                            try {
+                                const payload = JSON.parse(rawData);
 
-                            if (payload.sources) {
-                                sources = payload.sources;
+                                if (payload.token !== undefined) {
+                                    fullResponse += payload.token;
+                                    bubbleDiv.innerHTML = Utils.formatMarkdown(fullResponse);
+                                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                                }
+
+                                if (payload.done) {
+                                    const sources = payload.sources || [];
+                                    if (sources.length > 0) {
+                                        const chipsDiv = document.createElement('div');
+                                        chipsDiv.className = 'source-chips';
+                                        sources.forEach(src => {
+                                            const chip = document.createElement('span');
+                                            chip.className = 'source-chip';
+                                            chip.innerHTML = `<span class="material-symbols-outlined">description</span> ${src}`;
+                                            chipsDiv.appendChild(chip);
+                                        });
+                                        assistantMsgDiv.appendChild(chipsDiv);
+                                    }
+                                    this.addCopyButton(bubbleDiv, fullResponse);
+                                }
+                            } catch (_) {
+                                // Ignore malformed JSON chunks
                             }
-                            if (payload.token) {
-                                fullResponse = payload.token;
-                                bubbleDiv.innerHTML = '';
-                                bubbleDiv.classList.add('message-streaming');
-                                await this.simulateTypewriter(bubbleDiv, fullResponse);
-                                bubbleDiv.classList.remove('message-streaming');
-                            }
+                        } else if (trimmed.startsWith('event: error')) {
+                            bubbleDiv.innerHTML = `❌ Error: ${JSON.parse(trimmed.slice(12)).detail}`;
                         }
                     }
                 }
 
-                if (sources && sources.length > 0) {
-                    const chipsDiv = document.createElement('div');
-                    chipsDiv.className = 'source-chips';
-                    sources.forEach(src => {
-                        const chip = document.createElement('span');
-                        chip.className = 'source-chip';
-                        chip.innerHTML = `<span class="material-symbols-outlined">description</span> ${src}`;
-                        chipsDiv.appendChild(chip);
-                    });
-                    assistantMsgDiv.appendChild(chipsDiv);
-                }
-
-                this.addCopyButton(bubbleDiv, fullResponse);
                 this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
 
             } catch (err) {

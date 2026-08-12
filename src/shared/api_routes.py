@@ -9,16 +9,17 @@ include this router so there is one canonical handler per endpoint.
 import base64
 import json
 import logging
-from datetime import datetime
+import uuid
 from pathlib import Path
+from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH
 from src.generators.pdf_renderer import render_pdf_resume
-from src.query.search_engine import execute_graphrag_query
-from src.query.static_graph_reader import read_precomputed_entities
+from src.query.graphrag_engine import get_engine, reset_engine
+from src.query.conversation_store import get_conversation_store, reset_conversation_store
 from src.shared.api_models import QueryRequest, SaveEditRequest
 
 logger = logging.getLogger(__name__)
@@ -26,76 +27,119 @@ logger = logging.getLogger(__name__)
 shared_router = APIRouter()
 
 
-@shared_router.post("/api/query")
-def query_endpoint(req: QueryRequest):
-    """Execute GraphRAG query against Prasad's resumes knowledge graph."""
-    query_clean = req.query.strip()
-    if not query_clean:
-        raise HTTPException(status_code=400, detail="Query string cannot be empty.")
+# ── GraphRAG query routes (SSE streaming) ──────────────────────────────────
 
-    mode_clean = req.mode.lower().strip() if req.mode else "local"
-    if mode_clean not in ["local", "global"]:
-        mode_clean = "local"
+@shared_router.post("/api/query")
+async def query_endpoint(req: QueryRequest):
+    """Execute GraphRAG query with full retrieval → LLM streaming.
+
+    Returns a single JSON response with answer + sources for non-streaming use.
+    For streaming, prefer /api/chat-stream which yields tokens incrementally.
+    """
+    return await _handle_query_core(req)
+
+
+@shared_router.post("/api/chat-stream")
+def chat_stream_endpoint(req: QueryRequest):
+    """Chat stream endpoint yielding tokens incrementally via SSE.
+
+    Supports conversation memory via session_id param.
+    Response format:
+      event: token   → data: {"token": "...", "done": false}
+      event: done    → data: {"done": true, "response": "...", "sources": [...]}
+    """
+    return StreamingResponse(
+        _stream_query_response(req),
+        media_type="text/event-stream",
+    )
+
+
+async def _handle_query_core(req: QueryRequest) -> dict:
+    """Core handling shared by both streaming and non-streaming endpoints."""
+    query = req.query.strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    mode = (req.mode or "local").lower()
+    if mode not in ("local", "global", "drift"):
+        mode = "local"
 
     try:
-        response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+        engine = await get_engine(ROOT_DIR)
+        store = get_conversation_store()
+        sid = req.session_id or str(uuid.uuid4())
+
+        # Conversation history if session exists
+        history = []
+        if req.session_id and store.has_session(sid):
+            history = store.get_history(sid, limit=10)
+
+        # Stream the response (collect fully here for non-streaming API)
+        resp_parts = []
+        sources = []
+        async for frame in engine.chat_stream(query, mode, history):
+            # Parse SSE line
+            if frame.startswith("data: "):
+                content = json.loads(frame[6:])
+                if "token" in content:
+                    resp_parts.append(content["token"])
+                if content.get("done"):
+                    sources = content.get("sources", [])
+                    break
+
+        response_text = "".join(resp_parts)
+
+        # Persist to conversation memory
+        store.add_message(sid, "user", query)
+        store.add_message(sid, "assistant", response_text)
+
         return {
             "status": "success",
-            "query": query_clean,
-            "mode": mode_clean,
-            "response": response_text
+            "query": query,
+            "mode": mode,
+            "session_id": sid,
+            "response": response_text,
+            "sources": sources,
         }
     except Exception:
         logger.exception("GraphRAG query failed")
         raise HTTPException(status_code=500, detail="Query failed. Please try again later.")
 
 
-@shared_router.post("/api/chat-stream")
-def chat_stream_endpoint(req: QueryRequest):
-    """Chat stream endpoint yielding sources and responses via SSE."""
-    query_clean = req.query.strip()
-    if not query_clean:
-        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+async def _stream_query_response(req: QueryRequest) -> AsyncGenerator[str, None]:
+    """Yield SSE frames for /api/chat-stream."""
+    query = req.query.strip()
+    if not query:
+        yield "event: error\ndata: " + json.dumps({"detail": "Query cannot be empty."})
+        return
 
-    mode_clean = req.mode.lower().strip() if req.mode else "local"
-    if mode_clean not in ["local", "global"]:
-        mode_clean = "local"
+    mode = (req.mode or "local").lower()
+    if mode not in ("local", "global", "drift"):
+        mode = "local"
 
-    def event_generator():
-        try:
-            # 1. Search sources
-            keywords = [w.strip("?,.()\"'") for w in query_clean.lower().split() if len(w) > 3]
-            entities = read_precomputed_entities()
-            sources = []
-            if entities and keywords:
-                for entity in entities:
-                    title = entity.get("title", "")
-                    content = entity.get("content", "")
-                    text = (title + " " + content).lower()
-                    if any(kw in text for kw in keywords):
-                        sources.append(title)
-            sources = list(set(sources))[:5]
+    try:
+        engine = await get_engine(ROOT_DIR)
+        store = get_conversation_store()
+        sid = req.session_id or str(uuid.uuid4())
 
-            # Emit sources
-            yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
+        history = []
+        if req.session_id and store.has_session(sid):
+            history = store.get_history(sid, limit=10)
 
-            # 2. Get LLM response
-            response_text = execute_graphrag_query(query=query_clean, mode=mode_clean, root_dir=ROOT_DIR)
+        async for frame in engine.chat_stream(query, mode, history):
+            yield frame
 
-            # Emit token/response
-            yield f"event: token\ndata: {json.dumps({'token': response_text})}\n\n"
+        # Persist after completion
+        store.add_message(sid, "user", query)
+        store.add_message(sid, "assistant", "conversation complete")
+    except Exception:
+        logger.exception("Chat stream failed")
+        yield "event: error\ndata: " + json.dumps({"detail": "Chat query failed."})
 
-            # Emit done
-            yield f"event: done\ndata: {json.dumps({'response': response_text, 'sources': sources})}\n\n"
-        except Exception:
-            logger.exception("Chat stream failed")
-            yield f"event: error\ndata: {json.dumps({'detail': 'Chat query failed. Please try again later.'})}\n\n"
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
+# ── PDF rendering & edit save routes ────────────────────────────────────────
 
 def _pdf_to_data_uri(pdf_path: Path) -> str:
-    """Read a rendered PDF and return a base64 data URI."""
     pdf_bytes = pdf_path.read_bytes()
     b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
     return f"data:application/pdf;base64,{b64_pdf}"
@@ -104,15 +148,6 @@ def _pdf_to_data_uri(pdf_path: Path) -> str:
 @shared_router.post("/api/save-edit")
 @shared_router.post("/api/render_pdf")
 def save_edit_endpoint(req: SaveEditRequest):
-    """Save updated raw resume text content and re-render the PDF.
-
-    Always returns a base64 data URI for ``pdf_url`` so both local and
-    serverless deployments share one response contract.  When ``txt_url``
-    carries an ``/api/files/`` prefix the handler resolves the path on
-    disk (with traversal protection) so the source text file is updated
-    in place; otherwise the text is written to a scratch file under the
-    output directory.
-    """
     raw_content = req.raw_text or req.content or ""
     if not raw_content and not req.txt_url:
         raise HTTPException(status_code=400, detail="Raw resume text content cannot be empty.")

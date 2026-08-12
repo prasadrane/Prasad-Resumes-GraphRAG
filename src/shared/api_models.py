@@ -12,9 +12,13 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+from typing import Literal
+
+
 class QueryRequest(BaseModel):
     query: str = Field(..., description="Question for GraphRAG knowledge graph")
-    mode: Optional[str] = Field(default="local", description="Query mode: 'local' or 'global'")
+    mode: Literal["local", "global", "drift"] = Field(default="local", description="Query mode: 'local', 'global', or 'drift'")
+    session_id: Optional[str] = Field(default=None, description="Session ID for conversation memory (auto-generated if not provided)")
 
 
 class ResumeGenerationRequest(BaseModel):
