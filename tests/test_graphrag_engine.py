@@ -1,0 +1,220 @@
+"""Tests for GraphRAGEngine — real parquet artifacts from GraphRAG index."""
+
+import asyncio
+import os
+import sys
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
+
+# Ensure project root is importable.
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+import pandas as pd
+import numpy
+
+from src.query.graphrag_engine import GraphRAGEngine, reset_engine, get_engine, _tid_match
+
+
+_ROOT = str(Path(__file__).resolve().parent.parent)
+
+
+def _loop():
+    return asyncio.new_event_loop()
+
+
+def _run(coro):
+    loop = _loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
+# ── initialisation ──────────────────────────────────────────────────────────
+
+class TestGraphRAGEngineInit(unittest.TestCase):
+
+    def test_init_default_root_dir(self):
+        engine = GraphRAGEngine()
+        self.assertEqual(engine.root_dir, Path(_ROOT))
+        self.assertFalse(engine.connected)
+
+    def test_init_custom_root_dir(self):
+        rd = Path("/tmp/fake")
+        engine = GraphRAGEngine(rd)
+        self.assertEqual(engine.root_dir, rd)
+
+    def test_connect_raises_on_missing_lancedb(self):
+        with TemporaryDirectory() as td:
+            engine = GraphRAGEngine(td)
+            with self.assertRaisesRegex(FileNotFoundError, "LanceDB"):
+                _run(engine.connect())
+
+    def test_connect_raises_on_missing_parquet(self):
+        with TemporaryDirectory() as td:
+            lancedb_dir = Path(td) / "output" / "lancedb"
+            lancedb_dir.mkdir(parents=True)
+            engine = GraphRAGEngine(td)
+            with self.assertRaisesRegex(
+                FileNotFoundError, "Missing GraphRAG artefact"
+            ):
+                _run(engine.connect())
+
+    def test_connect_success(self):
+        engine = _run(GraphRAGEngine(_ROOT).connect())
+        self.assertTrue(engine.connected)
+        self.assertIsNotNone(engine._entities)
+        self.assertIsNotNone(engine._communities)
+        self.assertGreater(len(engine._entities), 0)
+        self.assertGreater(len(engine._communities), 0)
+
+    def test_disconnect(self):
+        engine = GraphRAGEngine(_ROOT)
+        engine._db = object()
+        engine._entities = object()
+        self.assertTrue(engine.connected)
+        engine._db = None
+        self.assertFalse(engine.connected)
+
+
+# ── retrieval modes (mocked get_embedding — no API keys needed in tests) ────
+
+class TestRetrievalModes(unittest.TestCase):
+
+    # The LanceDB default-text_unit-text table uses 2048-dim vectors.
+    MOCK_EMB_2K = [0.1] * 2048
+
+    @patch.object(GraphRAGEngine, 'get_embedding', return_value=MOCK_EMB_2K)
+    def test_local_retrieval_returns_dict_keys(self, mock_emb):
+        engine = _run(GraphRAGEngine(_ROOT).connect())
+        result = _run(engine._local_retrieval("AWS cloud computing"))
+        self.assertIsInstance(result, dict)
+        self.assertIn("text_units", result)
+        self.assertIn("entities", result)
+        self.assertIn("relationships", result)
+        self.assertGreater(len(result["text_units"]), 0)
+
+    @patch.object(GraphRAGEngine, 'get_embedding', return_value=MOCK_EMB_2K)
+    def test_global_retrieval_queries_community_table(self, mock_emb):
+        engine = _run(GraphRAGEngine(_ROOT).connect())
+        result = _run(engine._global_retrieval("career summary executive"))
+        self.assertIn("communities", result)
+        self.assertGreater(len(result["communities"]), 0)
+
+    @patch.object(GraphRAGEngine, 'get_embedding', return_value=MOCK_EMB_2K)
+    def test_drift_expands_context(self, mock_emb):
+        engine = _run(GraphRAGEngine(_ROOT).connect())
+        result = _run(engine._drift_retrieval("Python microservices cloud"))
+        self.assertGreaterEqual(set(result.keys()), {"text_units", "entities", "relationships"})
+        self.assertGreater(len(result["entities"]), 0)
+
+    def test_unknown_mode_raises(self):
+        engine = GraphRAGEngine(_ROOT)
+        with self.assertRaisesRegex(ValueError, "Unknown GraphRAG mode"):
+            _run(engine.retrieve("query", mode="bogus"))
+
+
+# ── prompt formatting helpers ───────────────────────────────────────────────
+
+class TestFormatContext(unittest.TestCase):
+
+    def test_empty_context_returns_blank(self):
+        self.assertEqual(GraphRAGEngine.format_context({}), "")
+
+    def test_text_units_section(self):
+        ctx = {
+            "text_units": pd.DataFrame([{"id": "t1", "text": "Prasad worked at ABC Corp"}]),
+            "entities": pd.DataFrame(),
+            "relationships": pd.DataFrame(),
+            "communities": pd.DataFrame(),
+        }
+        rendered = GraphRAGEngine.format_context(ctx)
+        self.assertIn("## Relevant Text Segments", rendered)
+        self.assertIn("ABC Corp", rendered)
+
+    def test_entities_section(self):
+        ctx = {
+            "text_units": pd.DataFrame(),
+            "entities": pd.DataFrame([{"id": "e1", "title": "AWS", "type": "Technology", "description": "Cloud platform"}]),
+            "relationships": pd.DataFrame(),
+            "communities": pd.DataFrame(),
+        }
+        rendered = GraphRAGEngine.format_context(ctx)
+        self.assertIn("**AWS**", rendered)
+        self.assertIn("Cloud platform", rendered)
+
+    def test_relationships_section(self):
+        ctx = {
+            "text_units": pd.DataFrame(),
+            "entities": pd.DataFrame(),
+            "relationships": pd.DataFrame([{"id": "r1", "source": "Alice", "target": "Bob", "description": "managed by"}]),
+            "communities": pd.DataFrame(),
+        }
+        rendered = GraphRAGEngine.format_context(ctx)
+        self.assertIn("Alice → Bob", rendered)
+        self.assertIn("managed by", rendered)
+
+
+# ── source extraction ───────────────────────────────────────────────────────
+
+class TestExtractSources(unittest.TestCase):
+
+    def test_extract_nothing(self):
+        self.assertEqual(GraphRAGEngine.extract_sources({"entities": pd.DataFrame()}), [])
+
+    def test_extract_entity_sources(self):
+        ctx = {
+            "entities": pd.DataFrame([{"id": "e1", "name": "AWS", "description": "Amazon Web Services"}]),
+            "communities": pd.DataFrame(),
+        }
+        sources = GraphRAGEngine.extract_sources(ctx)
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0]["type"], "entity")
+        self.assertEqual(sources[0]["name"], "AWS")
+
+
+# ── tiny utility ────────────────────────────────────────────────────────────
+
+class TestTidMatch(unittest.TestCase):
+
+    def test_string_tid_in_list(self):
+        self.assertTrue(_tid_match("abc", ["abc", "def"]))
+        self.assertFalse(_tid_match("xyz", ["abc", "def"]))
+
+    def test_none_arr_false(self):
+        self.assertFalse(_tid_match("abc", None))
+
+    def test_string_arr_handled(self):
+        self.assertTrue(_tid_match("abc", "abc"))
+        self.assertFalse(_tid_match("abc", "def"))
+
+    def test_ndarray_handling(self):
+        arr = numpy.array(["abc", "def"])
+        self.assertTrue(_tid_match("abc", arr))
+        self.assertFalse(_tid_match("xyz", arr))
+
+
+# ── singleton helper ────────────────────────────────────────────────────────
+
+class TestGetEngine(unittest.TestCase):
+
+    def test_get_engine_caches(self):
+        reset_engine()
+        e1 = _run(get_engine(Path(_ROOT)))
+        e2 = _run(get_engine(Path(_ROOT)))
+        self.assertIs(e1, e2)
+
+    def test_reset_clears_singleton(self):
+        reset_engine()
+        e1 = _run(get_engine(Path(_ROOT)))
+        reset_engine()
+        e2 = _run(get_engine(Path(_ROOT)))
+        self.assertIsNot(e1, e2)
+
+
+if __name__ == "__main__":
+    unittest.main()
