@@ -8,6 +8,7 @@ pymupdf
 # E2E test stack (Phase 0 safety net)
 pytest
 pytest-playwright
+pytest-asyncio>=0.23.0
 httpx
 
 # Unit coverage tooling (Phase 3)

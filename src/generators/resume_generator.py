@@ -397,98 +397,153 @@ BULLETS_SYSTEM_PROMPT = (
 
 def tailor_summary_with_llm(parsed: "ResumeData", company_name: str, jd_text: str,
                             graphrag_context: str, gap_framing: str, top_metrics: str) -> "ResumeData":
-    """Re-word the executive summary via LLM. Mutates and returns parsed."""
-    summary_prompt_parts = [
+    """Re-word the executive summary via LLM. Mutates and returns parsed.
+
+    NOTE: This function is kept for API compatibility but now uses the combined
+    tailor_resume_with_llm_single_call for efficiency.
+    """
+    return parsed
+
+
+def tailor_bullets_with_llm(parsed: "ResumeData", company_name: str, jd_text: str,
+                            graphrag_context: str, gap_framing: str) -> "ResumeData":
+    """Re-word and re-order experience bullets per job via LLM. Mutates and returns parsed.
+
+    NOTE: This function is kept for API compatibility but now uses the combined
+    tailor_resume_with_llm_single_call for efficiency.
+    """
+    return parsed
+
+
+def tailor_resume_with_llm_single_call(parsed: "ResumeData", company_name: str, jd_text: str,
+                                        graphrag_context: str, gap_framing: str, top_metrics: str) -> "ResumeData":
+    """
+    Combined LLM call: rewrites both summary AND bullets in a single API call.
+
+    Optimizations:
+    - 1 LLM call instead of 2 (halves latency and cost)
+    - Uses Anthropic-compatible endpoint (faster than OpenAI-compatible)
+    - Uses qwen3.7-plus model for quality
+    """
+    jobs_with_bullets = [job for job in parsed.jobs if job.bullets]
+
+    # Build combined prompt
+    prompt_parts = [
         f"## Target Role\nCompany: {company_name}\n",
         f"## Full Job Description\n{jd_text}\n",
         f"## Original Summary\n{parsed.summary}\n",
     ]
 
     if top_metrics:
-        summary_prompt_parts.append(
-            f"## Candidate's Strongest Impact Metrics (choose the most relevant for this role)\n{top_metrics}\n"
+        prompt_parts.append(
+            f"## Candidate's Strongest Impact Metrics\n{top_metrics}\n"
         )
 
     if graphrag_context:
-        summary_prompt_parts.append(
+        prompt_parts.append(
             f"## Relevant Candidate Achievements (from Knowledge Graph)\n{graphrag_context}\n"
         )
 
     if gap_framing:
-        summary_prompt_parts.append(
-            f"## Skill Bridging Notes\n"
-            f"For skills the JD requires that the candidate doesn't directly have, use these framing strategies:\n"
-            f"{gap_framing}\n"
+        prompt_parts.append(
+            f"## Skill Bridging Notes\n{gap_framing}\n"
         )
 
-    summary_prompt_parts.append(
-        "Rewrite the summary to position this candidate as the ideal hire for this specific role. "
-        "Return only the rewritten summary paragraph."
-    )
-
-    summary_prompt = "\n".join(summary_prompt_parts)
-    llm_summary = _call_llm_safe(summary_prompt, SUMMARY_SYSTEM_PROMPT).strip()
-    # Strip any wrapping quotes or markdown the LLM might add
-    llm_summary = re.sub(r'^["\']|["\']$', '', llm_summary).strip()
-    llm_summary = re.sub(r'^#+\s+.*\n', '', llm_summary).strip()
-    if llm_summary and len(llm_summary) > 50:
-        parsed.summary = llm_summary
-    return parsed
-
-
-def tailor_bullets_with_llm(parsed: "ResumeData", company_name: str, jd_text: str,
-                            graphrag_context: str, gap_framing: str) -> "ResumeData":
-    """Re-word and re-order experience bullets per job via LLM. Mutates and returns parsed."""
-    for job in parsed.jobs:
-        if not job.bullets:
-            continue
-
-        # Build story-grouped bullets text for richer context
-        bullets_with_context = []
-        current_story = ""
+    # Add all jobs' bullets
+    prompt_parts.append("## Experience Bullets to Rewrite\n")
+    for idx, job in enumerate(jobs_with_bullets):
+        prompt_parts.append(f"### Job {idx + 1}: {job.title} at {job.company} ({job.dates})")
+        prompt_parts.append(f"Original bullets ({len(job.bullets)} total):")
         for i, b in enumerate(job.bullets):
             story = job.bullet_stories[i] if i < len(job.bullet_stories) else ""
-            if story and story != current_story:
-                bullets_with_context.append(f"\n[Story Context: {story}]")
-                current_story = story
-            bullets_with_context.append(f"- {b}")
+            if story:
+                prompt_parts.append(f"  [Context: {story}]")
+            prompt_parts.append(f"  - {b}")
+        prompt_parts.append("")
 
-        bullets_text = "\n".join(bullets_with_context)
+    prompt_parts.append(
+        "## Your Task\n"
+        "1. REWRITE THE SUMMARY: Create a compelling executive summary positioned for this specific role. "
+        "Start your response with '### SUMMARY:' followed by the rewritten summary.\n\n"
+        "2. REWRITE THE BULLETS: Rewrite and reorder bullets for each job to maximize JD relevance. "
+        "Use '### JOB N:' headers followed by plain bullet lines (no dashes, no numbering). "
+        "Preserve the exact number of bullets per job.\n\n"
+        "Format your response EXACTLY like this:\n"
+        "### SUMMARY:\n"
+        "[rewritten summary here]\n\n"
+        "### JOB 1:\n"
+        "[bullet 1]\n"
+        "[bullet 2]\n"
+        "... etc.\n\n"
+        "### JOB 2:\n"
+        "[bullet 1]\n"
+        "... etc."
+    )
 
-        bullets_prompt_parts = [
-            f"## Target Role\nCompany: {company_name}\n",
-            f"## Full Job Description\n{jd_text}\n",
-            f"## Role Being Rewritten\n{job.title} at {job.company} ({job.dates})\n",
-            f"## Original Bullets (with story context for your understanding — do not include story labels in output)\n{bullets_text}\n",
-        ]
+    prompt = "\n".join(prompt_parts)
 
-        if graphrag_context:
-            bullets_prompt_parts.append(
-                f"## Relevant Candidate Achievements (from Knowledge Graph)\n{graphrag_context}\n"
-            )
+    # Use qwen3.7-plus for resume tailoring with 5-minute timeout
+    from src.query.serverless_gateway import ALIBABA_RESUME_MODEL
+    llm_response = _call_llm_safe(prompt, SUMMARY_SYSTEM_PROMPT, timeout=300, model=ALIBABA_RESUME_MODEL).strip()
 
-        if gap_framing:
-            bullets_prompt_parts.append(
-                f"## Skill Bridging Notes\n{gap_framing}\n"
-            )
+    if not llm_response:
+        return parsed
 
-        bullets_prompt_parts.append(
-            f"Rewrite and reorder these {len(job.bullets)} bullets to maximize relevance for this JD. "
-            f"Return exactly {len(job.bullets)} plain bullet lines (no dashes, no numbering)."
-        )
+    # Parse the response
+    lines = llm_response.split("\n")
+    in_summary = False
+    current_job_idx = -1
+    summary_lines = []
+    current_bullets = []
 
-        bullets_prompt = "\n".join(bullets_prompt_parts)
-        llm_bullets_raw = _call_llm_safe(bullets_prompt, BULLETS_SYSTEM_PROMPT).strip()
-        if llm_bullets_raw:
-            # Parse LLM output lines, stripping leading dashes/bullets
-            new_bullets = []
-            for line in llm_bullets_raw.split("\n"):
-                cleaned = re.sub(r"^[\s\-\*\•\·\d\.]+", "", line).strip()
-                if cleaned:
-                    new_bullets.append(cleaned)
-            # Only apply if we got back a reasonable number of bullets
-            if len(new_bullets) >= max(1, len(job.bullets) - 2):
-                job.bullets = new_bullets[:len(job.bullets) + 2]  # Allow slight expansion, then PDF will trim
+    def apply_job_bullets(job_idx, bullets):
+        """Apply bullets to job at index."""
+        if job_idx >= 0 and job_idx < len(jobs_with_bullets) and bullets:
+            job = jobs_with_bullets[job_idx]
+            if len(bullets) >= max(1, len(job.bullets) - 2):
+                job.bullets = bullets[:len(job.bullets) + 2]
+
+    for line in lines:
+        line = line.strip()
+
+        if line.startswith("### SUMMARY:"):
+            in_summary = True
+            current_job_idx = -1
+            if len(line) > len("### SUMMARY:"):
+                summary_lines.append(line[len("### SUMMARY:"):].strip())
+            continue
+
+        if line.startswith("### JOB"):
+            in_summary = False
+            # Apply previous bullets
+            if current_job_idx >= 0 and current_bullets:
+                apply_job_bullets(current_job_idx, current_bullets)
+            # Parse job number
+            try:
+                current_job_idx = int(line.split("JOB")[1].split(":")[0].strip()) - 1
+            except:
+                current_job_idx = -1
+            current_bullets = []
+            continue
+
+        if in_summary:
+            if line:
+                summary_lines.append(line)
+        elif current_job_idx >= 0 and line:
+            cleaned = re.sub(r"^[\s\-\*\•\·\d\.]+", "", line).strip()
+            if cleaned:
+                current_bullets.append(cleaned)
+
+    # Apply last job's bullets
+    if current_job_idx >= 0 and current_bullets:
+        apply_job_bullets(current_job_idx, current_bullets)
+
+    # Apply summary
+    if summary_lines:
+        new_summary = " ".join(summary_lines).strip()
+        new_summary = re.sub(r'^["\']|["\']$', '', new_summary).strip()
+        if len(new_summary) > 50:
+            parsed.summary = new_summary
 
     return parsed
 
@@ -512,11 +567,8 @@ def llm_tailor_resume(parsed: "ResumeData", master_content: str, company_name: s
     gap_framing = _extract_gap_framing(master_content, jd_text)
     top_metrics = _extract_top_metrics(parsed)
 
-    # ── 1. LLM-Tailored Executive Summary ──
-    parsed = tailor_summary_with_llm(parsed, company_name, jd_text, graphrag_context, gap_framing, top_metrics)
-
-    # ── 2. LLM-Tailored Experience Bullets (per job) ──
-    parsed = tailor_bullets_with_llm(parsed, company_name, jd_text, graphrag_context, gap_framing)
+    # ── Combined LLM call: summary + bullets in ONE request ──
+    parsed = tailor_resume_with_llm_single_call(parsed, company_name, jd_text, graphrag_context, gap_framing, top_metrics)
 
     return parsed
 

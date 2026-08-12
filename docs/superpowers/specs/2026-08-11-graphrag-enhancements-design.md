@@ -708,6 +708,7 @@ Keep `search_static_resume` as fallback only.
 
 - `graphrag` package (already in requirements-dev.txt)
 - `lancedb` package (already in requirements-dev.txt)
+- `pandas` for parquet manipulation (already installed via graphrag, but add to requirements.txt explicitly)
 - `aiohttp` for async HTTP streaming (add to requirements.txt)
 - SQLite3 (built into Python)
 

@@ -137,8 +137,9 @@ class GraphRAGEngine:
 
     # ── local mode: vector-search text-units, resolve entities & rels ────
 
-    async def _local_retrieval(self, query: str, top_k: int = 10) -> Dict[str, Any]:
+    async def _local_retrieval(self, query: str, top_k: int = 26) -> Dict[str, Any]:
         # Try vector search first, fall back to keyword search if embeddings fail
+        # Retrieve ALL text units (dataset is small: ~26 total) for comprehensive coverage
         try:
             table = self._db.open_table("default-text_unit-text")
             emb = await self.get_embedding(query)
@@ -153,7 +154,7 @@ class GraphRAGEngine:
         mask = self._entities["text_unit_ids"].apply(
             lambda arr: any(_tid_match(tid, arr) for tid in text_unit_ids)
         )
-        relevant_ents = self._entities[mask].head(20)
+        relevant_ents = self._entities[mask]
         ent_ids = relevant_ents["id"].tolist()
 
         # Relationships involving those entities
@@ -161,12 +162,12 @@ class GraphRAGEngine:
             self._relationships["source"].isin(ent_ids)
             | self._relationships["target"].isin(ent_ids)
         )
-        relevant_rels = self._relationships[rel_mask].head(30)
+        relevant_rels = self._relationships[rel_mask]
 
         return {
-            "text_units": results.head(10),
-            "entities": relevant_ents.head(20),
-            "relationships": relevant_rels.head(30),
+            "text_units": results,
+            "entities": relevant_ents,
+            "relationships": relevant_rels,
         }
 
     # ── global mode: community reports ranked by semantic similarity ─────
@@ -240,35 +241,36 @@ class GraphRAGEngine:
         tUs = context.get("text_units")
         if tUs is not None and not tUs.empty:
             parts.append("## Relevant Text Segments")
-            for _, tu in tUs.head(5).iterrows():
-                txt = str(tu.get("text", ""))[:500]
-                if txt.strip():
-                    parts.append(f"- [{tu.get('id', '')}] {txt}")
+            # Show all retrieved text units without truncation (dataset is small: ~26 total, ~12k chars total)
+            for _, tu in tUs.iterrows():
+                txt = str(tu.get("text", "")).strip()
+                if txt:
+                    parts.append(f"- {txt}")
 
         ents = context.get("entities")
         if ents is not None and not ents.empty:
             parts.append("\n## Key Entities")
             for _, e in ents.head(10).iterrows():
                 name = e.get("title", "") or e.get("name", "") or e.get("id", "")
-                desc = str(e.get("description", ""))[:200]
+                desc = str(e.get("description", ""))[:150]
                 if name or desc:
                     parts.append(f"- **{name}** ({e.get('type', '')}): {desc}")
 
         rels = context.get("relationships")
         if rels is not None and not rels.empty:
             parts.append("\n## Relationships")
-            for _, r in rels.head(10).iterrows():
+            for _, r in rels.head(8).iterrows():
                 src = str(r.get("source", ""))[:40]
                 tgt = str(r.get("target", ""))[:40]
-                desc = str(r.get("description", ""))[:150]
+                desc = str(r.get("description", ""))[:100]
                 parts.append(f"- {src} → {tgt}: {desc}")
 
         comms = context.get("communities")
         if comms is not None and not comms.empty:
             parts.append("\n## Community Reports")
-            for _, c in comms.head(3).iterrows():
+            for _, c in comms.head(5).iterrows():
                 title = c.get("title", "") or c.get("id", "")
-                content = str(c.get("full_content", ""))[:500]
+                content = str(c.get("full_content", ""))[:600]
                 parts.append(f"- **{title}** (rank {c.get('rank', '')}): {content}")
 
         return "\n".join(parts)
@@ -323,7 +325,7 @@ class GraphRAGEngine:
             )
 
             async for token in call_serverless_llm_stream(
-                sys_prompt=sys_prompt,
+                system_prompt=sys_prompt,
                 user_message=query,
                 temperature=0.3,
             ):
@@ -338,15 +340,14 @@ class GraphRAGEngine:
             })
             yield f"data: {final_frame}\n\n"
 
-        except Exception:
-            # If no streaming impl exists yet (serverless_gateway may not have
-            # the streaming helpers until Task 2.5 completes), fall back to
-            # a single-shot block so the engine still produces an answer.
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).exception("LLM streaming failed")
             sources = self.extract_sources(context)
             ctx_str = self.format_context(context)
             answer = (
                 f"Retrieved GraphRAG context.\n\nContext:\n{ctx_str}\n\n"
-                f"*Answer:* (LLM streaming not available — enable streaming support in Task 2.5)"
+                f"*Answer:* (LLM streaming unavailable — {type(e).__name__})"
             )
             yield f"data: {json.dumps({'token': '', 'done': False})}\n\n"
             final_frame = json.dumps({
@@ -367,15 +368,19 @@ class GraphRAGEngine:
         personas = {
             "local": (
                 "You are a knowledgeable assistant answering questions about Prasad Rane's professional experience. "
-                "Use the provided entity and relationship data to give specific, detailed answers."
+                "Use ALL the provided context comprehensively. When asked about companies, skills, or experiences, "
+                "list ALL relevant items from the context, not just a few examples. Be specific with dates, metrics, and technologies. "
+                "Only use information explicitly stated in the context—do not infer or add information not present."
             ),
             "global": (
                 "You are a career analyst providing executive-level summaries of Prasad Rane's professional trajectory. "
-                "Use the provided community reports to give high-level insights."
+                "Use ALL the provided community reports comprehensively to give high-level insights. "
+                "Cover the full scope of experience mentioned in the context."
             ),
             "drift": (
                 "You are a career researcher performing multi-hop analysis of Prasad Rane's professional experience. "
-                "Connect information across entities and relationships to provide comprehensive answers."
+                "Connect information across ALL provided entities and relationships to provide comprehensive answers. "
+                "Ensure your answer covers all relevant connections found in the context."
             ),
         }
         sys_msg = personas.get(mode, personas["local"])
