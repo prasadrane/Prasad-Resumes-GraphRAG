@@ -77,6 +77,7 @@ async def _handle_query_core(req: QueryRequest) -> dict:
         # Stream the response (collect fully here for non-streaming API)
         resp_parts = []
         sources = []
+        fallback_response = None
         async for frame in engine.chat_stream(query, mode, history):
             # Parse SSE line
             if frame.startswith("data: "):
@@ -85,9 +86,13 @@ async def _handle_query_core(req: QueryRequest) -> dict:
                     resp_parts.append(content["token"])
                 if content.get("done"):
                     sources = content.get("sources", [])
+                    # Check for fallback response in final frame
+                    if "response" in content and content["response"]:
+                        fallback_response = content["response"]
                     break
 
-        response_text = "".join(resp_parts)
+        # Use fallback response if no tokens were collected
+        response_text = "".join(resp_parts) or fallback_response or ""
 
         # Persist to conversation memory
         store.add_message(sid, "user", query)

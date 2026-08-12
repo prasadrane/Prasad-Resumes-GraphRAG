@@ -140,17 +140,54 @@ def _call_gemini_direct(
 
 # ── embedding & streaming helpers for GraphRAG engine ──────────────────────
 
+
+async def _litellm_embed(text: str, api_key: str) -> List[float]:
+    """Get embedding via the local LiteLLM proxy (OpenAI-compatible /v1/embeddings)."""
+    import aiohttp
+    session = _ensure_session()
+    payload = {
+        "model": "llama-nemotron-embed-vl-1b-v2",
+        "input": [text],
+        "encoding_format": "float",
+    }
+    async with session.post(
+        "http://localhost:8002/v1/embeddings",
+        json=payload,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+    ) as resp:
+        data = json.loads(await resp.text())
+        if "data" not in data or len(data["data"]) == 0:
+            raise ValueError(f"Unexpected LiteLLM embedding response: {data}")
+        emb = data["data"][0]["embedding"]
+        # Enforce expected dimension by truncating/padding
+        target_dim = 2048
+        if len(emb) > target_dim:
+            emb = list(emb[:target_dim])
+        elif len(emb) < target_dim:
+            emb = emb + [0.0] * (target_dim - len(emb))
+        return emb
+
+
 async def get_embedding(text: str) -> List[float]:
-    """Get a text embedding via OpenRouter or Gemini Direct API."""
+    """Get a text embedding via OpenRouter → LiteLLM proxy → Gemini Direct."""
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GRAPHRAG_API_KEY")
 
+    # Primary: OpenRouter /v1/embeddings with llama-nemotron (2048-dim, matches LanceDB)
     if openrouter_key:
         try:
             return await _openrouter_embed(text, openrouter_key)
         except Exception as err:
-            print(f"[WARN] OpenRouter embedding failed ({err}). Falling back...")
+            print(f"[WARN] OpenRouter embed failed ({err}). Trying fallback…")
 
+    # Fallback: LiteLLM proxy (may produce different dimensions, handled internally)
+    if gemini_key:
+        try:
+            return await _litellm_embed(text, gemini_key)
+        except Exception as err:
+            print(f"[WARN] LiteLLM proxy embed failed ({err}). Trying Gemini direct…")
+
+    # Last resort: Gemini Direct
     if gemini_key:
         try:
             return await _gemini_embed(text, gemini_key)

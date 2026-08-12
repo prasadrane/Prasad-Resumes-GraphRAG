@@ -95,6 +95,31 @@ class GraphRAGEngine:
         from src.query.serverless_gateway import get_embedding as _get_emb
         return await _get_emb(text)
 
+    # ── fallback keyword-based retrieval (when embeddings unavailable) ────
+
+    def _keyword_search(self, df: pd.DataFrame, text_col: str, query: str, top_k: int = 10) -> pd.DataFrame:
+        """Simple keyword search fallback when vector embeddings fail."""
+        if df.empty:
+            return df
+
+        # Tokenize query (simple split, lowercase)
+        query_terms = set(query.lower().split())
+
+        def score_row(row):
+            text = str(row.get(text_col, "")).lower()
+            if not text.strip():
+                return 0
+            # Count matching terms
+            return sum(1 for term in query_terms if term in text)
+
+        # Score each row
+        df_copy = df.copy()
+        df_copy["_score"] = df_copy.apply(score_row, axis=1)
+
+        # Filter rows with score > 0, sort by score desc, take top_k
+        matches = df_copy[df_copy["_score"] > 0].sort_values("_score", ascending=False).head(top_k)
+        return matches.drop(columns=["_score"])
+
     # ── retrieval modes ───────────────────────────────────────────────────
 
     async def retrieve(
@@ -113,9 +138,14 @@ class GraphRAGEngine:
     # ── local mode: vector-search text-units, resolve entities & rels ────
 
     async def _local_retrieval(self, query: str, top_k: int = 10) -> Dict[str, Any]:
-        table = self._db.open_table("default-text_unit-text")
-        emb = await self.get_embedding(query)
-        results = table.search(emb).limit(top_k).to_pandas()
+        # Try vector search first, fall back to keyword search if embeddings fail
+        try:
+            table = self._db.open_table("default-text_unit-text")
+            emb = await self.get_embedding(query)
+            results = table.search(emb).limit(top_k).to_pandas()
+        except Exception as e:
+            # Fallback to keyword search on text_units parquet
+            results = self._keyword_search(self._text_units, "text", query, top_k)
 
         text_unit_ids: List[Any] = results["id"].tolist()
 
@@ -142,9 +172,14 @@ class GraphRAGEngine:
     # ── global mode: community reports ranked by semantic similarity ─────
 
     async def _global_retrieval(self, query: str, top_k: int = 5) -> Dict[str, Any]:
-        table = self._db.open_table("default-community-full_content")
-        emb = await self.get_embedding(query)
-        results = table.search(emb).limit(top_k).to_pandas()
+        # Try vector search first, fall back to keyword search if embeddings fail
+        try:
+            table = self._db.open_table("default-community-full_content")
+            emb = await self.get_embedding(query)
+            results = table.search(emb).limit(top_k).to_pandas()
+        except Exception:
+            # Fallback to keyword search on community reports
+            results = self._keyword_search(self._communities, "full_content", query, top_k)
         return {"communities": results}
 
     # ── drift mode: multi-hop entity expansion over relationships ─────────
@@ -203,7 +238,7 @@ class GraphRAGEngine:
             return ""
 
         tUs = context.get("text_units")
-        if not tUs.empty:
+        if tUs is not None and not tUs.empty:
             parts.append("## Relevant Text Segments")
             for _, tu in tUs.head(5).iterrows():
                 txt = str(tu.get("text", ""))[:500]
@@ -211,7 +246,7 @@ class GraphRAGEngine:
                     parts.append(f"- [{tu.get('id', '')}] {txt}")
 
         ents = context.get("entities")
-        if not ents.empty:
+        if ents is not None and not ents.empty:
             parts.append("\n## Key Entities")
             for _, e in ents.head(10).iterrows():
                 name = e.get("title", "") or e.get("name", "") or e.get("id", "")
@@ -220,7 +255,7 @@ class GraphRAGEngine:
                     parts.append(f"- **{name}** ({e.get('type', '')}): {desc}")
 
         rels = context.get("relationships")
-        if not rels.empty:
+        if rels is not None and not rels.empty:
             parts.append("\n## Relationships")
             for _, r in rels.head(10).iterrows():
                 src = str(r.get("source", ""))[:40]
@@ -229,7 +264,7 @@ class GraphRAGEngine:
                 parts.append(f"- {src} → {tgt}: {desc}")
 
         comms = context.get("communities")
-        if not comms.empty:
+        if comms is not None and not comms.empty:
             parts.append("\n## Community Reports")
             for _, c in comms.head(3).iterrows():
                 title = c.get("title", "") or c.get("id", "")
