@@ -1,21 +1,77 @@
 version: '3.8'
 
 services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphrag-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./output:/app/output
+      - ./input:/app/input
+      - ./cache:/app/cache
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FREELLMAPI_API_KEY=${FREELLMAPI_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   litellm:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.litellm
+    container_name: graphrag-litellm
     ports:
       - "8002:8002"
-    environment:
-      - GRAPHRAG_API_KEY=${GRAPHRAG_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-    restart: unless-stopped
-
-  freellmapi:
-    image: node:20-alpine
-    working_dir: /app
     volumes:
-      - ${FREELLMAPI_PATH:-./freellmapi}:/app
-    command: npm run dev
-    ports:
-      - "3001:3001"
+      - ./config/litellm-config.yaml:/app/config.yaml
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - FREELLMAPI_API_KEY=${FREELLMAPI_API_KEY}
+    env_file:
+      - .env
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health" || exit 1]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: graphrag-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./src/web/static:/usr/share/nginx/html:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - web
+      - litellm
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  certbot:
+    image: certbot/certbot
+    container_name: graphrag-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
