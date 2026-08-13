@@ -71,6 +71,21 @@ async def _handle_query_core(req: QueryRequest) -> dict:
 
     try:
         engine = await get_engine(ROOT_DIR)
+    except (FileNotFoundError, ImportError):
+        # GraphRAG artifacts not available — fall back to static search engine
+        logger.info("GraphRAG artifacts not found, falling back to static search engine")
+        from src.query.search_engine import execute_graphrag_query
+        response_text = execute_graphrag_query(query, mode=mode)
+        return {
+            "status": "success",
+            "query": query,
+            "mode": mode,
+            "session_id": req.session_id or str(uuid.uuid4()),
+            "response": response_text,
+            "sources": [],
+        }
+
+    try:
         store = get_conversation_store()
         sid = req.session_id or str(uuid.uuid4())
 
@@ -129,6 +144,16 @@ async def _stream_query_response(req: QueryRequest) -> AsyncGenerator[str, None]
 
     try:
         engine = await get_engine(ROOT_DIR)
+    except (FileNotFoundError, ImportError):
+        # GraphRAG artifacts not available — fall back to static search engine
+        logger.info("GraphRAG artifacts not found, falling back to static search engine")
+        from src.query.search_engine import execute_graphrag_query
+        response_text = execute_graphrag_query(query, mode=mode)
+        yield f"data: {json.dumps({'token': response_text, 'done': False})}\n\n"
+        yield f"data: {json.dumps({'token': '', 'done': True, 'response': response_text, 'sources': []})}\n\n"
+        return
+
+    try:
         store = get_conversation_store()
         sid = req.session_id or str(uuid.uuid4())
 
