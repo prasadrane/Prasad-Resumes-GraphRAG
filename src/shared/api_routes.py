@@ -86,12 +86,18 @@ async def _handle_query_core(req: QueryRequest) -> dict:
         }
 
     try:
-        store = get_conversation_store()
+        try:
+            store = get_conversation_store()
+        except (OSError, PermissionError):
+            # Read-only filesystem (Vercel serverless) — no conversation memory
+            store = None
+            logger.info("Conversation store unavailable (read-only filesystem), skipping memory")
+
         sid = req.session_id or str(uuid.uuid4())
 
         # Conversation history if session exists
         history = []
-        if req.session_id and store.has_session(sid):
+        if store and req.session_id and store.has_session(sid):
             history = store.get_history(sid, limit=10)
 
         # Stream the response (collect fully here for non-streaming API)
@@ -114,9 +120,10 @@ async def _handle_query_core(req: QueryRequest) -> dict:
         # Use fallback response if no tokens were collected
         response_text = "".join(resp_parts) or fallback_response or ""
 
-        # Persist to conversation memory
-        store.add_message(sid, "user", query)
-        store.add_message(sid, "assistant", response_text)
+        # Persist to conversation memory (skip if store unavailable)
+        if store:
+            store.add_message(sid, "user", query)
+            store.add_message(sid, "assistant", response_text)
 
         return {
             "status": "success",
@@ -154,19 +161,26 @@ async def _stream_query_response(req: QueryRequest) -> AsyncGenerator[str, None]
         return
 
     try:
-        store = get_conversation_store()
+        try:
+            store = get_conversation_store()
+        except (OSError, PermissionError):
+            # Read-only filesystem (Vercel serverless) — no conversation memory
+            store = None
+            logger.info("Conversation store unavailable (read-only filesystem), skipping memory")
+
         sid = req.session_id or str(uuid.uuid4())
 
         history = []
-        if req.session_id and store.has_session(sid):
+        if store and req.session_id and store.has_session(sid):
             history = store.get_history(sid, limit=10)
 
         async for frame in engine.chat_stream(query, mode, history):
             yield frame
 
-        # Persist after completion
-        store.add_message(sid, "user", query)
-        store.add_message(sid, "assistant", "conversation complete")
+        # Persist after completion (skip if store unavailable)
+        if store:
+            store.add_message(sid, "user", query)
+            store.add_message(sid, "assistant", "conversation complete")
     except Exception:
         logger.exception("Chat stream failed")
         yield "event: error\ndata: " + json.dumps({"detail": "Chat query failed."})
