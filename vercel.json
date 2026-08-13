@@ -12,6 +12,11 @@
       "dest": "api/index.py"
     }
   ],
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.11"
+    }
+  },
   "env": {
     "OUTPUT_DIR": "/tmp/output"
   }
