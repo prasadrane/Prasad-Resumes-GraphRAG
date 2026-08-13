@@ -2,15 +2,10 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "runtime": "@vercel/python@4.3.0"
+      "runtime": "@vercel/python@4.3.0",
+      "maxDuration": 60
     }
   },
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
   "routes": [
     {
       "src": "/(.*)",
