@@ -3,8 +3,12 @@ Unit tests for Vercel serverless FastAPI endpoints.
 """
 
 import unittest
+from pathlib import Path
 from fastapi.testclient import TestClient
 from api.index import app
+
+_ROOT = str(Path(__file__).resolve().parent.parent)
+_HAS_ARTIFACTS = (Path(_ROOT) / "output" / "lancedb").exists() and (Path(_ROOT) / "output" / "entities.parquet").exists()
 
 class TestVercelAPI(unittest.TestCase):
 
@@ -52,6 +56,7 @@ class TestVercelAPI(unittest.TestCase):
         self.assertIn("pdf_url", data)
         self.assertTrue(data["pdf_url"].startswith("data:application/pdf;base64,"))
 
+    @unittest.skipUnless(_HAS_ARTIFACTS, "GraphRAG artifacts not found")
     def test_query_endpoint_distinct_responses(self):
         res_comp = self.client.post("/api/query", json={"query": "Which companies has Prasad worked for?", "mode": "local"})
         self.assertEqual(res_comp.status_code, 200)
