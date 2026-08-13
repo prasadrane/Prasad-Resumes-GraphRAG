@@ -17,7 +17,13 @@ import asyncio
 import json
 
 import pandas as pd
-import lancedb
+
+try:
+    import lancedb
+    _HAS_LANCEDB = True
+except ImportError:
+    lancedb = None  # type: ignore
+    _HAS_LANCEDB = False
 
 from src.config import ROOT_DIR
 
