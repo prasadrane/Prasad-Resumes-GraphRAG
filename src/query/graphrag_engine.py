@@ -412,8 +412,9 @@ async def get_engine(root_dir=None):
     rd = Path(root_dir) if root_dir else ROOT_DIR
     async with _lock:
         if _engine is None or _engine.root_dir != rd:
-            _engine = GraphRAGEngine(str(rd))
-            await _engine.connect()
+            new_engine = GraphRAGEngine(str(rd))
+            await new_engine.connect()  # Raises if artifacts missing
+            _engine = new_engine  # Only cache on success
         return _engine
 
 
