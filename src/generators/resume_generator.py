@@ -8,7 +8,9 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+import yaml
 
 from .ats_matcher import extract_ats_keywords
 from src.llm.service import call_llm_safe as _call_llm_safe
@@ -44,12 +46,13 @@ from .resume_parser import (
 )
 from .pdf_renderer import render_pdf_resume
 
-from src.config import MASTER_RESUME_PATH, ROOT_DIR, OUTPUT_DIR_PATH
+from src.config import MASTER_RESUME_PATH, OUTPUT_DIR_PATH, ROOT_DIR
 
 log = logging.getLogger(__name__)
 
 # ── Domain-category mapping for intelligent summary variant selection ──────────
-DOMAIN_KEYWORDS = {
+
+_DEFAULT_DOMAIN_KEYWORDS: dict[str, list[str]] = {
     "AI / LLM-Forward": [
         "AI", "ML", "LLM", "Bedrock", "chatbot", "NLP", "prompt", "Claude", "GPT",
         "machine learning", "deep learning", "generative", "RAG", "language model",
@@ -70,6 +73,26 @@ DOMAIN_KEYWORDS = {
         "vulnerability", "SOC", "audit",
     ],
 }
+
+
+def _load_domain_keywords(config_dir: Optional[Path] = None) -> dict[str, list[str]]:
+    """Load domain keywords from *config/domain_keywords.yaml*, falling back to defaults."""
+    if config_dir is None:
+        config_dir = ROOT_DIR / "config"
+    yaml_path = config_dir / "domain_keywords.yaml"
+    try:
+        if yaml_path.exists():
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            domains: dict[str, list[str]] = data.get("domains", {})
+            if domains:
+                # Ensure each value is a list[str]
+                return {k: list(v) for k, v in domains.items()}  # type: ignore[arg-type]
+    except Exception as exc:  # pragma: no cover
+        log.warning("Failed to load domain_keywords.yaml: %s — using built-in defaults", exc)
+    return dict(_DEFAULT_DOMAIN_KEYWORDS)
+
+
+DOMAIN_KEYWORDS: Dict[str, List[str]] = _load_domain_keywords()
 
 # ── Scoring constants for semantic bullet ranking ─────────────────────────────
 STRONG_ACTION_VERBS = {

@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 900" width="1800" height="900" role="img" aria-label="Prasad Resumes: Chat Q&amp;A and Resume Tailoring flows">
+<rect x="0" y="0" width="1800" height="900" fill="#ffffff"/>
+<defs>
+<marker id="ah-req" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#475569"/></marker>
+<marker id="ah-llm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b45309"/></marker>
+<marker id="ah-read" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0369a1"/></marker>
+</defs>
+<text x="60" y="42" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#0f172a">Prasad Resumes — How It Works</text>
+<text x="60" y="66" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="14" fill="#64748b">Chat Q&amp;A flow (left) · Resume Tailoring flow (right) · Shared LLM Gateway + GraphRAG</text>
+<rect x="1400" y="820" width="370" height="84" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+<line x1="1420" y1="844" x2="1458" y2="844" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="1470" y="849" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b">request / control</text>
+<line x1="1605" y1="844" x2="1643" y2="844" stroke="#b45309" stroke-width="2.5" marker-end="url(#ah-llm)"/>
+<text x="1655" y="849" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b">LLM call</text>
+<line x1="1420" y1="874" x2="1458" y2="874" stroke="#0369a1" stroke-width="2.5" marker-end="url(#ah-read)"/>
+<text x="1470" y="879" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b">retrieval read</text>
+<rect x="30" y="90" width="1740" height="135" rx="14" fill="#eff6ff"/>
+<text x="50" y="116" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#2563eb" opacity="0.85">USER INPUT</text>
+<rect x="30" y="240" width="1740" height="165" rx="14" fill="#ecfdf5"/>
+<text x="50" y="266" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#059669" opacity="0.85">EMBEDDING &amp; RETRIEVAL</text>
+<rect x="30" y="420" width="1740" height="205" rx="14" fill="#fffbeb"/>
+<text x="50" y="446" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#b45309" opacity="0.85">LLM ROUTING</text>
+<rect x="30" y="640" width="1740" height="160" rx="14" fill="#f5f3ff"/>
+<text x="50" y="666" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="14" font-weight="700" fill="#7c3aed" opacity="0.85">OUTPUT</text>
+<polyline points="265,220 265,280" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="280" y="250" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#475569" text-anchor="start" paint-order="stroke" stroke="#ffffff" stroke-width="5">question</text>
+<polyline points="435,335 470,335" fill="none" stroke="#0369a1" stroke-width="2.5" marker-end="url(#ah-read)"/>
+<text x="410" y="250" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#0369a1" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">embedding</text>
+<polyline points="810,335 845,335" fill="none" stroke="#0369a1" stroke-width="2.5" marker-end="url(#ah-read)"/>
+<text x="655" y="250" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#0369a1" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">vector search</text>
+<polyline points="1015,390 1015,460" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#ah-llm)"/>
+<text x="1015" y="420" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#b45309" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">context + query</text>
+<polyline points="265,610 265,680" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#ah-llm)"/>
+<text x="265" y="650" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#b45309" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">stream</text>
+<polyline points="800,220 800,250 1370,250 1370,280" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="1000" y="250" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#475569" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">JD text</text>
+<polyline points="1200,335 1185,335" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="1200" y="265" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#475569" text-anchor="start" paint-order="stroke" stroke="#ffffff" stroke-width="5">keyword query</text>
+<polyline points="1350,220 1350,280" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="1345" y="250" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#475569" text-anchor="start" paint-order="stroke" stroke="#ffffff" stroke-width="5">resume data</text>
+<polyline points="1370,390 1370,460" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#ah-llm)"/>
+<text x="1370" y="420" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#b45309" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">tailor prompt</text>
+<polyline points="640,610 640,680" fill="none" stroke="#b45309" stroke-width="2.5" marker-end="url(#ah-llm)"/>
+<text x="640" y="650" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#b45309" text-anchor="middle" paint-order="stroke" stroke="#ffffff" stroke-width="5">rewritten content</text>
+<polyline points="1180,530 795,530" fill="none" stroke="#475569" stroke-width="2.5" marker-end="url(#ah-req)"/>
+<text x="1015" y="530" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-style="italic" fill="#475569" text-anchor="end" paint-order="stroke" stroke="#ffffff" stroke-width="5">provider config</text>
+<rect x="95" y="130" width="340" height="90" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<text x="265.0" y="167.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Chat Question</text>
+<text x="265.0" y="193.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">natural language query</text>
+<rect x="630" y="130" width="340" height="90" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<text x="800.0" y="167.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Job Description</text>
+<text x="800.0" y="193.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">ATS keywords</text>
+<rect x="1180" y="130" width="340" height="90" rx="12" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+<text x="1350.0" y="167.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Master Resume</text>
+<text x="1350.0" y="193.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">input/MASTER_RESUME.txt</text>
+<rect x="95" y="280" width="340" height="110" rx="12" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+<text x="265.0" y="327.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Embedding API</text>
+<text x="265.0" y="353.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">OpenRouter / Gemini</text>
+<path d="M 470 286 L 470 374 A 170.0 16 0 0 0 810 374 L 810 286" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+<ellipse cx="640.0" cy="286" rx="170.0" ry="16" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+<text x="640.0" y="336.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">LanceDB</text>
+<text x="640.0" y="358.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">vector store + graph</text>
+<rect x="845" y="280" width="340" height="110" rx="12" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+<text x="1015.0" y="327.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">GraphRAG Engine</text>
+<text x="1015.0" y="353.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">local · global · drift</text>
+<rect x="1200" y="280" width="340" height="110" rx="12" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+<text x="1370.0" y="327.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">ATS Matcher</text>
+<text x="1370.0" y="353.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">keyword extraction</text>
+<rect x="95" y="460" width="700" height="150" rx="12" fill="#ffffff" stroke="#b45309" stroke-width="2"/>
+<text x="445.0" y="505" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">LLM Gateway · src/gateway</text>
+<text x="445.0" y="535" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">facade.py · _try_chain failover</text>
+<rect x="1180" y="475" width="340" height="110" rx="12" fill="#ffffff" stroke="#b45309" stroke-width="2"/>
+<text x="1350.0" y="522.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Provider Registry</text>
+<text x="1350.0" y="548.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">src/config/providers.py</text>
+<rect x="95" y="680" width="340" height="110" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<text x="265.0" y="727.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Chat Answer</text>
+<text x="265.0" y="753.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">streamed SSE response</text>
+<rect x="470" y="680" width="340" height="110" rx="12" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+<text x="640.0" y="727.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="17" font-weight="600" fill="#0f172a" text-anchor="middle">Tailored Resume</text>
+<text x="640.0" y="753.0" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Markdown + PDF</text>
+<rect x="115" y="555" width="210" height="45" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+<text x="220.0" y="577" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Alibaba</text>
+<text x="220.0" y="595" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">Anthropic protocol</text>
+<rect x="345" y="555" width="210" height="45" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+<text x="450.0" y="577" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">OpenRouter</text>
+<text x="450.0" y="595" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">OpenAI protocol</text>
+<rect x="575" y="555" width="210" height="45" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+<text x="680.0" y="577" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#0f172a" text-anchor="middle">Gemini</text>
+<text x="680.0" y="595" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">Google REST</text>
+</svg>

@@ -22,7 +22,7 @@
 - **Deployment Platform:** Vercel Free Tier (Serverless Hobby Plan via `@vercel/python` / `vercel.json`)
 - **Serverless Framework:** FastAPI (`api/index.py`)
 - **Streaming Protocol:** Server-Sent Events (SSE) via FastAPI `StreamingResponse` for real-time progress and chat streaming.
-- **Serverless Cloud Gateway:** `src/query/serverless_gateway.py` (Direct OpenRouter / Gemini API routing for stateless environments)
+- **Serverless Cloud Gateway:** `src/gateway/` package — provider-driven LLM routing (AlibabaProvider, OpenRouterProvider, GeminiProvider) with `_try_chain` failover; `src/query/serverless_gateway.py` is a deprecated re-export shim.
 - **Static Graph Reader:** `src/query/static_graph_reader.py` (Fast pre-indexed graph search < 1s)
 
 ## Preprocessing & Utilities

@@ -102,14 +102,32 @@ _aiohttp_session: Optional["aiohttp.ClientSession"] = None
 
 
 def _ensure_session():
-    """Return a shared aiohttp ClientSession (one per event loop)."""
+    """Return a shared aiohttp ClientSession with connection pooling.
+
+    Configures a :class:`aiohttp.TCPConnector` with sane defaults:
+    * **limit=100**          – hard cap on total open connections
+    * **limit_per_host=10**  – max concurrent connections per remote host
+    * **ttl_dns_cache=300**  – DNS cache TTL in seconds
+    * **use_dns_cache=True** – resolve once, reuse across requests
+    * **force_close=False**  – let TCP keep-alive drain sockets naturally
+
+    Timeout: 300 s total / 10 s connect / 60 s socket read -- generous enough
+    for slow LLM streams without risking resource exhaustion.
+    """
     global _aiohttp_session
     if _aiohttp_session is None or _aiohttp_session.closed:
         import aiohttp
-        conn = aiohttp.TCPConnector(limit=10, force_close=True)
+
+        connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=10,
+            ttl_dns_cache=300,
+            use_dns_cache=True,
+            force_close=False,
+        )
         _aiohttp_session = aiohttp.ClientSession(
-            connector=conn,
-            timeout=aiohttp.ClientTimeout(total=300),
+            connector=connector,
+            timeout=aiohttp.ClientTimeout(total=300, connect=10, sock_read=60),
         )
     return _aiohttp_session
 

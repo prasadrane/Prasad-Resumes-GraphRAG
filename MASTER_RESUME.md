@@ -38,7 +38,6 @@ Senior Software Engineer with **10+ years of experience** architecting, operatin
 ## 🏆 Certifications
 
 - **AWS Certified Cloud Practitioner** — Amazon Web Services *(Issued: Apr 2026 | Expires: Apr 2029)* | [Credly Verification Badge](https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5)
-- *(Planned near-term: AWS Certified Solutions Architect – Associate)*
 
 ---
 

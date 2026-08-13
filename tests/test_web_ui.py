@@ -3,7 +3,7 @@ test_web_ui.py — Integration and Unit Tests for Web UI FastAPI Backend.
 """
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -90,28 +90,38 @@ class TestWebUI(unittest.TestCase):
         response = self.client.post("/api/query", json={"query": ""})
         self.assertIn(response.status_code, [400, 422])
 
-    @patch("src.shared.api_routes.execute_graphrag_query")
-    def test_query_endpoint_success(self, mock_query):
+    def test_query_endpoint_success(self):
         """Test POST /api/query invokes GraphRAG search engine correctly."""
-        mock_query.return_value = "Prasad used AWS Lambda and S3."
-        response = self.client.post("/api/query", json={"query": "What AWS services did Prasad use?", "mode": "local"})
+        from unittest.mock import AsyncMock
+        # Build a mock engine whose chat_stream yields a single SSE frame
+        # followed by a done frame carrying the answer.
+        async def fake_stream(query, mode, history):
+            yield 'data: {"token": "Prasad used AWS Lambda and S3.", "done": false}\n'
+            yield 'data: {"token": "", "done": true, "response": "Prasad used AWS Lambda and S3.", "sources": []}\n'
+        mock_engine = MagicMock()
+        mock_engine.chat_stream = fake_stream
+        with patch("src.shared.api_routes.get_engine", return_value=mock_engine), \
+             patch("src.shared.api_routes.get_conversation_store") as mock_store:
+            mock_store.return_value.has_session.return_value = False
+            response = self.client.post("/api/query", json={"query": "What AWS services did Prasad use?", "mode": "local"})
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["status"], "success")
         self.assertEqual(data["response"], "Prasad used AWS Lambda and S3.")
-        mock_query.assert_called_once_with(query="What AWS services did Prasad use?", mode="local", root_dir=ROOT_DIR)
 
     def test_generate_stream_returns_sse(self):
         """Test POST /api/generate-stream returns correct content type."""
-        response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": "Need AWS"})
+        from tests.conftest import VALID_JD_TEXT
+        response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": VALID_JD_TEXT})
         self.assertEqual(response.status_code, 200)
         self.assertIn("text/event-stream", response.headers.get("content-type", ""))
 
     def test_generate_stream_all_steps_emitted(self):
         """Test POST /api/generate-stream emits all expected progress steps in SSE format."""
+        from tests.conftest import VALID_JD_TEXT
         # Use patch to ensure we avoid real LLM calls during web UI test
         with patch("src.generators.resume_generator._call_llm_safe", return_value="Mocked LLM content"):
-            response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": "Need AWS"})
+            response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": VALID_JD_TEXT})
             self.assertEqual(response.status_code, 200)
             
             lines = [line.decode("utf-8") if hasattr(line, "decode") else line for line in response.iter_lines() if line]
@@ -145,7 +155,7 @@ class TestWebUI(unittest.TestCase):
 
     def test_chat_stream_returns_sse(self):
         """Test POST /api/chat-stream returns event stream."""
-        with patch("src.query.serverless_gateway.call_serverless_llm", return_value="Mock LLM Answer"):
+        with patch("src.gateway.call_serverless_llm", return_value="Mock LLM Answer"):
             response = self.client.post("/api/chat-stream", json={"query": "What AWS services did Prasad use?", "mode": "local"})
             self.assertEqual(response.status_code, 200)
             self.assertIn("text/event-stream", response.headers.get("content-type", ""))

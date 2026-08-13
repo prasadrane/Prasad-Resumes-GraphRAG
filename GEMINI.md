@@ -57,11 +57,13 @@ The [`src/generators/`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/sr
 
 ## 4. Vercel Serverless Gateway Architecture
 
-For deployment on serverless platforms like **Vercel Free Tier** where long-running local proxy background processes are unsupported, the application uses **`src/query/serverless_gateway.py`**:
+For deployment on serverless platforms like **Vercel Free Tier** where long-running local proxy background processes are unsupported, the application uses the **`src/gateway/` package**:
 
-- **Direct OpenRouter Integration:** Uses `OPENROUTER_API_KEY` to directly invoke OpenRouter pool models (`google/gemini-2.5-flash-lite`, etc.) without a local proxy.
-- **Direct Gemini AI Studio API Fallback:** Uses `GEMINI_API_KEY` via direct Google REST endpoints if OpenRouter is unconfigured.
+- **Provider-Driven Routing:** Three self-contained provider classes (`AlibabaProvider`, `OpenRouterProvider`, `GeminiProvider`) orchestrated by `facade.py` with `_try_chain` failover. Provider selection via `src/config/providers.py` registry (`CHAT_PROVIDER`, `RESUME_PROVIDER`, `EMBEDDING_PROVIDER` env vars).
+- **Direct Gemini AI Studio API:** Uses `GEMINI_API_KEY` via direct Google REST endpoints (`generateContent`, `streamGenerateContent`, `embedContent`) as one of three providers.
 - **Fast Static Graph Reader:** Uses `src/query/static_graph_reader.py` to query pre-indexed graph entities within < 1 second serverless execution budget.
+
+The old `src/query/serverless_gateway.py` is a deprecated re-export shim (~30 lines) that delegates to `src.gateway` — kept for backward compatibility.
 
 ---
 

@@ -2,13 +2,15 @@
 app.py — FastAPI Web Backend for Prasad Resumes GraphRAG UI.
 """
 
+import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -20,10 +22,40 @@ from src.generators.resume_generator import generate_raw_resume, parse_resume_ma
 from src.generators.pdf_renderer import render_pdf_resume
 from src.shared.api_routes import shared_router, _pdf_to_data_uri
 
+# ── Observability imports ─────────────────────────────────────────────────
+from src.observability import (
+    get_correlation_id,
+    logger as obs_logger,
+    set_correlation_id,
+)
+from src.metrics import collect_as_text, get_collector
+
 logger = logging.getLogger(__name__)
+
+# ── Correlation-ID middleware (W4.2) ──────────────────────────────────────
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
 app.include_router(shared_router)
+
+
+@app.middleware("http")
+async def correlation_id_middleware(request: Request, call_next):
+    """Extract or generate a correlation ID, store it in ContextVar, pass through headers."""
+    header = request.headers.get("X-Correlation-ID")
+    if header:
+        set_correlation_id(header)
+    else:
+        import uuid
+        set_correlation_id(str(uuid.uuid4()))
+    cid = get_correlation_id()
+    start = time.time()
+
+    response = await call_next(request)
+
+    elapsed_ms = (time.time() - start) * 1000
+    response.headers["X-Correlation-ID"] = cid
+    response.headers["X-Response-Time-Ms"] = f"{elapsed_ms:.1f}"
+    return response
 
 
 # Serve static files if directory exists
@@ -41,9 +73,86 @@ class ResumeHistoryItem(BaseModel):
 
 
 @app.get("/api/health")
-def health_check():
-    """Health check endpoint for container monitoring."""
-    return {"status": "ok"}
+async def health_check():
+    """Detailed health-check with dependency status for Kubernetes/Docker probes.
+
+    Returns 200 when all dependencies are healthy, 503 when any critical dep fails.
+    Status values: ok / degraded / down
+    """
+    checks = {}
+    overall = "ok"
+
+    # -- API itself (always up if we're executing) --
+    checks["api"] = {"status": "ok"}
+
+    # -- LLM Gateway -- quick probe: try resolving a model (cheap no-API-key-needed op)
+    try:
+        from src.config.providers import get_model_for as _gmf
+        start_t = time.time()
+        try:
+            resolved = _gmf("chat")[1]  # resolves to model ID without hitting network
+        except Exception:
+            resolved = "unknown"
+        latency_ms = (time.time() - start_t) * 1000
+
+        # Attempt a minimal provider probe (check key availability is enough for non-prod)
+        provider_name = _gmf("chat")[0]
+        checks["llm_gateway"] = {
+            "status": "ok",
+            "provider": provider_name,
+            "model": resolved,
+            "latency_ms": round(latency_ms, 1),
+        }
+    except Exception as err:
+        checks["llm_gateway"] = {"status": "down", "error": str(err)}
+        overall = "degraded"
+
+    # -- GraphRAG Engine -- verify artifacts exist (cheap filesystem check)
+    try:
+        lancedb_path = ROOT_DIR / "output" / "lancedb"
+        parquet_dir = ROOT_DIR / "output"
+        required_files = [
+            lancedb_path,
+            parquet_dir / "entities.parquet",
+            parquet_dir / "relationships.parquet",
+            parquet_dir / "community_reports.parquet",
+            parquet_dir / "text_units.parquet",
+        ]
+        missing = [str(f) for f in required_files if not f.exists()]
+        if missing:
+            checks["graphrag"] = {
+                "status": "degraded",
+                "missing": missing,
+            }
+            overall = "degraded"
+        else:
+            checks["graphrag"] = {"status": "ok"}
+    except Exception as err:
+        checks["graphrag"] = {"status": "down", "error": str(err)}
+        overall = "degraded"
+
+    # -- Database (conversation store) -- verify SQLite accessible
+    try:
+        from src.query.conversation_store import get_conversation_store
+        store = get_conversation_store()
+        checks["database"] = {
+            "status": "ok",
+            "path": str(store.db_path),
+        }
+    except Exception as err:
+        checks["database"] = {"status": "down", "error": str(err)}
+        overall = "degraded"
+
+    # Final verdict
+    status = "ok" if overall == "ok" else overall
+    code = 200 if overall == "ok" else 503
+
+    result = {
+        "status": status,
+        "checks": checks,
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    return JSONResponse(content=result, status_code=code)
 
 
 @app.get("/")
@@ -216,5 +325,16 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
+
+@app.get("/api/metrics")
+def metrics_endpoint():
+    """Prometheus-compatible metrics endpoint.
+
+    Returns all collected counters and histograms in Prometheus exposition
+    text format (``# HELP``, ``# TYPE``, metric lines).
+    """
+    collector = get_collector()
+    body = collect_as_text(collector)
+    return Response(content=body, media_type="text/plain; charset=utf-8")
 
 

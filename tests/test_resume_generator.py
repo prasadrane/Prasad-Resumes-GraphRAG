@@ -251,7 +251,9 @@ Software Engineer with 10+ years experience.
                 # Mock LLM to return company-specific tailored content
                 def make_mock(comp=company):
                     call_count = {"n": 0}
-                    def mock_llm(prompt, system_prompt):
+                    def mock_llm(prompt, system_prompt, **kwargs):
+                        # Production passes temperature / timeout / model / use_case
+                        # as kwargs; accept them so the mock stays forward-compatible.
                         call_count["n"] += 1
                         if call_count["n"] == 1:
                             # First call = summary

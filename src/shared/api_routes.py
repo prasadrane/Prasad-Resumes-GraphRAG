@@ -48,6 +48,11 @@ def chat_stream_endpoint(req: QueryRequest):
       event: token   → data: {"token": "...", "done": false}
       event: done    → data: {"done": true, "response": "...", "sources": [...]}
     """
+    # Validate up-front so an empty query returns 400 before we commit to the
+    # streaming response (otherwise the HTTPException inside the generator
+    # fires after headers are sent, and the client sees 200 + error frame).
+    if not req.query or not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
     return StreamingResponse(
         _stream_query_response(req),
         media_type="text/event-stream",

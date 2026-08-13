@@ -26,9 +26,10 @@ class TestVercelAPI(unittest.TestCase):
         self.assertTrue(data["pdf_url"].startswith("data:application/pdf;base64,"))
 
     def test_get_keywords(self):
+        from tests.conftest import VALID_JD_TEXT
         payload = {
             "company": "Amazon",
-            "jd_text": "Looking for AWS, Python, Docker, Microservices engineer."
+            "jd_text": VALID_JD_TEXT
         }
         response = self.client.post("/api/keywords", json=payload)
         self.assertEqual(response.status_code, 200)
@@ -38,9 +39,10 @@ class TestVercelAPI(unittest.TestCase):
         self.assertIn("Python", data["keywords"])
 
     def test_generate_resume_endpoint(self):
+        from tests.conftest import VALID_JD_TEXT
         payload = {
             "company": "TestCorp",
-            "jd_text": "Backend engineer with Python, AWS, PostgreSQL experience."
+            "jd_text": VALID_JD_TEXT
         }
         response = self.client.post("/api/generate", json=payload)
         self.assertEqual(response.status_code, 200)

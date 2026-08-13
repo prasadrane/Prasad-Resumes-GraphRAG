@@ -1,0 +1,178 @@
+[
+  {
+    "id": 1,
+    "query": "What AWS services has Prasad used?",
+    "expected_entities": ["AWS", "EC2", "S3", "Lambda", "ECS", "Fargate", "Bedrock"],
+    "expected_keywords": ["AWS", "EC2", "S3", "Lambda"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 2,
+    "query": "What technologies does Prasad have experience with?",
+    "expected_entities": ["Python", "C#", "Java", "TypeScript", "Docker", "Kubernetes"],
+    "expected_keywords": ["Python", "C#", "TypeScript"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 3,
+    "query": "Where has Prasad worked in his career?",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "company_lookup"
+  },
+  {
+    "id": 4,
+    "query": "Tell me about Prasad's project management experience",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "experience_lookup"
+  },
+  {
+    "id": 5,
+    "query": "Has Prasad worked with Kafka or messaging systems?",
+    "expected_entities": ["Kafka", "MSK", "SQS", "SNS"],
+    "expected_keywords": ["Kafka", "MSK", "messaging"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 6,
+    "key": "6",
+    "query": "What security-related skills does Prasad have?",
+    "expected_entities": ["OAuth2", "JWT", "CrowdStrike", "Falcon", "IAM"],
+    "expected_keywords": ["security", "OAuth", "JWT"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 7,
+    "query": "What quantified achievements has Prasad made?",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "experience_lookup"
+  },
+  {
+    "id": 8,
+    "query": "Does Prasad have experience with Terraform and infrastructure as code?",
+    "expected_entities": ["Terraform", "Infrastructure as Code"],
+    "expected_keywords": ["Terraform", "infrastructure"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 9,
+    "query": "What cloud platforms has Prasad used?",
+    "expected_entities": ["AWS", "Azure", "GCP"],
+    "expected_keywords": ["cloud", "AWS"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 10,
+    "query": "What containerization technologies has Prasad worked with?",
+    "expected_entities": ["Docker", "Kubernetes", "ECS", "Fargate"],
+    "expected_keywords": ["Docker", "Kubernetes", "container"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 11,
+    "query": "Describe Prasad's leadership experience",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "experience_lookup"
+  },
+  {
+    "id": 12,
+    "query": "What monitoring and observability tools does Prasad know?",
+    "expected_entities": ["Dynatrace", "Splunk", "OpenTelemetry", "CloudWatch"],
+    "expected_keywords": ["monitoring", "observability", "Dynatrace"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 13,
+    "query": "Has Prasad built microservices architectures?",
+    "expected_entities": ["Microservices", "CQRS"],
+    "expected_keywords": ["microservices"],
+    "category": "experience_lookup"
+  },
+  {
+    "id": 14,
+    "query": "What databases has Prasad worked with?",
+    "expected_entities": ["DynamoDB", "SQL Server", "PostgreSQL", "MySQL"],
+    "expected_keywords": ["database", "DynamoDB", "SQL Server"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 15,
+    "query": "What is Prasad's educational background?",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "general_query"
+  },
+  {
+    "id": 16,
+    "query": "What certifications does Prasad hold?",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "general_query"
+  },
+  {
+    "id": 17,
+    "query": "Explain Prasad's experience with CI/CD pipelines",
+    "expected_entities": ["CI/CD"],
+    "expected_keywords": ["CI/CD", "pipelines"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 18,
+    "query": "Has Prasad worked on AI or machine learning projects?",
+    "expected_entities": ["AI", "ML", "LLM", "Bedrock", "Bedrock"],
+    "expected_keywords": ["AI", "machine learning", "LLM"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 19,
+    "query": "What was Prasad's role at Amazon?",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "company_lookup"
+  },
+  {
+    "id": 20,
+    "query": "How has Prasad improved system reliability or uptime?",
+    "expected_entities": [],
+    "expected_keywords": ["reliability", "uptime", "availability"],
+    "category": "experience_lookup"
+  },
+  {
+    "id": 21,
+    "query": "What API design experience does Prasad have?",
+    "expected_entities": ["REST APIs", "GraphQL", "gRPC"],
+    "expected_keywords": ["API", "REST"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 22,
+    "query": "Tell me about Prasad's authentication and authorization experience",
+    "expected_entities": ["OAuth2", "JWT", "SSO", "IAM"],
+    "expected_keywords": ["authentication", "authorization", "OAuth"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 23,
+    "query": "What frontend technologies has Prasad used?",
+    "expected_entities": ["Angular", "React"],
+    "expected_keywords": ["frontend", "Angular", "React"],
+    "category": "skill_lookup"
+  },
+  {
+    "id": 24,
+    "query": "Summarize Prasad's career trajectory",
+    "expected_entities": [],
+    "expected_keywords": [],
+    "category": "general_query"
+  },
+  {
+    "id": 25,
+    "query": "What incident response or threat hunting experience does Prasad have?",
+    "expected_entities": ["CrowdStrike", "Falcon", "Threat Hunting", "SOC"],
+    "expected_keywords": ["threat hunting", "incident response", "SOC"],
+    "category": "skill_lookup"
+  }
+]

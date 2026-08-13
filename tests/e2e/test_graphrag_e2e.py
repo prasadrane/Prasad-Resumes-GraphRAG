@@ -1,14 +1,24 @@
 """End-to-end integration tests for GraphRAG query engine."""
 
+import os
 import pytest
 from httpx import AsyncClient, ASGITransport
 from src.web.app import app
 
-# Skip if no API keys available - tests need real GraphRAG artifacts
+# Skip if no GraphRAG artifacts
 pytestmark = pytest.mark.skipif(
-    not __import__("os").path.exists(__import__("pathlib").Path("output/entities.parquet")),
+    not os.path.exists("output/entities.parquet"),
     reason="No GraphRAG artifacts found"
 )
+
+
+def _has_api_key():
+    """Check if any LLM API key is available."""
+    return bool(
+        os.getenv("ALIBABA_API_KEY")
+        or os.getenv("OPENROUTER_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+    )
 
 
 class TestGraphRAGE2E:
@@ -49,6 +59,7 @@ class TestGraphRAGE2E:
             assert data["mode"] == mode
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not _has_api_key(), reason="No LLM API key available")
     async def test_chat_stream_endpoint(self, client: AsyncClient):
         """Test /api/chat-stream returns streaming SSE events."""
         resp = await client.post("/api/chat-stream", json={
@@ -64,6 +75,7 @@ class TestGraphRAGE2E:
         assert "data:" in content  # SSE format
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not _has_api_key(), reason="No LLM API key available")
     async def test_conversation_memory_persistence(self, client: AsyncClient):
         """Test that conversation history persists across requests."""
         session = "e2e-history-test"
@@ -86,24 +98,25 @@ class TestGraphRAGE2E:
 
     @pytest.mark.asyncio
     async def test_empty_query_rejected(self, client: AsyncClient):
-        """Test empty query returns 400."""
+        """Test empty query returns 422 (Pydantic validator catches it before endpoint)."""
         resp = await client.post("/api/query", json={
             "query": "",
             "mode": "local",
         }, timeout=10)
-        assert resp.status_code == 400
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_invalid_mode_default_to_local(self, client: AsyncClient):
-        """Test invalid mode defaults to local."""
+        """Test invalid mode returns 422 (Pydantic validator rejects it before endpoint)."""
         resp = await client.post("/api/query", json={
             "query": "test",
             "mode": "invalid_mode_xyz",
         }, timeout=30)
-        # Should succeed with mode normalized to 'local'
-        assert resp.status_code == 200
+        # W4 validator rejects invalid modes with 422
+        assert resp.status_code == 422
 
     @pytest.mark.asyncio
+    @pytest.mark.skipif(not _has_api_key(), reason="No LLM API key available")
     async def test_drift_mode_multi_hop(self, client: AsyncClient):
         """Test DRIFT mode expands entity connections."""
         resp = await client.post("/api/query", json={

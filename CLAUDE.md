@@ -86,7 +86,7 @@ vercel --prod
 ### Core Pipeline Flow
 1. **Input Preprocessing** (`src/converters/`): Parses raw PDFs/Markdown into canonical `input/MASTER_RESUME.txt` and `input/03-Story-Bank.txt`
 2. **GraphRAG Indexing**: Extracts entities, relationships, communities; stores embeddings in LanceDB (`output/lancedb`) and Parquet tables
-3. **LLM Gateway** (`src/query/serverless_gateway.py`): Routes requests to OpenRouter API with automatic failover to Google Gemini models
+3. **LLM Gateway** (`src/gateway/`): Provider-driven routing with `_try_chain` failover. Three providers — AlibabaProvider (Anthropic API), OpenRouterProvider (OpenAI API), GeminiProvider (Google REST) — orchestrated by `facade.py`. Provider selection via `src/config/providers.py` registry.
 4. **Resume Generation** (`src/generators/`): NLP keyword extraction, executive summary adaptation, skill reordering, ATS-compliant PDF rendering
 5. **FastAPI Web UI** (`src/web/` & `api/index.py`): Material Design 3 interface with ATS tailoring, raw Markdown editor, and GraphRAG Q&A chatbot
 
@@ -100,11 +100,11 @@ The app has a single entrypoint and unified code path for both local and product
 - **Shared models** (`src/shared/api_models.py`): Pydantic request/response schemas used across all endpoints
 
 ### Multi-Model LLM Fallback Architecture
-Two separate LLM paths exist — understand which one is being used:
+Three LLM paths exist — understand which one is being used:
+- **Gateway package** (`src/gateway/`): Used by Vercel deployment and `src/llm/service.py` wrappers. Three providers — Alibaba (Anthropic API), OpenRouter (OpenAI API), Gemini (Google REST) — with `_try_chain` failover. Provider selection via `src/config/providers.py` registry (`CHAT_PROVIDER`, `RESUME_PROVIDER`, `EMBEDDING_PROVIDER` env vars)
 - **LiteLLM proxy** (port 8002, `config/litellm-config.yaml`): Used by GraphRAG indexing and local queries. Fallback chain: `freellmapi-chat` → `gemini-2.5-flash-lite` → `gemini-3.1-flash-lite` → `gemini-3.5-flash-lite` → `gemini-2.5-flash` → `gemini-2.0-flash`
-- **Serverless gateway** (`src/query/serverless_gateway.py`): Used by Vercel deployment and `src/llm/service.py` wrappers. Routes: OpenRouter primary → Gemini Direct API fallback. Checks `OPENROUTER_API_KEY` first, then `GEMINI_API_KEY`
-- **LLM service** (`src/llm/service.py`): Thin wrappers (`call_llm`, `call_llm_safe`) used by resume generators. Routes through serverless gateway. `call_llm_safe` catches all exceptions and returns empty string for graceful degradation
-- **Embeddings**: `llama-nemotron-embed-vl-1b-v2` (primary) → `gemini-embedding-001` (fallback)
+- **LLM service** (`src/llm/service.py`): Thin wrappers (`call_llm`, `call_llm_safe`) used by resume generators. Routes through gateway. `call_llm_safe` catches all exceptions and returns empty string for graceful degradation
+- **Embeddings**: `nvidia/nemotron-3-embed-1b:free` via OpenRouter (primary) → `text-embedding-004` via Gemini (fallback)
 
 ### Key Modules
 
@@ -121,10 +121,19 @@ Two separate LLM paths exist — understand which one is being used:
 - `models.py`: Pydantic models (`ResumeData`, `JobEntry`) for structured data
 - `constants.py`: Centralized constants (fonts, colors, spacing)
 
+#### `src/gateway/`
+- `base.py`: `BaseProvider` ABC + shared lazy aiohttp session (`_ensure_session()`)
+- `alibaba.py`: AlibabaProvider — Anthropic-compatible protocol (`x-api-key` + `anthropic-version`)
+- `openrouter.py`: OpenRouterProvider — OpenAI-compatible protocol (`Authorization: Bearer`)
+- `gemini.py`: GeminiProvider — Google REST protocol (`?key=` query param auth)
+- `facade.py`: Orchestration — `_client()` cache, `_try_chain` failover, public API (`call_serverless_llm`, `call_serverless_llm_stream`, `get_embedding`)
+- `__init__.py`: Re-exports public API + registry-resolved `ALIBABA_RESUME_MODEL`
+
 #### `src/query/`
 - `search_engine.py`: Executes GraphRAG local/global queries (used by shared router)
+- `graphrag_engine.py`: GraphRAGEngine with 3 retrieval modes (local · global · drift), SSE streaming, conversation memory
 - `static_graph_reader.py`: Fast static graph reader for serverless (<1s execution, reads precomputed entities from Parquet)
-- `serverless_gateway.py`: Direct OpenRouter/Gemini API integration for Vercel deployment
+- `serverless_gateway.py`: **Deprecated re-export shim** (~30 lines). Delegates to `src.gateway`. Old import path still works.
 
 #### `src/proxy/`
 - `litellm_runner.py`: Manages LiteLLM proxy lifecycle and health checks

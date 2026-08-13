@@ -14,9 +14,8 @@ class TestLiteLLMRunner(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             start_proxy_server(non_existent_path)
 
-    @patch("shutil.which")
-    def test_start_proxy_server_missing_binary(self, mock_which):
-        mock_which.return_value = None
+    @patch("src.proxy.litellm_runner._find_litellm_cli", side_effect=RuntimeError("LiteLLM CLI executable not found"))
+    def test_start_proxy_server_missing_binary(self, mock_find):
         tmp_config = Path(__file__)  # Exists
         with self.assertRaises(RuntimeError) as ctx:
             start_proxy_server(tmp_config)

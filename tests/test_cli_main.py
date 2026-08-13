@@ -96,7 +96,9 @@ class TestCLIMain(unittest.TestCase):
         with patch("src.cli.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             self._run_main(["ui"])
-        mock_run.assert_called_once_with(["vercel", "dev"], cwd=ANY)
+        # A pre-flight `vercel --version` check may precede the actual launch.
+        # Assert the final call is the dev-server launch.
+        mock_run.assert_any_call(["vercel", "dev"], cwd=ANY)
 
     def test_no_command_prints_help(self):
         captured = io.StringIO()

@@ -92,7 +92,7 @@ class GraphRAGEngine:
 
     async def get_embedding(self, text: str) -> List[float]:
         """Delegate embedding generation to serverless_gateway (OpenRouter → Gemini)."""
-        from src.query.serverless_gateway import get_embedding as _get_emb
+        from src.gateway import get_embedding as _get_emb
         return await _get_emb(text)
 
     # ── fallback keyword-based retrieval (when embeddings unavailable) ────
@@ -320,7 +320,7 @@ class GraphRAGEngine:
 
         # Delegate actual token streaming to serverless_gateway
         try:
-            from src.query.serverless_gateway import (
+            from src.gateway import (
                 call_serverless_llm_stream,
             )
 

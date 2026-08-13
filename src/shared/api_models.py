@@ -7,23 +7,112 @@ behavior stays environment-appropriate: the local app can write files via
 txt_url, the serverless app renders from raw text only.
 """
 
+import re
 from typing import Optional
 
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, model_validator
 
 from typing import Literal
 
 
+# Regex: common injection patterns (SQL/JS/html)
+_INJECTION_RE = re.compile(
+    r"""
+        \b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b|
+        ;.*--|
+        javascript:|
+        on\w+\s*=|
+        <script|</script>|
+        eval\s*\(|exec\s*\(
+    """,
+    re.IGNORECASE | re.X,
+)
+
+_MODE_PATTERN = re.compile(r"^(local|global|drift)$")
+
+
 class QueryRequest(BaseModel):
-    query: str = Field(..., description="Question for GraphRAG knowledge graph")
-    mode: Literal["local", "global", "drift"] = Field(default="local", description="Query mode: 'local', 'global', or 'drift'")
-    session_id: Optional[str] = Field(default=None, description="Session ID for conversation memory (auto-generated if not provided)")
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Question for GraphRAG knowledge graph",
+    )
+    mode: Literal["local", "global", "drift"] = Field(
+        default="local",
+        description="Query mode: 'local', 'global', or 'drift'",
+    )
+    session_id: Optional[str] = Field(
+        default=None,
+        description="Session ID for conversation memory (auto-generated if not provided)",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _validate(cls, values):
+        """Sanitise and constrain fields before validation."""
+        if isinstance(values, dict):
+            q = values.get("query")
+            if q is not None:
+                q = str(q).strip()
+                # Reject injection patterns early with a descriptive error
+                if _INJECTION_RE.search(q):
+                    raise ValueError(
+                        "Query contains suspicious characters that look like injection attempts"
+                    )
+                values["query"] = q
+
+            m = values.get("mode")
+            if m is not None:
+                m_clean = str(m).lower().strip()
+                if _MODE_PATTERN.match(m_clean):
+                    values["mode"] = m_clean
+                else:
+                    raise ValueError(
+                        f"mode must be one of: local, global, drift — got {m!r}"
+                    )
+        return values
 
 
 class ResumeGenerationRequest(BaseModel):
-    company: str = Field(..., description="Target company name")
-    jd_text: str = Field(default="", description="Job description text")
+    company: str = Field(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Target company name",
+    )
+    jd_text: str = Field(
+        default="",
+        description="Job description text",
+    )
+
+    @model_validator(mode="after")
+    def _validate(self):
+        """Validate company + jd_text constraints after initial parsing."""
+        if not self.company or len(self.company.strip()) < 2:
+            raise ValueError("Company name must be at least 2 characters")
+        self.company = self.company.strip()
+
+        if self.jd_text:
+            jd = self.jd_text.strip()
+            if len(jd) < 50:
+                raise ValueError(
+                    "JD text must be at least 50 characters when provided"
+                )
+            if len(jd) > 10_000:
+                raise ValueError(
+                    "JD text must not exceed 10000 characters"
+                )
+            words = [w for w in jd.split() if len(w) > 1]
+            if len(words) < 10:
+                raise ValueError(
+                    "JD text must contain at least 50 characters and ~10 meaningful words"
+                )
+            self.jd_text = jd
+        else:
+            self.jd_text = ""
+
+        return self
 
 
 class SaveEditRequest(BaseModel):

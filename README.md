@@ -8,16 +8,15 @@ GraphRAG knowledge graph engine and automated ATS resume generator built over Pr
 
 ![Architecture & System Data Flow](docs/architecture_diagram.png)
 
-<details>
-<summary><b>Click to expand detailed system pipeline workflow specification</b></summary>
+The diagram shows two primary flows sharing common infrastructure:
 
-1. **Input Preprocessing (`src/converters/`):** Parses raw input documents into canonical [`input/MASTER_RESUME.txt`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/input/MASTER_RESUME.txt) & [`03-Story-Bank.txt`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/input/03-Story-Bank.txt).
-2. **GraphRAG Indexing Engine (`graphrag index`):** Extracts entities, relationships, communities, and stores embeddings in LanceDB (`output/lancedb`) & Parquet tables.
-3. **Primary LLM Gateway (`src/query/serverless_gateway.py`):** Routes requests primarily to **OpenRouter API**, with automatic failover & model rotation across **Google Gemini AI Studio API** (`gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`).
-4. **GraphRAG Pre-Retrieval & Tailored Resume Generator (`src/generators/`):** Performs local NLP & GraphRAG node pre-retrieval, adapts executive summary variants, reorders skills by JD relevance, bolds keywords (<20% cap), excludes title headers, and renders standard 2-page ATS PDFs (`Prasad_Rane_Resume.pdf`).
-5. **FastAPI Web UI (`src/web/app.py` → wrapped by `api/index.py` for Vercel):** Single-page Material Design 3 interface featuring ATS Resume Tailoring, instant raw content markdown editor, and interactive GraphRAG Q&A Chatbot. A single entrypoint serves both local development and production.
+- **Chat Q&A flow (left):** User question → Embedding API → LanceDB vector search → GraphRAG Engine (retrieval) → LLM Gateway → streamed SSE answer
+- **Resume Tailoring flow (right):** Job Description + Master Resume → ATS Matcher (keyword extraction) → GraphRAG Engine (context retrieval) → LLM Gateway (tailoring prompt) → Markdown + PDF output
 
-</details>
+Shared components:
+- **LLM Gateway (`src/gateway/`):** Provider-driven routing with `_try_chain` failover. Three providers — **Alibaba Cloud Token Plan** (Anthropic-compatible), **OpenRouter** (OpenAI-compatible), **Gemini Direct** (Google REST) — orchestrated by `facade.py`. Provider selection via `src/config/providers.py` registry (`CHAT_PROVIDER`, `RESUME_PROVIDER`, `EMBEDDING_PROVIDER` env vars).
+- **GraphRAG Engine:** Three retrieval modes (local · global · drift), conversation memory, SSE streaming
+- **LanceDB:** Vector store + knowledge graph for both flows
 
 ---
 
@@ -65,7 +64,51 @@ GRAPHRAG_API_KEY=your_gemini_api_key_here
 
 # FreeLLMAPI (primary model in settings.yaml, routed via LiteLLM proxy)
 FREELLMAPI_API_KEY=your_freellmapi_api_key_here
+
+# Alibaba Cloud Token Plan (Anthropic-compatible, used for chat/resume)
+ALIBABA_API_KEY=sk-sp-your_alibaba_token_plan_key
 ```
+
+### Provider Registry (Flexible LLM Configuration)
+
+The system uses a provider registry (`src/config/providers.py`) to map use-cases to LLM providers. You can switch providers via environment variables without code changes:
+
+```env
+# Optional: Override default providers (defaults shown below)
+CHAT_PROVIDER=alibaba        # Chatbot: alibaba | openrouter | gemini
+RESUME_PROVIDER=alibaba      # Resume generation: alibaba | openrouter | gemini
+EMBEDDING_PROVIDER=openrouter # Embeddings: openrouter | gemini
+```
+
+**Default configuration:**
+- **Chat:** Alibaba Cloud Token Plan (`qwen3.6-flash`, ~10-20s streaming)
+- **Resume:** Alibaba Cloud Token Plan (`qwen3.7-plus`, ~3-4 min)
+- **Embedding:** OpenRouter (`openai/text-embedding-3-small`)
+
+**Adding a new provider:** Edit `src/config/providers.py`, add entry to `PROVIDERS` dict with `base_url`, `api_key_env`, `models`, `timeout`, and `response_format`. Then set the corresponding env var (e.g., `CHAT_PROVIDER=new_provider`).
+
+### Gateway Package (`src/gateway/`)
+
+The LLM gateway is a small package that wraps each provider as a self-contained class and exposes a single public API for callers:
+
+```
+src/gateway/
+├── __init__.py      # Public API: call_serverless_llm, call_serverless_llm_stream,
+│                    # get_embedding, ALIBABA_RESUME_MODEL
+├── base.py          # BaseProvider ABC + shared aiohttp session
+├── alibaba.py       # AlibabaProvider — Anthropic-compatible protocol
+├── openrouter.py    # OpenRouterProvider — OpenAI-compatible protocol
+└── gemini.py        # GeminiProvider — Google REST protocol (auth via ?key=)
+└── facade.py        # Orchestration: _try_chain failover, provider cache, public API
+```
+
+**Adding a new provider to the gateway:**
+1. Add a `ProviderConfig` entry in `src/config/providers.py`
+2. Create `src/gateway/<provider>.py` implementing `BaseProvider` (override `chat()`, `chat_stream()`, and optionally `embed()`)
+3. Register the class in `facade.py`'s `_PROVIDER_CLASSES` dict
+4. Switch via env var (e.g., `CHAT_PROVIDER=new_provider`)
+
+The old import path (`from src.query.serverless_gateway import ...`) still works via a re-export shim but new code should import from `src.gateway` directly.
 
 ---
 

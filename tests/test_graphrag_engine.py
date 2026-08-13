@@ -38,6 +38,9 @@ def _run(coro):
 
 class TestGraphRAGEngineInit(unittest.TestCase):
 
+    def setUp(self):
+        reset_engine()
+
     def test_init_default_root_dir(self):
         engine = GraphRAGEngine()
         self.assertEqual(engine.root_dir, Path(_ROOT))
@@ -85,6 +88,9 @@ class TestGraphRAGEngineInit(unittest.TestCase):
 
 class TestRetrievalModes(unittest.TestCase):
 
+    def setUp(self):
+        reset_engine()
+
     # The LanceDB default-text_unit-text table uses 2048-dim vectors.
     MOCK_EMB_2K = [0.1] * 2048
 
@@ -121,6 +127,9 @@ class TestRetrievalModes(unittest.TestCase):
 # ── prompt formatting helpers ───────────────────────────────────────────────
 
 class TestFormatContext(unittest.TestCase):
+
+    def setUp(self):
+        reset_engine()
 
     def test_empty_context_returns_blank(self):
         self.assertEqual(GraphRAGEngine.format_context({}), "")
@@ -162,6 +171,9 @@ class TestFormatContext(unittest.TestCase):
 # ── source extraction ───────────────────────────────────────────────────────
 
 class TestExtractSources(unittest.TestCase):
+
+    def setUp(self):
+        reset_engine()
 
     def test_extract_nothing(self):
         self.assertEqual(GraphRAGEngine.extract_sources({"entities": pd.DataFrame()}), [])

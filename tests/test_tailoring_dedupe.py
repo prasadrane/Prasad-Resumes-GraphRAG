@@ -37,7 +37,9 @@ class TestTailoringDedupe(unittest.TestCase):
     def test_llm_called_with_two_positional_args(self):
         calls = []
 
-        def spy(prompt, system_prompt):
+        def spy(prompt, system_prompt, **kwargs):
+            # The production signature passes temperature / timeout / model / use_case
+            # as kwargs; accept them so the mock stays forward-compatible.
             calls.append((prompt, system_prompt))
             return MOCK_LLM_RESPONSE
 

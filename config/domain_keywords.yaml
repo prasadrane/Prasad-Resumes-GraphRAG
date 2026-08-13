@@ -1,0 +1,67 @@
+# Domain Keywords for Summary Variant Selection
+# Maps domain categories to keyword lists used for scoring JD relevance.
+
+domains:
+  "AI / LLM-Forward":
+    - AI
+    - ML
+    - LLM
+    - Bedrock
+    - chatbot
+    - NLP
+    - prompt
+    - Claude
+    - GPT
+    - machine learning
+    - deep learning
+    - generative
+    - RAG
+    - language model
+    - natural language
+    - neural
+    - transformer
+    - inference
+  "Cloud & Reliability-Forward":
+    - cloud
+    - AWS
+    - Azure
+    - GCP
+    - infrastructure
+    - reliability
+    - uptime
+    - SRE
+    - migration
+    - ECS
+    - Fargate
+    - Lambda
+    - containeriz
+    - scalab
+    - distributed system
+    - high availability
+  "Platform & DevEx-Forward":
+    - platform
+    - developer experience
+    - tooling
+    - onboarding
+    - DevEx
+    - DX
+    - developer productivity
+    - internal tools
+    - DevOps
+    - platform engineering
+  "Security & Auth-Forward":
+    - security
+    - authentication
+    - authorization
+    - OAuth
+    - JWT
+    - SSO
+    - IAM
+    - compliance
+    - zero trust
+    - RBAC
+    - identity
+    - penetration
+    - vulnerability
+    - SOC
+    - audit

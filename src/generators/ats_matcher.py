@@ -4,15 +4,20 @@ ats_matcher.py — ATS keyword extraction from Job Descriptions and GraphRAG sto
 
 import logging
 import re
-from typing import Optional
 from pathlib import Path
+from typing import Optional, List
+
+import yaml
+
 from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
 from .constants import COMMON_ATS_KEYWORDS
 
 log = logging.getLogger(__name__)
 
-KNOWN_TECH_PATTERNS = [
+# ── Tech Patterns (loaded from YAML config; falls back to hardcoded if missing) ──
+
+_DEFAULT_TECH_PATTERNS: list[str] = [
     r"\b\.NET\s*(?:Core|[6789])?\b",
     r"\bC#\b",
     r"\bPython\b",
@@ -50,6 +55,26 @@ KNOWN_TECH_PATTERNS = [
     r"\bSingle-Table\b",
     r"\bDevEx\b",
 ]
+
+
+def _load_tech_patterns(config_dir: Optional[Path] = None) -> list[str]:
+    """Load tech regex patterns from *config/tech_patterns.yaml*, falling back to defaults."""
+    if config_dir is None:
+        config_dir = ROOT_DIR / "config"
+    yaml_path = config_dir / "tech_patterns.yaml"
+    try:
+        if yaml_path.exists():
+            data = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            patterns: list[str] = data.get("patterns", [])
+            if patterns:
+                return patterns
+    except Exception as exc:  # pragma: no cover
+        log.warning("Failed to load tech_patterns.yaml: %s — using built-in defaults", exc)
+    return list(_DEFAULT_TECH_PATTERNS)
+
+
+KNOWN_TECH_PATTERNS = _load_tech_patterns()
+
 
 def extract_ats_keywords(jd_text: str) -> list[str]:
     """Extract ATS keywords, technologies, and competencies dynamically from job description text."""

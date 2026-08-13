@@ -683,7 +683,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                         sources.forEach(src => {
                                             const chip = document.createElement('span');
                                             chip.className = 'source-chip';
-                                            chip.innerHTML = `<span class="material-symbols-outlined">description</span> ${src}`;
+                                            const srcLabel = src.name || src.title || 'Source';
+                                            chip.innerHTML = `<span class="material-symbols-outlined">description</span> ${srcLabel}`;
                                             chipsDiv.appendChild(chip);
                                         });
                                         assistantMsgDiv.appendChild(chipsDiv);

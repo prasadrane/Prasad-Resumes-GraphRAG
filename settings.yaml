@@ -96,7 +96,7 @@ entity_extraction:
     - Achievement
     - Story
     - Metric
-  max_gleanings: 1
+  max_gleanings: 3
 
 ### Summarization ###
 

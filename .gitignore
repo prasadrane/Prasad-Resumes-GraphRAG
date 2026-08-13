@@ -30,3 +30,6 @@ Thumbs.db
 coverage.xml
 htmlcov/
 .vercel
+
+# Playwright MCP test artifacts
+.playwright-mcp/

@@ -129,6 +129,9 @@ def retry_with_backoff(
                     # Never retry rate-limit errors — caller needs them now
                     if is_rate_limit_error(err):
                         raise
+                    # Never retry circuit-breaker rejections — provider is tripped, move to next
+                    if isinstance(err, ProviderCircuitOpen):
+                        raise
                     last_exc = err
                     if attempt < max_retries:
                         delay = base_delay * (2 ** attempt)
@@ -198,15 +201,23 @@ def call_serverless_llm(
             "Neither OPENROUTER_API_KEY nor GEMINI_API_KEY environment variable "
             "is set for serverless gateway."
         )
-    resolved = model or get_model_for("chat")[1]
 
-    @retry_with_backoff(max_retries=3, base_delay=1.0)
     def make_safe_fn(name: str):
         provider = _client(name)
-        cb = _breaker(name)
-        # Return a callable that _try_chain can invoke.
-        # Circuit-breaker + actual chat are inside this wrapper.
-        return lambda: _do_chat(provider, prompt, system_prompt, resolved, temperature, timeout)
+        # Each provider uses its own chat model (or explicit model if provided)
+        if model:
+            provider_model = model
+        else:
+            provider_config = get_provider(name)
+            provider_model = provider_config.models.get("chat")
+            if not provider_model:
+                raise ValueError(f"Provider '{name}' has no chat model configured")
+
+        @retry_with_backoff(max_retries=3, base_delay=1.0)
+        def call_with_retry():
+            return _do_chat(provider, prompt, system_prompt, provider_model, temperature, timeout)
+
+        return call_with_retry
 
     fns = [make_safe_fn(n) for n in _CHAT_CHAIN_ORDER if _has_key(n)]
     if not fns:
@@ -230,32 +241,55 @@ async def call_serverless_llm_stream(
     timeout: int = 60,
 ) -> AsyncGenerator[str, None]:
     """Streaming chat — yields tokens from the first provider that returns any."""
-    resolved = model or get_model_for("chat")[1]
     any_attempted = False
+    last_error: Optional[Exception] = None
 
     for name in _CHAT_CHAIN_ORDER:
         if not _has_key(name):
             continue
         any_attempted = True
         provider = _client(name)
-        gen = provider.chat_stream(system_prompt, user_message, resolved, temperature, timeout)
-        consumed = False
+        # Each provider uses its own chat model (or explicit model if provided)
+        if model:
+            provider_model = model
+        else:
+            provider_config = get_provider(name)
+            provider_model = provider_config.models.get("chat")
+            if not provider_model:
+                last_error = ValueError(f"Provider '{name}' has no chat model configured")
+                continue
+
         try:
-            while True:
-                tok = await gen.__anext__()
-                yield tok
-                consumed = True
-        except StopAsyncIteration:
+            gen = provider.chat_stream(system_prompt, user_message, provider_model, temperature, timeout)
+            consumed = False
+            try:
+                while True:
+                    tok = await gen.__anext__()
+                    yield tok
+                    consumed = True
+            except StopAsyncIteration:
+                if consumed:
+                    return  # successfully yielded at least one token
+                # Provider yielded 0 tokens — treat as empty response, try next
+                last_error = RuntimeError(f"Provider '{name}' returned empty response")
+                continue
+        except Exception as err:
+            # If we already yielded tokens, re-raise — don't garble output with next provider
             if consumed:
-                return  # successfully yielded at least one token
-            continue  # nothing yielded → try next provider
+                raise
+            # Provider raised an error before yielding — track it and try next
+            last_error = err
+            continue
         break
 
     if not any_attempted:
         raise ValueError(
             "No API keys set (ALIBABA_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY)."
         )
-    raise ValueError("All streaming providers in the chain failed.")
+    # All providers failed — raise the last error with context
+    if last_error:
+        raise RuntimeError(f"All streaming providers failed. Last error: {last_error}") from last_error
+    raise RuntimeError("All streaming providers in the chain failed.")
 
 
 async def get_embedding(text: str) -> List[float]:
