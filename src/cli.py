@@ -52,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
     query_parser.add_argument("--mode", choices=["local", "global"], default="local", help="Query mode (local or global)")
     query_parser.add_argument("query_string", type=str, help="Search query string")
 
+    # Benchmark sub-command
+    bench_parser = subparsers.add_parser("benchmark", help="Run synthetic evaluation benchmarks across GraphRAG retrieval modes")
+    bench_parser.add_argument("--output", type=str, default=str(ROOT_DIR / "output" / "benchmark_report.md"), help="Path to save markdown benchmark report")
+    bench_parser.add_argument("--mode", choices=["local", "drift", "global", "all"], default="all", help="Retrieval mode to evaluate")
+
     # UI sub-command
     subparsers.add_parser("ui", help="Launch the Web UI server via vercel dev")
 
@@ -123,6 +128,10 @@ def main() -> None:
         except Exception as e:
             print(f"[CLI ERROR] Query failed: {e}")
             sys.exit(1)
+
+    elif args.command == "benchmark":
+        from scripts.benchmark_eval import run_benchmark
+        run_benchmark(Path(args.output), mode=args.mode)
 
     elif args.command == "ui":
         import importlib.util

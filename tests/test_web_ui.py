@@ -67,6 +67,7 @@ class TestWebUI(unittest.TestCase):
 
     def test_save_edit_endpoint(self):
         """Test POST /api/save-edit updates raw text and re-renders PDF."""
+        self.test_output_dir.mkdir(parents=True, exist_ok=True)
         test_txt = self.test_output_dir / "Prasad_Rane_Resume.txt"
         test_txt.write_text("# Prasad Rane\n\n## Professional Summary\nInitial summary.", encoding="utf-8")
 

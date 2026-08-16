@@ -12,7 +12,7 @@ Gracefully falls back to static_text reader when parquet/LanceDB artifacts are m
 
 import os
 from pathlib import Path
-from typing import Optional, List, Dict, Any, AsyncGenerator
+from typing import Optional, List, Dict, Any, AsyncGenerator, Tuple
 import asyncio
 import json
 
@@ -140,6 +140,66 @@ class GraphRAGEngine:
             return await self._drift_retrieval(query, top_k=top_k)
         else:
             raise ValueError(f"Unknown GraphRAG mode: {mode!r}. Choose local/global/drift.")
+
+    async def retrieve_healed(
+        self, query: str, mode: str = "local", top_k: int = 10
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        """Retrieve context with autonomous self-healing guardrail verification.
+        
+        Evaluates context density and entity coverage; if insufficient, retries across
+        fallback modes (local -> drift -> global) to maximize answer quality.
+        """
+        from .retrieval_guardrail import RetrievalGuardrail
+        from .intent_classifier import IntentClassifier
+
+        guardrail = RetrievalGuardrail()
+        classifier = IntentClassifier()
+        details = classifier.classify_with_details(query)
+        extracted_entities = details.get("extracted_entities", [])
+
+        # 1. Attempt initial retrieval mode
+        initial_ctx = await self.retrieve(query, mode=mode, top_k=top_k)
+        initial_formatted = self.format_context(initial_ctx)
+        report = guardrail.evaluate_context(query, initial_formatted, extracted_entities)
+
+        if report.is_sufficient:
+            return initial_ctx, []
+
+        # 2. Execute self-healing escalation across fallback modes
+        best_ctx = initial_ctx
+        best_token_count = len(initial_formatted.split())
+        trace: List[Dict[str, Any]] = [
+            {
+                "attempt": 1,
+                "mode": mode,
+                "is_sufficient": report.is_sufficient,
+                "token_count": report.token_count,
+                "issues": report.detected_issues,
+            }
+        ]
+
+        fallback_modes = [m for m in ["local", "drift", "global"] if m != mode]
+        for attempt_idx, next_mode in enumerate(fallback_modes, start=2):
+            next_ctx = await self.retrieve(query, mode=next_mode, top_k=top_k)
+            next_formatted = self.format_context(next_ctx)
+            next_report = guardrail.evaluate_context(query, next_formatted, extracted_entities)
+
+            trace.append({
+                "attempt": attempt_idx,
+                "mode": next_mode,
+                "is_sufficient": next_report.is_sufficient,
+                "token_count": next_report.token_count,
+                "issues": next_report.detected_issues,
+            })
+
+            curr_tokens = len(next_formatted.split())
+            if next_report.is_sufficient:
+                return next_ctx, trace
+            elif curr_tokens > best_token_count:
+                best_ctx = next_ctx
+                best_token_count = curr_tokens
+
+        return best_ctx, trace
 
     # ── local mode: vector-search text-units, resolve entities & rels ────
 

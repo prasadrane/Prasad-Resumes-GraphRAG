@@ -578,6 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentMode: 'local',
         sessionId: localStorage.getItem('graphrag_session') || null,
 
+        voiceInputBtn: document.getElementById('voice-input-btn'),
+        recognition: null,
+        isRecording: false,
+
         init() {
             if (!this.chatForm) return;
             this.chatForm.addEventListener('submit', (e) => this.handleSubmit(e));
@@ -601,10 +605,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
+            this.initVoiceRecognition();
+
             if (!this.sessionId) {
                 this.sessionId = crypto.randomUUID();
                 localStorage.setItem('graphrag_session', this.sessionId);
             }
+        },
+
+        initVoiceRecognition() {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRec || !this.voiceInputBtn) {
+                if (this.voiceInputBtn) this.voiceInputBtn.style.display = 'none';
+                return;
+            }
+
+            this.recognition = new SpeechRec();
+            this.recognition.continuous = false;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+
+            this.recognition.onstart = () => {
+                this.isRecording = true;
+                this.voiceInputBtn.classList.add('recording');
+                this.chatInput.placeholder = '🎙️ Listening... Speak your question now.';
+            };
+
+            this.recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
+                this.chatInput.value = transcript;
+            };
+
+            this.recognition.onend = () => {
+                this.isRecording = false;
+                this.voiceInputBtn.classList.remove('recording');
+                this.chatInput.placeholder = "Type or speak your question about Prasad's experience...";
+                if (this.chatInput.value.trim().length > 3) {
+                    this.handleSubmit(new Event('submit'));
+                }
+            };
+
+            this.recognition.onerror = (event) => {
+                console.warn('Voice recognition error:', event.error);
+                this.isRecording = false;
+                this.voiceInputBtn.classList.remove('recording');
+                this.chatInput.placeholder = "Type or speak your question about Prasad's experience...";
+            };
+
+            this.voiceInputBtn.addEventListener('click', () => {
+                if (this.isRecording) {
+                    this.recognition.stop();
+                } else {
+                    this.chatInput.value = '';
+                    this.recognition.start();
+                }
+            });
         },
 
         async handleSubmit(e) {
@@ -677,6 +734,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
                                 if (payload.done) {
                                     const sources = payload.sources || [];
+                                    const trace = payload.trace || [];
+
+                                    // Render Self-Healing & Retrieval Trace
+                                    if (trace.length > 0 || sources.length > 0) {
+                                        this.addTraceVisualizer(assistantMsgDiv, trace, sources);
+                                    }
+
+                                    // Render Source Chips
                                     if (sources.length > 0) {
                                         const chipsDiv = document.createElement('div');
                                         chipsDiv.className = 'source-chips';
@@ -689,7 +754,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                         });
                                         assistantMsgDiv.appendChild(chipsDiv);
                                     }
+
                                     this.addCopyButton(bubbleDiv, fullResponse);
+                                    this.addSpeechButton(bubbleDiv, fullResponse);
                                 }
                             } catch (_) {
                                 // Ignore malformed JSON chunks
@@ -709,32 +776,70 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        simulateTypewriter(element, text) {
-            return new Promise((resolve) => {
-                const words = text.split(' ');
-                let currentWordIndex = 0;
-                let displayedText = '';
+        addTraceVisualizer(msgDiv, trace, sources) {
+            const details = document.createElement('details');
+            details.className = 'trace-details';
+            
+            const isHealed = trace.some(t => t.attempt > 1);
+            const badgeClass = isHealed ? 'trace-badge healed' : 'trace-badge';
+            const badgeText = isHealed ? '⚡ Retrieval Healed' : '✓ Verified Context';
 
-                if (words.length <= 1) {
-                    element.innerHTML = Utils.formatMarkdown(text);
-                    resolve();
-                    return;
+            details.innerHTML = `
+                <summary class="trace-summary">
+                    <span class="material-symbols-outlined">network_check</span>
+                    <span>GraphRAG Reasoning & Guardrail Trace</span>
+                    <span class="${badgeClass}">${badgeText}</span>
+                </summary>
+                <div class="trace-content">
+                    <div class="trace-item"><strong>Mode:</strong> ${this.currentMode.toUpperCase()}</div>
+                    <div class="trace-item"><strong>Entities & Communities:</strong> ${sources.length} retrieved</div>
+                    ${trace.map(t => `<div class="trace-item">• Attempt #${t.attempt} (${t.mode}): ${t.token_count || 0} tokens (${t.is_sufficient ? 'Sufficient' : 'Low density'})</div>`).join('')}
+                </div>
+            `;
+            msgDiv.appendChild(details);
+        },
+
+        addSpeechButton(bubbleDiv, text) {
+            if (!window.speechSynthesis) return;
+            if (bubbleDiv.querySelector('.speak-msg-btn')) return;
+
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'speak-msg-btn';
+            speakBtn.title = 'Audio Briefing (Text-to-Speech)';
+            speakBtn.innerHTML = '<span class="material-symbols-outlined">volume_up</span>';
+
+            let isSpeaking = false;
+
+            speakBtn.addEventListener('click', () => {
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                    speakBtn.classList.remove('speaking');
+                    speakBtn.innerHTML = '<span class="material-symbols-outlined">volume_up</span>';
+                } else {
+                    window.speechSynthesis.cancel(); // Stop any prior speech
+                    const cleanText = text.replace(/[*#_`\[\]()]/g, ' ').replace(/\s+/g, ' ').trim();
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    utterance.rate = 1.0;
+                    utterance.pitch = 1.0;
+
+                    utterance.onstart = () => {
+                        isSpeaking = true;
+                        speakBtn.classList.add('speaking');
+                        speakBtn.innerHTML = '<span class="material-symbols-outlined">stop_circle</span>';
+                    };
+
+                    utterance.onend = utterance.onerror = () => {
+                        isSpeaking = false;
+                        speakBtn.classList.remove('speaking');
+                        speakBtn.innerHTML = '<span class="material-symbols-outlined">volume_up</span>';
+                    };
+
+                    window.speechSynthesis.speak(utterance);
                 }
-
-                const interval = setInterval(() => {
-                    if (currentWordIndex >= words.length) {
-                        clearInterval(interval);
-                        element.innerHTML = Utils.formatMarkdown(text);
-                        resolve();
-                        return;
-                    }
-
-                    displayedText += (currentWordIndex === 0 ? '' : ' ') + words[currentWordIndex];
-                    element.innerHTML = Utils.formatMarkdown(displayedText);
-                    currentWordIndex++;
-                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-                }, 20);
             });
+
+            bubbleDiv.appendChild(speakBtn);
         },
 
         addCopyButton(bubbleDiv, text) {

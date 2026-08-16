@@ -1,17 +1,20 @@
 """
-ats_matcher.py — ATS keyword extraction from Job Descriptions and GraphRAG story matching.
+ats_matcher.py — ATS keyword extraction from Job Descriptions, SME Ontology expansion,
+and GraphRAG story matching with action-verb impact ranking.
 """
 
 import logging
 import re
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import yaml
 
 from src.config import ROOT_DIR
 from src.query.search_engine import execute_graphrag_query
 from .constants import COMMON_ATS_KEYWORDS
+from .sme_ontology import SMEOntology
+from .scoring import ImpactScorer, ScoreBreakdown
 
 log = logging.getLogger(__name__)
 
@@ -74,17 +77,24 @@ def _load_tech_patterns(config_dir: Optional[Path] = None) -> list[str]:
 
 
 KNOWN_TECH_PATTERNS = _load_tech_patterns()
+_ontology = SMEOntology()
+_scorer = ImpactScorer()
 
 
-def extract_ats_keywords(jd_text: str) -> list[str]:
-    """Extract ATS keywords, technologies, and competencies dynamically from job description text."""
+def extract_ats_keywords(jd_text: str, expand_ontology: bool = True) -> list[str]:
+    """Extract ATS keywords, technologies, and competencies dynamically from job description text.
+    
+    If expand_ontology is True, queries the SME Technology Ontology to enrich with
+    domain child skills, parent categories, and normalized synonyms.
+    """
     if not jd_text or not jd_text.strip():
         return []
 
     found = set()
     upper_keywords = {kw.upper() for kw in COMMON_ATS_KEYWORDS}
+    jd_lower = jd_text.lower()
     
-    # 1. Match static dictionary terms
+    # 1. Match static dictionary terms (single words & tokens)
     cleaned = re.sub(r"[^A-Za-z0-9+#/\s-]", " ", jd_text)
     tokens = [t.strip().upper() for t in cleaned.split() if len(t.strip()) >= 2]
 
@@ -99,7 +109,18 @@ def extract_ats_keywords(jd_text: str) -> list[str]:
         for m in matches:
             found.add(m.strip())
 
-    # 3. Match camelCase / TitleCase technical terms from JD
+    # 3. Match ontology domain categories, skills, and synonyms directly in JD text
+    for syn in _ontology.SYNONYM_MAP.keys():
+        if len(syn) >= 3 and re.search(r"\b" + re.escape(syn) + r"\b", jd_lower):
+            found.add(syn)
+    for cat in _ontology.CATEGORY_CHILDREN_MAP.keys():
+        if len(cat) >= 3 and re.search(r"\b" + re.escape(cat) + r"\b", jd_lower):
+            found.add(cat)
+    for skill in _ontology.SKILL_TAXONOMY.keys():
+        if len(skill) >= 3 and re.search(r"\b" + re.escape(skill) + r"\b", jd_lower):
+            found.add(skill)
+
+    # 4. Match camelCase / TitleCase technical terms from JD
     words = re.findall(r"\b[A-Z][a-zA-Z0-9#+.-]{2,}\b", jd_text)
     ignore_words = {"The", "And", "With", "For", "This", "That", "Your", "Have", "From", "Will", "Role", "Team", "Work"}
     for w in words:
@@ -107,10 +128,66 @@ def extract_ats_keywords(jd_text: str) -> list[str]:
             if w.upper() in upper_keywords:
                 matched_kw = next((kw for kw in COMMON_ATS_KEYWORDS if kw.upper() == w.upper()), w)
                 found.add(matched_kw)
-            elif any(c.isupper() for c in w[1:]): # e.g. FastAPI, DynamoDB, OpenTelemetry
+            elif any(c.isupper() for c in w[1:]):  # e.g. FastAPI, DynamoDB, OpenTelemetry
                 found.add(w)
 
+    # 5. SME Ontology Expansion (Domain Categories, Synonyms, and Child Skills)
+    if expand_ontology:
+        expanded_terms = _ontology.expand_query_terms(list(found))
+        found.update(expanded_terms)
+
     return sorted(list(found), key=lambda x: (len(x), x), reverse=True)
+
+
+def rank_experience_bullets(
+    bullets: list[str],
+    keywords: Optional[list[str]] = None,
+    start_year: Optional[int] = None,
+    end_year: Optional[int] = None,
+    duration_years: Optional[float] = None,
+    reference_year: Optional[int] = None,
+) -> list[Tuple[str, ScoreBreakdown]]:
+    """Rank candidate experience bullets using Action-Verb Impact Scoring, Metric Detection, and Recency Decay."""
+    if not bullets:
+        return []
+
+    scored_bullets: list[Tuple[str, ScoreBreakdown]] = []
+    kw_set = {k.lower() for k in keywords} if keywords else set()
+
+    for bullet in bullets:
+        score_breakdown = _scorer.score_bullet(
+            bullet=bullet,
+            start_year=start_year,
+            end_year=end_year,
+            duration_years=duration_years,
+            reference_year=reference_year,
+        )
+
+        # Keyword density bonus if bullet contains target keywords
+        if kw_set:
+            bullet_lower = bullet.lower()
+            kw_matches = sum(1 for kw in kw_set if kw in bullet_lower)
+            if kw_matches > 0:
+                bonus = min(0.15 * kw_matches, 0.3)
+                adjusted_final = min(1.0, score_breakdown.final_score + bonus)
+                # Reconstruct breakdown with adjusted final score
+                score_breakdown = ScoreBreakdown(
+                    verb_score=score_breakdown.verb_score,
+                    metric_bonus=score_breakdown.metric_bonus,
+                    impact_score=score_breakdown.impact_score,
+                    recency_score=score_breakdown.recency_score,
+                    duration_score=score_breakdown.duration_score,
+                    final_score=round(adjusted_final, 4),
+                    detected_metrics=score_breakdown.detected_metrics,
+                    verb_tier=score_breakdown.verb_tier,
+                )
+
+        scored_bullets.append((bullet, score_breakdown))
+
+    # Sort descending by final score
+    scored_bullets.sort(key=lambda item: item[1].final_score, reverse=True)
+    return scored_bullets
+
 
 def match_graphrag_stories(keywords: list[str], root_dir: Optional[Path] = None) -> list[str]:
     """Query GraphRAG knowledge graph using keywords to retrieve candidate achievements."""

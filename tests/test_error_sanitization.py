@@ -19,7 +19,10 @@ class TestErrorSanitization(unittest.TestCase):
         # Patch get_engine to return a mock whose chat_stream raises, so the
         # exception handler in _handle_query_core sanitizes the message.
         mock_engine = MagicMock()
-        mock_engine.chat_stream = AsyncMock(side_effect=RuntimeError("SECRET_DB_PASSWORD"))
+        async def failing_stream(*args, **kwargs):
+            raise RuntimeError("SECRET_DB_PASSWORD")
+            yield "never_yielded"
+        mock_engine.chat_stream = failing_stream
         with patch("src.shared.api_routes.get_engine", return_value=mock_engine):
             response = client.post("/api/query", json={"query": "anything", "mode": "local"})
         self.assertEqual(response.status_code, 500)

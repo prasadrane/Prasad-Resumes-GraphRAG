@@ -219,6 +219,69 @@ class TestTidMatch(unittest.TestCase):
         self.assertFalse(_tid_match("xyz", arr))
 
 
+# ── retrieve_healed self-healing guardrail test ──────────────────────────────
+
+class TestRetrieveHealed(unittest.TestCase):
+
+    def setUp(self):
+        reset_engine()
+
+    def test_retrieve_healed_sufficient_returns_no_trace(self):
+        engine = GraphRAGEngine(Path(_ROOT))
+        
+        rich_ctx = {
+            "text_units": pd.DataFrame([
+                {
+                    "id": "t1",
+                    "text": (
+                        "Prasad architected AWS ECS Fargate microservices with Python and FastAPI, "
+                        "reducing infrastructure cost by 40% and achieving 99.95% uptime across "
+                        "cloud production environments with automated deployment pipelines and CloudWatch."
+                    ),
+                }
+            ]),
+            "entities": pd.DataFrame([{"id": "e1", "title": "AWS", "description": "Cloud"}]),
+            "relationships": pd.DataFrame(),
+            "communities": pd.DataFrame(),
+        }
+        
+        async def fake_retrieve(query, mode="local", top_k=10):
+            return rich_ctx
+
+        engine.retrieve = fake_retrieve  # type: ignore
+
+        ctx, trace = _run(engine.retrieve_healed("What AWS experience does Prasad have?", mode="local"))
+        self.assertEqual(ctx, rich_ctx)
+        self.assertEqual(trace, [])
+
+    def test_retrieve_healed_escalates_on_empty_context(self):
+        engine = GraphRAGEngine(Path(_ROOT))
+        
+        empty_ctx = {
+            "text_units": pd.DataFrame(),
+            "entities": pd.DataFrame(),
+            "relationships": pd.DataFrame(),
+            "communities": pd.DataFrame(),
+        }
+        rich_ctx = {
+            "text_units": pd.DataFrame([{"id": "t1", "text": "Prasad worked with Kafka event streaming and microservices."}]),
+            "entities": pd.DataFrame([{"id": "e1", "title": "Kafka", "description": "Streaming"}]),
+            "relationships": pd.DataFrame(),
+            "communities": pd.DataFrame(),
+        }
+
+        async def fake_retrieve(query, mode="local", top_k=10):
+            if mode == "local":
+                return empty_ctx
+            return rich_ctx
+
+        engine.retrieve = fake_retrieve  # type: ignore
+
+        ctx, trace = _run(engine.retrieve_healed("Tell me about Kafka experience", mode="local"))
+        self.assertEqual(ctx, rich_ctx)
+        self.assertGreater(len(trace), 0)
+
+
 # ── singleton helper ────────────────────────────────────────────────────────
 
 @unittest.skipUnless(_HAS_ARTIFACTS, _SKIP_NO_ARTIFACTS)
@@ -240,3 +303,4 @@ class TestGetEngine(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

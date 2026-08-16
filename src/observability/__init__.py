@@ -95,3 +95,25 @@ def get_logger(name: str | None = None) -> logging.Logger:
 #     from src.observability import logger
 #     logger.info("something happened")
 logger = get_logger("obs")
+
+# ── Benchmark Evaluation Exports ─────────────────────────────────────────────
+from src.observability.benchmark_eval import (
+    AggregateBenchmarkReport,
+    BenchmarkCase,
+    BenchmarkEvaluator,
+    DEFAULT_BENCHMARK_DATASET,
+    EvaluationResult,
+)
+
+__all__ = [
+    "set_correlation_id",
+    "get_correlation_id",
+    "get_logger",
+    "logger",
+    "BenchmarkCase",
+    "EvaluationResult",
+    "AggregateBenchmarkReport",
+    "BenchmarkEvaluator",
+    "DEFAULT_BENCHMARK_DATASET",
+]
+

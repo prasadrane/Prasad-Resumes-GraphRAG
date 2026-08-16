@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-08-15T14:35:00Z",
+  "commit_sha": "local_dev_workspace",
+  "project": "Prasad-Resumes-GraphRAG",
+  "levels_generated": ["earth", "continent", "country"],
+  "subsystems": {
+    "src/gateway": { "generated": true, "files": 6 },
+    "src/query": { "generated": true, "files": 7 },
+    "src/generators": { "generated": true, "files": 9 },
+    "src/converters": { "generated": true, "files": 5 },
+    "src/observability": { "generated": true, "files": 2 },
+    "src/web": { "generated": true, "files": 4 },
+    "src/shared": { "generated": true, "files": 3 }
+  }
+}

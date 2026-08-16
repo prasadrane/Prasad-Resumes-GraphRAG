@@ -237,9 +237,12 @@
                         </div>
                     </div>
 
-                    <!-- Chat Input Bar (M3 Pill Search Container) -->
+                    <!-- Chat Input Bar (M3 Pill Search Container with Voice Input) -->
                     <form id="chat-form" class="m3-chat-input-bar">
-                        <input type="text" id="chat-input" placeholder="Type your question about Prasad's experience..." autocomplete="off" required>
+                        <input type="text" id="chat-input" placeholder="Type or speak your question about Prasad's experience..." autocomplete="off" required>
+                        <button type="button" id="voice-input-btn" class="m3-icon-button voice-btn" aria-label="Voice Input (Speech-to-Text)" title="Voice Query (Speech-to-Text)">
+                            <span class="material-symbols-outlined">mic</span>
+                        </button>
                         <button type="submit" id="chat-send-btn" class="m3-fab-btn" aria-label="Send Question" title="Send">
                             <span class="material-symbols-outlined">send</span>
                         </button>
