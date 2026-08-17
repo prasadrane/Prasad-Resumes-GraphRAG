@@ -34,41 +34,57 @@ class PageCountCanvas(canvas.Canvas):
             print(f"[WARN] PDF Resume exceeded {MAX_PAGES}-page constraint ({self._page_count} pages). Adjusting content spacing recommended.")
         super().save()
 
-def get_resume_styles() -> Dict[str, ParagraphStyle]:
-    """Return configured ReportLab ParagraphStyles for ATS resume layout."""
+def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dict[str, ParagraphStyle]:
+    """Return configured ReportLab ParagraphStyles for ATS resume layout with adaptive compact modes."""
     styles = getSampleStyleSheet()
     font_family = "Helvetica"
     font_bold = "Helvetica-Bold"
+
+    if ultra_compact:
+        body_size, body_lead, bullet_space = 8.5, 11.0, 1.5
+        sec_size, sec_lead, sec_space = 9.5, 12.0, 3.0
+        name_size, name_lead, name_space = 19.0, 22.0, 4.0
+        contact_size, contact_lead, contact_space = 8.5, 11.0, 6.0
+    elif compact:
+        body_size, body_lead, bullet_space = 9.0, 12.0, 2.0
+        sec_size, sec_lead, sec_space = 10.0, 12.5, 4.0
+        name_size, name_lead, name_space = 21.0, 24.0, 5.0
+        contact_size, contact_lead, contact_space = 9.0, 12.0, 8.0
+    else:
+        body_size, body_lead, bullet_space = 9.5, 13.0, 3.0
+        sec_size, sec_lead, sec_space = 10.5, 13.0, 6.0
+        name_size, name_lead, name_space = 23.0, 26.0, 6.0
+        contact_size, contact_lead, contact_space = 9.5, 13.0, 12.0
 
     return {
         "name": ParagraphStyle(
             "ResName",
             parent=styles["Normal"],
             fontName=font_bold,
-            fontSize=23,
-            leading=26,
+            fontSize=name_size,
+            leading=name_lead,
             textColor=COLOR_DARK,
-            spaceAfter=6,
+            spaceAfter=name_space,
             alignment=0,
         ),
         "contact": ParagraphStyle(
             "ResContact",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=contact_size,
+            leading=contact_lead,
             textColor=COLOR_META,
-            spaceAfter=12,
+            spaceAfter=contact_space,
             alignment=0,
         ),
         "sec_header": ParagraphStyle(
             "ResSecHeader",
             parent=styles["Normal"],
             fontName=font_bold,
-            fontSize=10.5,
-            leading=13,
+            fontSize=sec_size,
+            leading=sec_lead,
             textColor=COLOR_DARK,
-            spaceAfter=6,
+            spaceAfter=sec_space,
             alignment=0,
             keepWithNext=True,
         ),
@@ -76,63 +92,63 @@ def get_resume_styles() -> Dict[str, ParagraphStyle]:
             "ResJobHeading",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=10.5,
-            leading=13,
+            fontSize=sec_size,
+            leading=sec_lead,
             textColor=COLOR_DARK,
-            spaceAfter=4,
+            spaceAfter=3 if (compact or ultra_compact) else 4,
             alignment=0,
         ),
         "bullet": ParagraphStyle(
             "ResBullet",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=body_size,
+            leading=body_lead,
             textColor=COLOR_BODY,
             leftIndent=0,
             firstLineIndent=0,
-            spaceAfter=3,
+            spaceAfter=bullet_space,
             alignment=0,
         ),
         "summary": ParagraphStyle(
             "ResSummary",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=body_size,
+            leading=body_lead,
             textColor=COLOR_BODY,
-            spaceAfter=6,
+            spaceAfter=4 if (compact or ultra_compact) else 6,
             alignment=0,
         ),
         "skill": ParagraphStyle(
             "ResSkill",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=body_size,
+            leading=body_lead,
             textColor=COLOR_BODY,
             leftIndent=0,
-            spaceAfter=4,
+            spaceAfter=2.5 if (compact or ultra_compact) else 4,
             alignment=0,
         ),
         "cert": ParagraphStyle(
             "ResCert",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=body_size,
+            leading=body_lead,
             textColor=COLOR_BODY,
-            spaceAfter=2,
+            spaceAfter=1.5 if (compact or ultra_compact) else 2,
             alignment=0,
         ),
         "edu": ParagraphStyle(
             "ResEdu",
             parent=styles["Normal"],
             fontName=font_family,
-            fontSize=9.5,
-            leading=13,
+            fontSize=body_size,
+            leading=body_lead,
             textColor=COLOR_BODY,
-            spaceAfter=2,
+            spaceAfter=1.5 if (compact or ultra_compact) else 2,
             alignment=0,
         ),
     }
@@ -143,7 +159,7 @@ def markdown_to_reportlab_html(text: str) -> str:
         return ""
     # Preserve date hyphens while converting em-dashes
     text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
-    text = text.replace("—", " - ").replace("–", " - ")
+    text = text.replace("—", ". ").replace("–", " - ")
     # Convert markdown code backticks `code` -> <b>code</b>
     text = re.sub(r"`([^`]+)`", r"<b>\1</b>", text)
     # Convert **bold** -> <b>bold</b>

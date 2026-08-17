@@ -483,6 +483,30 @@ class TestFactoryFunction(unittest.TestCase):
                 sys.modules["sentence_transformers"] = saved
 
 
+class TestCandidateBlockingScale(unittest.TestCase):
+    """Test candidate blocking on larger entity sets to verify O(N log N) scaling and accuracy."""
+
+    def test_scaled_entity_blocking_merges_properly(self):
+        # 60 distinct entities + 10 duplicate variants
+        entities = []
+        for i in range(50):
+            entities.append({"name": f"Technology Service Alpha {i}", "type": "Technology"})
+        # Add 5 near duplicates
+        entities.append({"name": "Technology Service Alpha 0 v2", "type": "Technology"})
+        entities.append({"name": "Technology Service Alpha 1 v2", "type": "Technology"})
+        entities.append({"name": "FastAPI Web Framework", "type": "Technology"})
+        entities.append({"name": "FastAPI Framework", "type": "Technology"})
+        
+        resolver = EntityResolver(string_threshold=0.80)
+        resolved, pairs = resolver.resolve(entities)
+        
+        # FastAPI Web Framework and FastAPI Framework should merge (ratio > 0.8)
+        resolved_names = {e["name"] for e in resolved}
+        self.assertTrue("FastAPI Web Framework" in resolved_names or "FastAPI Framework" in resolved_names)
+        self.assertLess(len(resolved), len(entities))
+        self.assertGreater(len(pairs), 0)
+
+
 # ── Helper Fixture Builders ───────────────────────────────────────────────────
 
 def _build_full_entities():

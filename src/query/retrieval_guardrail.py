@@ -174,9 +174,11 @@ class RetrievalGuardrail:
         query: str,
         context: Optional[str],
         extracted_entities: Optional[List[str]] = None,
+        intent: Optional[str] = None,
     ) -> ContextQualityReport:
         """
-        Evaluate retrieved context quality against token density and entity coverage thresholds.
+        Evaluate retrieved context quality against token density and entity coverage thresholds,
+        dynamically adjusted for query intent.
         """
         raw_text = (context or "").strip()
         tokens = raw_text.split() if raw_text else []
@@ -195,8 +197,20 @@ class RetrievalGuardrail:
 
         detected_issues: List[str] = []
 
+        # Intent-adaptive threshold calibration
+        effective_min_tokens = self.min_tokens
+        effective_min_coverage = self.min_entity_coverage
+        if intent:
+            intent_str = str(intent).lower()
+            if "skill" in intent_str or "metrics" in intent_str:
+                effective_min_coverage = max(0.40, self.min_entity_coverage)
+                effective_min_tokens = max(20, self.min_tokens - 10)
+            elif "general" in intent_str or "comparative" in intent_str:
+                effective_min_tokens = max(50, self.min_tokens + 15)
+                effective_min_coverage = max(0.20, self.min_entity_coverage - 0.10)
+
         # Token density check
-        if token_count < self.min_tokens:
+        if token_count < effective_min_tokens:
             detected_issues.append("low_token_density")
 
         # Entity coverage check
@@ -211,13 +225,13 @@ class RetrievalGuardrail:
             entity_coverage = round(len(matched) / len(targets), 2)
             if len(matched) == 0:
                 detected_issues.append("zero_entity_overlap")
-            elif entity_coverage < self.min_entity_coverage:
+            elif entity_coverage < effective_min_coverage:
                 detected_issues.append("low_entity_coverage")
         else:
             entity_coverage = 1.0
 
         # Calculate relevance score (0.0 - 1.0)
-        token_density_ratio = min(1.0, token_count / max(self.min_tokens * 2, 60))
+        token_density_ratio = min(1.0, token_count / max(effective_min_tokens * 2, 60))
         if "zero_entity_overlap" in detected_issues:
             relevance_score = round(min(0.2, 0.1 * token_density_ratio), 2)
         elif "low_token_density" in detected_issues:

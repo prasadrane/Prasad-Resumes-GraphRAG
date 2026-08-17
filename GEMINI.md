@@ -69,6 +69,12 @@ The old `src/query/serverless_gateway.py` is a deprecated re-export shim (~30 li
 
 ## 5. Operational Commands
 
+### Query Codebase Knowledge Graph (Graphify - Default Agent Orientation)
+```powershell
+python -m graphify query "<natural language question or symbol>"
+# Update codebase graph after making changes:
+python -m graphify --update
+```
 
 ### Start LiteLLM Proxy (Port 8002)
 ```powershell

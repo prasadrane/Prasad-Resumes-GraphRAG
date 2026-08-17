@@ -8,19 +8,33 @@ import re
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 from src.config import OUTPUT_DIR_PATH, ROOT_DIR
 
+_CACHED_ENTITIES: Optional[List[Dict[str, Any]]] = None
+
+
+def clear_static_cache() -> None:
+    """Clear in-memory cached entities for testing/reloads."""
+    global _CACHED_ENTITIES
+    _CACHED_ENTITIES = None
+
+
 def read_precomputed_entities() -> List[Dict[str, Any]]:
-    """Read pre-computed entities from output graph artifacts or full MASTER_RESUME.txt."""
+    """Read pre-computed entities from output graph artifacts or full MASTER_RESUME.txt with in-memory caching."""
+    global _CACHED_ENTITIES
+    if _CACHED_ENTITIES is not None:
+        return _CACHED_ENTITIES
+
     json_path = OUTPUT_DIR_PATH / "graph_entities.json"
     if json_path.exists():
         try:
             with open(json_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                _CACHED_ENTITIES = json.load(f)
+                return _CACHED_ENTITIES
         except Exception:
             logger.warning(
                 "Failed to parse %s; falling back to master resume sections.",
@@ -40,7 +54,8 @@ def read_precomputed_entities() -> List[Dict[str, Any]]:
                     header = lines[0].replace("#", "").strip() if lines else "General"
                     content = "\n".join(lines[1:]).strip() if len(lines) > 1 else sec
                     entities.append({"title": header, "content": content})
-                return entities
+                _CACHED_ENTITIES = entities
+                return _CACHED_ENTITIES
         except Exception:
             logger.warning(
                 "Failed to read %s; returning empty entity list.",
@@ -48,7 +63,8 @@ def read_precomputed_entities() -> List[Dict[str, Any]]:
                 exc_info=True,
             )
             
-    return []
+    _CACHED_ENTITIES = []
+    return _CACHED_ENTITIES
 
 def search_static_graph(query_keywords: List[str]) -> List[str]:
     """Execute fast keyword match over static pre-computed entities in < 1 second."""

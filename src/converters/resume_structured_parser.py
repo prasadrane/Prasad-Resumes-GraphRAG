@@ -214,7 +214,7 @@ def _extract_jobs(dividers: List[str]) -> List[Dict[str, Any]]:
     # block whose first non-blank line is a different ## heading
     # (e.g. Education, Gap-Framing) or we run out of blocks.
     exp_pat = re.compile(
-        r'^##.*[Ee]xhaustive|[Ee]xperience.*[Bb]ullet', re.IGNORECASE
+        r'^##.*([Ee]xhaustive|[Ee]xperience)', re.IGNORECASE
     )
     next_section_pat = re.compile(r'^##[^#]')
 
@@ -281,32 +281,43 @@ def _extract_jobs(dividers: List[str]) -> List[Dict[str, Any]]:
         line = lines[i]
         stripped = line.strip()
 
-        if _COMPANY_RE.match(line):
+        if line.startswith('###') and not line.startswith('####'):
             _flush()
-            _parse_company_header(line)
-            i += 1
-            # Consume location/date info beneath header; skip blanks
-            while i < len(lines):
-                ll = lines[i].strip()
-                if not ll:
-                    i += 1
-                    continue
-                if (ll.startswith('- ') or _COMPANY_RE.match(ll) or
-                        _SUBSECTION_RE.match(ll) or
-                        (ll.startswith('##') and not ll.startswith('###'))):
-                    break
-                loc_m = re.search(
-                    _LOC_EMOJI + r'\s*\*?(.*?)\*?\s*\|', ll
-                )
-                date_m = re.search(
-                    _CAL_EMOJI + '️?' + r'\s*\*?(.*?)\*?\s*$', ll
-                )
-                if loc_m:
-                    parent['location'] = loc_m.group(1).strip()
-                if date_m:
-                    parent['dates'] = date_m.group(1).strip()
+            if _COMPANY_RE.match(line):
+                _parse_company_header(line)
                 i += 1
-            continue
+                # Consume location/date info beneath header; skip blanks
+                while i < len(lines):
+                    ll = lines[i].strip()
+                    if not ll:
+                        i += 1
+                        continue
+                    if (ll.startswith('- ') or _COMPANY_RE.match(ll) or
+                            _SUBSECTION_RE.match(ll) or
+                            (ll.startswith('##') and not ll.startswith('###'))):
+                        break
+                    loc_m = re.search(
+                        _LOC_EMOJI + r'\s*\*?(.*?)\*?\s*\|', ll
+                    )
+                    date_m = re.search(
+                        _CAL_EMOJI + '️?' + r'\s*\*?(.*?)\*?\s*$', ll
+                    )
+                    if loc_m:
+                        parent['location'] = loc_m.group(1).strip()
+                    if date_m:
+                        parent['dates'] = date_m.group(1).strip()
+                    i += 1
+                continue
+            elif '|' in line:
+                cleaned_hdr = _strip_md(line.lstrip('#').strip())
+                parts = [p.strip() for p in cleaned_hdr.split('|')]
+                parent['title'] = parts[0] if len(parts) > 0 else ''
+                parent['company'] = parts[1] if len(parts) > 1 else ''
+                parent['location'] = parts[2] if len(parts) > 2 else ''
+                parent['dates'] = parts[3] if len(parts) > 3 else ''
+                has_parent = True
+                i += 1
+                continue
 
         sm = _SUBSECTION_RE.match(line)
         if sm and has_parent:
@@ -318,7 +329,19 @@ def _extract_jobs(dividers: List[str]) -> List[Dict[str, Any]]:
         if stripped.startswith('- ') and has_parent:
             cleaned = _strip_md(stripped[2:].strip()).strip()
             if cleaned:
-                bullets.append(cleaned)
+                if heading is None:
+                    entry_heading = cleaned.split('.')[0] if '.' in cleaned else cleaned[:40]
+                    jobs.append({
+                        'title': parent.get('title', ''),
+                        'company': parent.get('company', ''),
+                        'location': parent.get('location', ''),
+                        'dates': parent.get('dates', ''),
+                        'heading': entry_heading,
+                        'bullets': [cleaned],
+                        'bullet_stories': [],
+                    })
+                else:
+                    bullets.append(cleaned)
             i += 1
             continue
 

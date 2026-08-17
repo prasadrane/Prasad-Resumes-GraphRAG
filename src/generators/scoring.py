@@ -25,6 +25,12 @@ TIER_1_VERBS = {
     "designed",
     "founded",
     "transformed",
+    "modernized",
+    "established",
+    "diagnosed",
+    "resolved",
+    "streamlined",
+    "re-engineered",
 }
 
 TIER_1_VARIANTS = {
@@ -44,6 +50,18 @@ TIER_1_VARIANTS = {
     "founding",
     "transform",
     "transforming",
+    "modernize",
+    "modernizing",
+    "establish",
+    "establishing",
+    "diagnose",
+    "diagnosing",
+    "resolve",
+    "resolving",
+    "streamline",
+    "streamlining",
+    "re-engineer",
+    "re-engineering",
 }
 
 TIER_2_VERBS = {
@@ -266,12 +284,14 @@ class ImpactScorer:
         return results
 
     @classmethod
-    def get_metric_bonus(cls, bullet: str, bonus_value: float = 0.2) -> float:
+    def get_metric_bonus(cls, bullet: str, bonus_value: float = 0.2, multi_metric_bonus: bool = False) -> float:
         """
-        Computes metric bonus (+0.2 if quantified metrics are present, capped at 1.0).
+        Computes metric bonus (+0.2 if quantified metrics are present, optionally boosted if multi_metric_bonus=True).
         """
         metrics = cls.detect_metrics(bullet)
         if metrics:
+            if multi_metric_bonus and len(metrics) >= 2:
+                return min(1.0, float(bonus_value) + 0.1)
             return min(1.0, float(bonus_value))
         return 0.0
 
@@ -316,6 +336,7 @@ class ImpactScorer:
         gamma: float = 0.40,
         reference_year: Optional[int] = None,
         lambda_decay: float = 0.15,
+        role_emphasis: Optional[str] = None,
     ) -> ScoreBreakdown:
         """
         Calculates parameterized composite weight:
@@ -348,7 +369,14 @@ class ImpactScorer:
         else:
             duration_score = 1.0
 
-        final_score = (alpha * duration_score) + (beta * recency_score) + (gamma * impact_score)
+        # Adjust weights if role emphasis is provided (e.g. senior/architect)
+        effective_alpha, effective_beta, effective_gamma = alpha, beta, gamma
+        if role_emphasis and role_emphasis.lower() in {"lead", "leader", "leadership", "architect", "architecture", "principal", "senior", "staff"}:
+            effective_gamma = min(0.60, gamma + 0.10)
+            effective_alpha = max(0.10, alpha - 0.05)
+            effective_beta = max(0.20, beta - 0.05)
+
+        final_score = (effective_alpha * duration_score) + (effective_beta * recency_score) + (effective_gamma * impact_score)
 
         return ScoreBreakdown(
             verb_score=verb_score,

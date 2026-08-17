@@ -516,8 +516,14 @@ def tailor_resume_with_llm_single_call(parsed: "ResumeData", company_name: str, 
     if not llm_response:
         return parsed
 
-    # Parse the response
     lines = llm_response.split("\n")
+    if not any(l.strip().startswith("###") for l in lines):
+        clean_text = re.sub(r'^["\']|["\']$', '', llm_response.strip()).strip()
+        if len(clean_text) > 20:
+            parsed.summary = clean_text
+        return parsed
+
+    # Parse the response
     in_summary = False
     current_job_idx = -1
     summary_lines = []
@@ -674,18 +680,10 @@ def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_di
     # Step 4: tailoring_summary (38%)
     yield ("tailoring_summary", "LLM tailoring summary", 38, "LLM tailoring of executive summary to match target role...")
     if master_content:
-        graphrag_context = _get_graphrag_context(jd_text, keywords)
-        gap_framing = _extract_gap_framing(master_content, jd_text)
-        top_metrics = _extract_top_metrics(parsed)
-        parsed = tailor_summary_with_llm(parsed, company_name, jd_text, graphrag_context, gap_framing, top_metrics)
-    else:
-        graphrag_context = ""
-        gap_framing = ""
+        parsed = llm_tailor_resume(parsed, master_content, company_name, jd_text, keywords)
 
     # Step 5: tailoring_bullets (55%)
     yield ("tailoring_bullets", "LLM tailoring experience bullets", 55, "LLM tailoring of experience bullets per job...")
-    if master_content:
-        parsed = tailor_bullets_with_llm(parsed, company_name, jd_text, graphrag_context, gap_framing)
 
     # Step 6: formatting (72%)
     yield ("formatting", "Formatting & bold marking", 72, "Formatting tailored markdown and marking bold keywords...")

@@ -6,6 +6,30 @@ This file provides guidance to Claude Code (cla.ai/code) when working with code 
 
 GraphRAG knowledge graph engine and automated ATS resume generator built over Prasad Rane's master resume and story bank content. The system uses Microsoft GraphRAG for knowledge extraction, LiteLLM proxy for multi-model LLM routing (OpenRouter + Google Gemini), and generates tailored 2-page PDF resumes with ATS-compliant formatting.
 
+## Codebase Orientation & Indexing Protocol (Graphify)
+
+**Mandatory Rule for Claude Code & AI Agents:**
+Always consult the Graphify knowledge graph index before reading raw files or doing cold-starts across the repository.
+
+1. **Pre-built Index Assets**:
+   - `graphify-out/graph.json`: Complete graph structure (3,700+ nodes, 7,900+ edges, 170 communities).
+   - `graphify-out/GRAPH_REPORT.md`: Architectural overview, God Nodes, and surprising connections.
+   - `graphify-out/graph.html`: Interactive visualization.
+
+2. **Querying the Knowledge Graph (Default Tool for Navigation & Context)**:
+   ```bash
+   # Traverse and inspect architecture/symbols with token-budgeted precision
+   python -m graphify query "<your question or symbol>"
+   python -m graphify query "How does Gateway failover work?" --budget 1500
+   python -m graphify path "BaseProvider" "AlibabaProvider"
+   ```
+
+3. **Incremental Index Updates**:
+   ```bash
+   # Update graph index when new files or functions are added
+   python -m graphify --update
+   ```
+
 ## Common Development Commands
 
 ### Environment Setup

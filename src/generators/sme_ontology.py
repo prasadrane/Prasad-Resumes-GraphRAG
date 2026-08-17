@@ -321,46 +321,56 @@ class SMEOntology:
 
         return expanded
 
-    def are_related(self, term_a: Optional[str], term_b: Optional[str]) -> bool:
+    def semantic_distance(self, term_a: Optional[str], term_b: Optional[str], max_hops: int = 3) -> float:
         """
-        Evaluate whether two technology terms are related through:
-        1. Exact match / Synonym normalization
-        2. Direct Parent-Child relationship
-        3. Shared Domain Categories (Sibling skills in same domain)
+        Calculate semantic graph distance between two technology terms.
+        0.0 = identical/synonyms
+        1.0 = direct parent-child
+        2.0 = siblings in same domain or 2-hop hierarchy
+        inf = unrelated / unreachable within max_hops
         """
         norm_a = self.normalize_term(term_a)
         norm_b = self.normalize_term(term_b)
 
         if not norm_a or not norm_b:
-            return False
+            return float("inf")
 
-        # 1. Exact match / Synonym identity
         if norm_a == norm_b:
-            return True
+            return 0.0
 
-        # 2. Direct Parent-Child check
+        # Direct parent-child (1 hop)
         children_a = set(self.get_child_skills(norm_a))
         if norm_b in children_a:
-            return True
+            return 1.0
 
         children_b = set(self.get_child_skills(norm_b))
         if norm_a in children_b:
-            return True
+            return 1.0
 
-        # 3. Check Parent Categories
+        # Check shared parent categories (2 hops via common parent)
         parents_a = {p.lower() for p in self.get_parent_categories(norm_a)}
         parents_b = {p.lower() for p in self.get_parent_categories(norm_b)}
-
-        # Filter out overly generic categories to prevent false positive associations
         generic_categories = {"programming languages", "data science", "systems programming"}
-        meaningful_parents_a = parents_a - generic_categories
-        meaningful_parents_b = parents_b - generic_categories
-
-        shared_parents = meaningful_parents_a.intersection(meaningful_parents_b)
+        shared_parents = (parents_a - generic_categories).intersection(parents_b - generic_categories)
         if shared_parents:
-            return True
+            return 2.0
 
-        return False
+        # Multi-hop transitive expansion
+        if max_hops >= 3:
+            for child in children_a:
+                child_parents = {p.lower() for p in self.get_parent_categories(child)} - generic_categories
+                if child_parents.intersection(parents_b - generic_categories):
+                    return 3.0
+
+        return float("inf")
+
+    def are_related(self, term_a: Optional[str], term_b: Optional[str], max_hops: int = 2) -> bool:
+        """
+        Evaluate whether two technology terms are related through exact match,
+        parent-child hierarchy, or shared domain categories within max_hops.
+        """
+        dist = self.semantic_distance(term_a, term_b, max_hops=max_hops)
+        return dist <= float(max_hops)
 
     # Class-level / Static convenience wrappers
     @classmethod
@@ -380,5 +390,9 @@ class SMEOntology:
         return cls().expand_query_terms(terms)
 
     @classmethod
-    def related(cls, term_a: Optional[str], term_b: Optional[str]) -> bool:
-        return cls().are_related(term_a, term_b)
+    def related(cls, term_a: Optional[str], term_b: Optional[str], max_hops: int = 2) -> bool:
+        return cls().are_related(term_a, term_b, max_hops=max_hops)
+
+    @classmethod
+    def distance(cls, term_a: Optional[str], term_b: Optional[str], max_hops: int = 3) -> float:
+        return cls().semantic_distance(term_a, term_b, max_hops=max_hops)

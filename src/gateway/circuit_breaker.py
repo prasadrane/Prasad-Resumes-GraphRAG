@@ -47,8 +47,14 @@ class CircuitBreaker:
     _state: State = field(default=State.CLOSED, init=False, repr=False)
     _failure_count: int = field(default=0, init=False, repr=False)
     _last_failure_time: float = field(default=0.0, init=False, repr=False)
+    _avg_latency: float = field(default=0.0, init=False, repr=False)
 
     # ── public API ───────────────────────────────────────────────────────
+
+    @property
+    def avg_latency(self) -> float:
+        """Moving average latency of successful calls in seconds."""
+        return self._avg_latency
 
     @property
     def state(self) -> State:
@@ -80,21 +86,29 @@ class CircuitBreaker:
             )
             raise ProviderCircuitOpen(self.name)
 
+        t0 = time.monotonic()
         try:
             result = fn()
-            self._on_success()
+            duration = time.monotonic() - t0
+            self._on_success(duration)
             return result
         except Exception as exc:
+            duration = time.monotonic() - t0
             self._on_failure(exc)
             raise
 
     # ── state transitions ────────────────────────────────────────────────
 
-    def _on_success(self) -> None:
+    def _on_success(self, duration: float = 0.0) -> None:
         if self._state == State.HALF_OPEN:
             logger.info("[CIRCUIT] %s recovered — back to CLOSED", self.name)
         self._state = State.CLOSED
         self._failure_count = 0
+        if duration > 0.0:
+            if self._avg_latency == 0.0:
+                self._avg_latency = duration
+            else:
+                self._avg_latency = 0.7 * self._avg_latency + 0.3 * duration
 
     def _on_failure(self, exc: BaseException | Exception | str = "") -> None:
         self._failure_count += 1

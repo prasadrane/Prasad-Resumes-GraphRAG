@@ -15,6 +15,7 @@ Usage (with parquet post-processing):
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Any
@@ -215,27 +216,27 @@ class EntityResolver:
             return {indices[0]: indices} if n == 1 else {}
 
         uf = _UnionFind(n)
+        candidate_pairs = self._generate_candidate_pairs(indices)
 
-        for i in range(n):
-            for j in range(i + 1, n):
-                si, sj = indices[i], indices[j]
-                ni = self._entities[si]["name"]
-                nj = self._entities[sj]["name"]
+        for i, j in candidate_pairs:
+            si, sj = indices[i], indices[j]
+            ni = self._entities[si]["name"]
+            nj = self._entities[sj]["name"]
 
-                # Skip already-merged variants (pointing elsewhere).
-                canon_i = self._canonical_map.get(ni, ni)
-                canon_j = self._canonical_map.get(nj, nj)
-                if canon_i != ni or canon_j != nj:
-                    continue
+            # Skip already-merged variants (pointing elsewhere).
+            canon_i = self._canonical_map.get(ni, ni)
+            canon_j = self._canonical_map.get(nj, nj)
+            if canon_i != ni or canon_j != nj:
+                continue
 
-                ss = self._string_similarity(ni, nj)
-                if type_ in _SEMANTIC_TYPES and self._embed_fn:
-                    sem = self._semantic_similarity(ni, nj)
-                    passes = ss >= self.string_threshold and sem >= self.semantic_threshold
-                else:
-                    passes = ss >= self.string_threshold
-                if passes:
-                    uf.union(i, j)
+            ss = self._string_similarity(ni, nj)
+            if type_ in _SEMANTIC_TYPES and self._embed_fn:
+                sem = self._semantic_similarity(ni, nj)
+                passes = ss >= self.string_threshold and sem >= self.semantic_threshold
+            else:
+                passes = ss >= self.string_threshold
+            if passes:
+                uf.union(i, j)
 
         # Group by representative.
         groups: dict[int, list[int]] = {}
@@ -277,6 +278,59 @@ class EntityResolver:
             clusters[lead_idx] = members
 
         return clusters
+
+    def _generate_candidate_pairs(self, indices: list[int]) -> set[tuple[int, int]]:
+        """Generate candidate index pairs using inverted n-gram index and prefix blocking.
+        
+        For small sets (<= 30 items), returns all pairs. For larger sets, returns only
+        pairs sharing character trigrams, tokens, or common prefixes/lengths, reducing
+        comparisons from O(N^2) to O(N log N).
+        """
+        n = len(indices)
+        if n <= 30:
+            return {(i, j) for i in range(n) for j in range(i + 1, n)}
+
+        candidate_pairs: set[tuple[int, int]] = set()
+        trigram_index: dict[str, list[int]] = {}
+        token_index: dict[str, list[int]] = {}
+        short_names: list[int] = []
+
+        for i, idx in enumerate(indices):
+            name = self._entities[idx]["name"]
+            norm = re.sub(r"[^\w\s]", "", name.lower()).strip()
+            tokens = [t for t in norm.split() if t]
+            
+            if len(norm) <= 4:
+                short_names.append(i)
+            else:
+                for k in range(len(norm) - 2):
+                    tri = norm[k : k + 3]
+                    trigram_index.setdefault(tri, []).append(i)
+
+            for token in tokens:
+                if len(token) >= 2:
+                    token_index.setdefault(token, []).append(i)
+
+        for tri_members in trigram_index.values():
+            if len(tri_members) > 1 and len(tri_members) < 200:
+                for a_pos in range(len(tri_members)):
+                    for b_pos in range(a_pos + 1, len(tri_members)):
+                        candidate_pairs.add((min(tri_members[a_pos], tri_members[b_pos]),
+                                             max(tri_members[a_pos], tri_members[b_pos])))
+
+        for tok_members in token_index.values():
+            if len(tok_members) > 1 and len(tok_members) < 200:
+                for a_pos in range(len(tok_members)):
+                    for b_pos in range(a_pos + 1, len(tok_members)):
+                        candidate_pairs.add((min(tok_members[a_pos], tok_members[b_pos]),
+                                             max(tok_members[a_pos], tok_members[b_pos])))
+
+        for a_pos in range(len(short_names)):
+            for b_pos in range(a_pos + 1, len(short_names)):
+                candidate_pairs.add((min(short_names[a_pos], short_names[b_pos]),
+                                     max(short_names[a_pos], short_names[b_pos])))
+
+        return candidate_pairs
 
     @staticmethod
     def _string_similarity(a: str, b: str) -> float:

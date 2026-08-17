@@ -180,6 +180,17 @@ async def _litellm_embed(text: str, api_key: str) -> List[float]:
         return pad_embedding(data["data"][0]["embedding"])
 
 
+def _get_ordered_chat_providers() -> List[str]:
+    """Return available chat providers sorted by circuit health and moving average latency."""
+    available = [n for n in _CHAT_CHAIN_ORDER if _has_key(n)]
+    def sort_key(name: str):
+        cb = _breaker(name)
+        state_order = 0 if cb.state.value == "closed" else (1 if cb.state.value == "half_open" else 2)
+        latency = cb.avg_latency if cb.avg_latency > 0 else 1.0
+        return (state_order, latency)
+    return sorted(available, key=sort_key)
+
+
 # ── Public API ─────────────────────────────────────────────────────────────
 
 def call_serverless_llm(
@@ -189,7 +200,7 @@ def call_serverless_llm(
     temperature: float = 0.3,
     timeout: int = 30,
 ) -> str:
-    """Sync chat completion — alibaba → openrouter → gemini failover.
+    """Sync chat completion — health & latency aware failover across providers.
 
     Each provider is governed by a :class:`CircuitBreaker` so that
     persistently failing providers are skipped automatically.  Transient
@@ -219,7 +230,7 @@ def call_serverless_llm(
 
         return call_with_retry
 
-    fns = [make_safe_fn(n) for n in _CHAT_CHAIN_ORDER if _has_key(n)]
+    fns = [make_safe_fn(n) for n in _get_ordered_chat_providers()]
     if not fns:
         raise RuntimeError("No providers configured with valid API keys.")
     return _try_chain(*fns)
@@ -240,11 +251,11 @@ async def call_serverless_llm_stream(
     temperature: float = 0.3,
     timeout: int = 60,
 ) -> AsyncGenerator[str, None]:
-    """Streaming chat — yields tokens from the first provider that returns any."""
+    """Streaming chat — yields tokens from the first healthy provider that returns any."""
     any_attempted = False
     last_error: Optional[Exception] = None
 
-    for name in _CHAT_CHAIN_ORDER:
+    for name in _get_ordered_chat_providers():
         if not _has_key(name):
             continue
         any_attempted = True
