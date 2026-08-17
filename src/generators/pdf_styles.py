@@ -138,12 +138,14 @@ def get_resume_styles() -> Dict[str, ParagraphStyle]:
     }
 
 def markdown_to_reportlab_html(text: str) -> str:
-    """Convert Markdown bold/italics and cleanup em-dashes."""
+    """Convert Markdown bold/italics/backticks and cleanup dashes."""
     if not text:
         return ""
     # Preserve date hyphens while converting em-dashes
     text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
-    text = text.replace("—", ". ").replace(" – ", ". ")
+    text = text.replace("—", " - ").replace("–", " - ")
+    # Convert markdown code backticks `code` -> <b>code</b>
+    text = re.sub(r"`([^`]+)`", r"<b>\1</b>", text)
     # Convert **bold** -> <b>bold</b>
     text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
     # Convert *italic* -> <i>italic</i>
@@ -164,7 +166,8 @@ def format_job_heading(job: JobEntry) -> str:
     if job.location:
         meta_parts.append(f'<i>{job.location}</i>')
     if job.dates:
-        meta_parts.append(f'<i>{job.dates}</i>')
+        dates_clean = job.dates.replace("–", " - ").replace("—", " - ")
+        meta_parts.append(f'<i>{dates_clean}</i>')
 
     if meta_parts:
         heading_parts.append(f'<font color="#6b7280">{" | ".join(meta_parts)}</font>')
