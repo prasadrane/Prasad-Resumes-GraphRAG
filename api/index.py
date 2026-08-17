@@ -16,3 +16,9 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.web.app import app  # noqa: E402, F401
+from src.shared.api_routes import shared_router  # noqa: E402
+
+# Ensure shared router routes are registered
+_existing_paths = {getattr(r, "path", None) for r in app.routes}
+if "/api/query" not in _existing_paths:
+    app.include_router(shared_router)

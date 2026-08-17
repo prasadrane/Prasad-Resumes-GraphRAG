@@ -338,3 +338,10 @@ def metrics_endpoint():
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
+# Ensure shared router routes are registered
+_existing_paths = {getattr(r, "path", None) for r in app.routes}
+if "/api/query" not in _existing_paths:
+    app.include_router(shared_router)
+
+
+
