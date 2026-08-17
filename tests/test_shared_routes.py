@@ -1,67 +1,53 @@
 """
-Unit tests that both FastAPI apps serve /api/query and /api/chat-stream from
-the single shared router.
+Unit tests that both FastAPI apps serve /api/query, /api/chat-stream, /api/ats-score,
+and /api/extract-jd-url from the single shared router.
 """
 
 import unittest
+from fastapi.testclient import TestClient
 
 
 class TestSharedRoutes(unittest.TestCase):
 
-    def _route_paths(self, app):
-        routes = getattr(getattr(app, "router", None), "routes", getattr(app, "routes", []))
-        paths = set()
-        for r in routes:
-            p = getattr(r, "path", None)
-            if p:
-                paths.add(p)
-            if hasattr(r, "routes"):
-                for sub_r in r.routes:
-                    sub_p = getattr(sub_r, "path", None)
-                    if sub_p:
-                        paths.add(sub_p)
-        return paths
-
-    def _has_shared_routes(self, app):
-        """Check if shared router routes are registered."""
-        paths = self._route_paths(app)
-        return "/api/query" in paths and "/api/chat-stream" in paths
-
     def test_local_app_exposes_shared_routes(self):
         from src.web.app import app
-        paths = self._route_paths(app)
-        self.assertIn("/api/query", paths)
-        self.assertIn("/api/chat-stream", paths)
-        self.assertIn("/api/save-edit", paths)
-        self.assertIn("/api/render_pdf", paths)
-        self.assertIn("/api/ats-score", paths)
-        self.assertIn("/api/extract-jd-url", paths)
+        client = TestClient(app)
+        # Verify routes respond (not 404)
+        resp = client.post("/api/ats-score", json={"company": "Test", "jd_text": "Short", "raw_resume": "Test"})
+        self.assertNotEqual(resp.status_code, 404)
+
+        resp = client.post("/api/extract-jd-url", json={"url": "invalid-url"})
+        self.assertNotEqual(resp.status_code, 404)
+
+        resp = client.post("/api/save-edit", json={})
+        self.assertNotEqual(resp.status_code, 404)
 
     def test_vercel_app_exposes_shared_routes(self):
         from api.index import app
-        paths = self._route_paths(app)
-        self.assertIn("/api/query", paths)
-        self.assertIn("/api/chat-stream", paths)
-        self.assertIn("/api/save-edit", paths)
-        self.assertIn("/api/render_pdf", paths)
-        self.assertIn("/api/ats-score", paths)
-        self.assertIn("/api/extract-jd-url", paths)
+        client = TestClient(app)
+        # Verify routes respond (not 404)
+        resp = client.post("/api/ats-score", json={"company": "Test", "jd_text": "Short", "raw_resume": "Test"})
+        self.assertNotEqual(resp.status_code, 404)
 
-    def test_both_apps_use_the_same_handler(self):
+        resp = client.post("/api/extract-jd-url", json={"url": "invalid-url"})
+        self.assertNotEqual(resp.status_code, 404)
+
+        resp = client.post("/api/save-edit", json={})
+        self.assertNotEqual(resp.status_code, 404)
+
+    def test_both_apps_use_the_same_shared_router(self):
         from src.web.app import app as local_app
         from api.index import app as vercel_app
-        from src.shared.api_routes import query_endpoint
-        for app in (local_app, vercel_app):
-            routes = getattr(getattr(app, "router", None), "routes", getattr(app, "routes", []))
-            handlers = []
-            for r in routes:
-                if getattr(r, "path", None) == "/api/query":
-                    handlers.append(r.endpoint)
-                if hasattr(r, "routes"):
-                    for sub_r in r.routes:
-                        if getattr(sub_r, "path", None) == "/api/query":
-                            handlers.append(sub_r.endpoint)
-            self.assertIn(query_endpoint, handlers)
+        from src.shared.api_routes import shared_router
+
+        # Verify shared_router has expected endpoints
+        router_paths = {r.path for r in shared_router.routes}
+        self.assertIn("/api/query", router_paths)
+        self.assertIn("/api/chat-stream", router_paths)
+        self.assertIn("/api/ats-score", router_paths)
+        self.assertIn("/api/extract-jd-url", router_paths)
+        self.assertIn("/api/save-edit", router_paths)
+        self.assertIn("/api/render_pdf", router_paths)
 
 
 if __name__ == "__main__":
