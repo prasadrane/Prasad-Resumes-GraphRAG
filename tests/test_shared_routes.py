@@ -9,7 +9,17 @@ import unittest
 class TestSharedRoutes(unittest.TestCase):
 
     def _route_paths(self, app):
-        return {getattr(r, "path", None) for r in app.routes}
+        paths = set()
+        for r in app.routes:
+            p = getattr(r, "path", None)
+            if p:
+                paths.add(p)
+            if hasattr(r, "routes"):
+                for sub_r in r.routes:
+                    sub_p = getattr(sub_r, "path", None)
+                    if sub_p:
+                        paths.add(sub_p)
+        return paths
 
     def _has_shared_routes(self, app):
         """Check if shared router routes are registered."""
@@ -41,7 +51,14 @@ class TestSharedRoutes(unittest.TestCase):
         from api.index import app as vercel_app
         from src.shared.api_routes import query_endpoint
         for app in (local_app, vercel_app):
-            handlers = [r.endpoint for r in app.routes if getattr(r, "path", None) == "/api/query"]
+            handlers = []
+            for r in app.routes:
+                if getattr(r, "path", None) == "/api/query":
+                    handlers.append(r.endpoint)
+                if hasattr(r, "routes"):
+                    for sub_r in r.routes:
+                        if getattr(sub_r, "path", None) == "/api/query":
+                            handlers.append(sub_r.endpoint)
             self.assertIn(query_endpoint, handlers)
 
 

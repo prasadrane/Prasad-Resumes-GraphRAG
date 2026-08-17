@@ -30,7 +30,7 @@ class TestGatewayFacade(unittest.TestCase):
         res = call_serverless_llm("Test prompt", system_prompt="Test sys")
         self.assertEqual(res, "Serverless OpenRouter response")
 
-    @patch.dict(os.environ, {"GEMINI_API_KEY": "test_gemini_key"}, clear=True)
+    @patch.dict(os.environ, {"GEMINI_API_KEY": "test_gemini_key", "OPENROUTER_API_KEY": "", "ALIBABA_API_KEY": ""})
     @patch("urllib.request.urlopen")
     def test_call_serverless_llm_gemini_success(self, mock_urlopen):
         mock_response = MagicMock()
@@ -43,7 +43,7 @@ class TestGatewayFacade(unittest.TestCase):
         res = call_serverless_llm("Test prompt")
         self.assertEqual(res, "Serverless Gemini response")
 
-    @patch.dict(os.environ, {}, clear=True)
+    @patch.dict(os.environ, {"GEMINI_API_KEY": "", "OPENROUTER_API_KEY": "", "ALIBABA_API_KEY": ""})
     def test_call_serverless_llm_no_keys(self):
         with self.assertRaises(ValueError) as ctx:
             call_serverless_llm("Test prompt")
