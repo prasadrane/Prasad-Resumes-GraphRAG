@@ -78,8 +78,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // 1. Navigation Controller (Material Design 3 Segmented Control)
+    // 1. Navigation Controller (Sidebar Rail & Mobile Navigation)
     const NavigationController = {
+        currentTab: 'default',
+        isTransitioning: false,
+
+        sidebarRail: document.getElementById('sidebar-rail'),
+        sidebarScrim: document.getElementById('sidebar-scrim'),
+        mobileBottomNav: document.getElementById('mobile-bottom-nav'),
+        mobileMenuBtn: document.getElementById('mobile-menu-btn'),
+        mobileMoreBtn: document.getElementById('mobile-more-btn'),
+        mobileMoreSheet: document.getElementById('mobile-more-sheet'),
+        closeMoreSheetBtn: document.getElementById('close-more-sheet-btn'),
+        mobileDiagBtn: document.getElementById('mobile-diag-btn'),
+        navSettingsBtn: document.getElementById('nav-settings-btn'),
+
         navDefaultBtn: document.getElementById('nav-default-btn'),
         navTailorBtn: document.getElementById('nav-tailor-btn'),
         navCoverBtn: document.getElementById('nav-cover-btn'),
@@ -95,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatbotView: document.getElementById('chatbot-view'),
 
         init() {
+            // Sidebar Nav button listeners
             if (this.navDefaultBtn) this.navDefaultBtn.addEventListener('click', () => this.switchTab('default'));
             if (this.navTailorBtn) this.navTailorBtn.addEventListener('click', () => this.switchTab('tailor'));
             if (this.navCoverBtn) this.navCoverBtn.addEventListener('click', () => this.switchTab('cover'));
@@ -102,44 +116,167 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.navLinkedinBtn) this.navLinkedinBtn.addEventListener('click', () => this.switchTab('linkedin'));
             if (this.navChatBtn) this.navChatBtn.addEventListener('click', () => this.switchTab('chat'));
 
+            if (this.navSettingsBtn) {
+                this.navSettingsBtn.addEventListener('click', () => {
+                    alert('Settings & Preferences: Theme is set to Dark Slate (M3). Custom AI provider configurations are managed via serverless gateway.');
+                });
+            }
+
+            // Mobile Bottom Nav buttons
+            const mobileNavBtns = document.querySelectorAll('.mobile-nav-btn[data-tab]');
+            mobileNavBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.getAttribute('data-tab');
+                    if (tab) this.switchTab(tab);
+                });
+            });
+
+            // Mobile More Sheet buttons
+            const moreSheetItems = document.querySelectorAll('.more-sheet-item[data-tab]');
+            moreSheetItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const tab = item.getAttribute('data-tab');
+                    if (tab) {
+                        this.closeMobileDrawers();
+                        this.switchTab(tab);
+                    }
+                });
+            });
+
+            // Mobile Menu / Drawer controls
+            if (this.mobileMenuBtn) {
+                this.mobileMenuBtn.addEventListener('click', () => this.openMobileSidebar());
+            }
+
+            if (this.sidebarScrim) {
+                this.sidebarScrim.addEventListener('click', () => this.closeMobileDrawers());
+            }
+
+            if (this.mobileMoreBtn) {
+                this.mobileMoreBtn.addEventListener('click', () => this.toggleMobileMoreSheet());
+            }
+
+            if (this.closeMoreSheetBtn) {
+                this.closeMoreSheetBtn.addEventListener('click', () => this.closeMobileDrawers());
+            }
+
+            if (this.mobileDiagBtn) {
+                this.mobileDiagBtn.addEventListener('click', () => {
+                    this.closeMobileDrawers();
+                    DiagnosticsController.open();
+                });
+            }
+
             // Load Default Resume on startup
             DefaultResumeController.loadDefaultResume();
         },
 
-        switchTab(tab) {
-            const btns = [this.navDefaultBtn, this.navTailorBtn, this.navCoverBtn, this.navPrepBtn, this.navLinkedinBtn, this.navChatBtn];
-            const views = [this.defaultView, this.generatorView, this.coverView, this.prepView, this.linkedinView, this.chatbotView];
+        openMobileSidebar() {
+            if (this.sidebarRail) this.sidebarRail.classList.add('mobile-open');
+            if (this.sidebarScrim) this.sidebarScrim.classList.remove('hidden');
+        },
 
+        toggleMobileMoreSheet() {
+            if (!this.mobileMoreSheet) return;
+            const isHidden = this.mobileMoreSheet.classList.contains('hidden');
+            if (isHidden) {
+                this.mobileMoreSheet.classList.remove('hidden');
+                if (this.sidebarScrim) this.sidebarScrim.classList.remove('hidden');
+            } else {
+                this.closeMobileDrawers();
+            }
+        },
+
+        closeMobileDrawers() {
+            if (this.sidebarRail) this.sidebarRail.classList.remove('mobile-open');
+            if (this.mobileMoreSheet) this.mobileMoreSheet.classList.add('hidden');
+            if (this.sidebarScrim) this.sidebarScrim.classList.add('hidden');
+        },
+
+        getView(tab) {
+            const map = {
+                default: this.defaultView,
+                tailor: this.generatorView,
+                cover: this.coverView,
+                prep: this.prepView,
+                linkedin: this.linkedinView,
+                chat: this.chatbotView
+            };
+            return map[tab];
+        },
+
+        getNavButton(tab) {
+            const map = {
+                default: this.navDefaultBtn,
+                tailor: this.navTailorBtn,
+                cover: this.navCoverBtn,
+                prep: this.navPrepBtn,
+                linkedin: this.navLinkedinBtn,
+                chat: this.navChatBtn
+            };
+            return map[tab];
+        },
+
+        switchTab(tab) {
+            if (this.currentTab === tab && !this.isTransitioning) {
+                this.closeMobileDrawers();
+                return;
+            }
+
+            const outgoingView = this.getView(this.currentTab);
+            const incomingView = this.getView(tab);
+            if (!incomingView) return;
+
+            this.closeMobileDrawers();
+
+            // Update Sidebar Rail Button States
+            const btns = [this.navDefaultBtn, this.navTailorBtn, this.navCoverBtn, this.navPrepBtn, this.navLinkedinBtn, this.navChatBtn];
             btns.forEach(btn => {
                 if (btn) {
                     btn.classList.remove('active');
                     btn.setAttribute('aria-selected', 'false');
                 }
             });
+            const activeBtn = this.getNavButton(tab);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.setAttribute('aria-selected', 'true');
+            }
 
-            views.forEach(view => {
-                if (view) view.classList.add('hidden');
+            // Update Mobile Bottom Nav States
+            const mobileNavBtns = document.querySelectorAll('.mobile-nav-btn[data-tab]');
+            mobileNavBtns.forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
             });
 
+            // Perform View Transition
+            this.isTransitioning = true;
+            if (outgoingView && outgoingView !== incomingView) {
+                outgoingView.classList.add('leaving');
+                setTimeout(() => {
+                    outgoingView.classList.add('hidden');
+                    outgoingView.classList.remove('leaving');
+
+                    incomingView.classList.remove('hidden');
+                    incomingView.classList.add('entering');
+                    setTimeout(() => {
+                        incomingView.classList.remove('entering');
+                        this.isTransitioning = false;
+                    }, 250);
+                }, 150);
+            } else {
+                incomingView.classList.remove('hidden');
+                incomingView.classList.add('entering');
+                setTimeout(() => {
+                    incomingView.classList.remove('entering');
+                    this.isTransitioning = false;
+                }, 250);
+            }
+
+            this.currentTab = tab;
+
             if (tab === 'default') {
-                if (this.navDefaultBtn) { this.navDefaultBtn.classList.add('active'); this.navDefaultBtn.setAttribute('aria-selected', 'true'); }
-                if (this.defaultView) this.defaultView.classList.remove('hidden');
                 DefaultResumeController.loadDefaultResume();
-            } else if (tab === 'tailor') {
-                if (this.navTailorBtn) { this.navTailorBtn.classList.add('active'); this.navTailorBtn.setAttribute('aria-selected', 'true'); }
-                if (this.generatorView) this.generatorView.classList.remove('hidden');
-            } else if (tab === 'cover') {
-                if (this.navCoverBtn) { this.navCoverBtn.classList.add('active'); this.navCoverBtn.setAttribute('aria-selected', 'true'); }
-                if (this.coverView) this.coverView.classList.remove('hidden');
-            } else if (tab === 'prep') {
-                if (this.navPrepBtn) { this.navPrepBtn.classList.add('active'); this.navPrepBtn.setAttribute('aria-selected', 'true'); }
-                if (this.prepView) this.prepView.classList.remove('hidden');
-            } else if (tab === 'linkedin') {
-                if (this.navLinkedinBtn) { this.navLinkedinBtn.classList.add('active'); this.navLinkedinBtn.setAttribute('aria-selected', 'true'); }
-                if (this.linkedinView) this.linkedinView.classList.remove('hidden');
-            } else if (tab === 'chat') {
-                if (this.navChatBtn) { this.navChatBtn.classList.add('active'); this.navChatBtn.setAttribute('aria-selected', 'true'); }
-                if (this.chatbotView) this.chatbotView.classList.remove('hidden');
             }
         }
     };

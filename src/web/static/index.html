@@ -15,61 +15,100 @@
 </head>
 <body class="m3-theme-dark">
     <div class="app-container">
-        <!-- Top App Bar Header -->
-        <header class="m3-surface-header">
-            <div class="header-left">
-                <div class="logo-area">
-                    <span class="material-symbols-outlined logo-icon">description</span>
-                    <h1>Prasad Resumes <span>GraphRAG</span></h1>
-                </div>
+        <!-- Sidebar Backdrop Scrim for Tablet/Mobile -->
+        <div id="sidebar-scrim" class="sidebar-scrim hidden"></div>
 
-                <!-- Global FTS5 Search Bar -->
-                <div class="header-search-wrapper">
-                    <span class="material-symbols-outlined header-search-icon">search</span>
-                    <input type="text" id="global-search-input" class="header-search-input" placeholder="Search 10+ yrs skills & projects..." autocomplete="off">
-                    <div id="fts-dropdown" class="fts-dropdown hidden"></div>
-                </div>
-
-                <!-- Top Navigation Tabs (Material Design 3 Segmented Control) -->
-                <nav class="m3-segmented-control" role="tablist">
-                    <button id="nav-default-btn" class="m3-segmented-tab active" role="tab" aria-selected="true">
-                        <span class="material-symbols-outlined tab-icon">article</span>
-                        <span>Resume</span>
-                    </button>
-                    <button id="nav-tailor-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
-                        <span class="material-symbols-outlined tab-icon">auto_awesome</span>
-                        <span>Tailor</span>
-                    </button>
-                    <button id="nav-cover-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
-                        <span class="material-symbols-outlined tab-icon">mail</span>
-                        <span>Cover Letter</span>
-                    </button>
-                    <button id="nav-prep-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
-                        <span class="material-symbols-outlined tab-icon">quiz</span>
-                        <span>Interview Prep</span>
-                    </button>
-                    <button id="nav-linkedin-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
-                        <span class="material-symbols-outlined tab-icon">share</span>
-                        <span>LinkedIn</span>
-                    </button>
-                    <button id="nav-chat-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
-                        <span class="material-symbols-outlined tab-icon">chat</span>
-                        <span>Ask Me</span>
-                    </button>
-                </nav>
+        <!-- Expandable Left Sidebar Rail (56px -> 240px) -->
+        <aside class="sidebar-rail" id="sidebar-rail" aria-label="Sidebar Navigation">
+            <!-- App Brand Mark -->
+            <div class="sidebar-brand" id="sidebar-brand-toggle" title="Prasad Resumes GraphRAG">
+                <span class="material-symbols-outlined brand-icon">description</span>
+                <span class="brand-text">Prasad Resumes <span class="brand-sub">GraphRAG</span></span>
             </div>
 
-            <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
-                <button id="open-diag-btn" class="m3-icon-button" title="Engine Diagnostics & Observability" aria-label="Diagnostics">
-                    <span class="material-symbols-outlined">analytics</span>
+            <!-- Navigation Section Groups -->
+            <div class="sidebar-nav-content">
+                <!-- Group 1: BUILD -->
+                <div class="nav-group">
+                    <div class="nav-group-label">BUILD</div>
+                    <button id="nav-default-btn" class="nav-item active" role="tab" aria-selected="true" data-tab="default" title="Master Resume" data-tooltip="Resume">
+                        <span class="material-symbols-outlined nav-icon">article</span>
+                        <span class="nav-label">Resume</span>
+                    </button>
+                    <button id="nav-tailor-btn" class="nav-item" role="tab" aria-selected="false" data-tab="tailor" title="ATS Resume Tailor" data-tooltip="Tailor">
+                        <span class="material-symbols-outlined nav-icon">auto_awesome</span>
+                        <span class="nav-label">Tailor</span>
+                    </button>
+                    <button id="nav-cover-btn" class="nav-item" role="tab" aria-selected="false" data-tab="cover" title="Cover Letter Studio" data-tooltip="Cover Letter">
+                        <span class="material-symbols-outlined nav-icon">mail</span>
+                        <span class="nav-label">Cover Letter</span>
+                    </button>
+                </div>
+
+                <!-- Group 2: PREPARE -->
+                <div class="nav-group">
+                    <div class="nav-group-label">PREPARE</div>
+                    <button id="nav-prep-btn" class="nav-item" role="tab" aria-selected="false" data-tab="prep" title="Interview Prep (STAR)" data-tooltip="Interview Prep">
+                        <span class="material-symbols-outlined nav-icon">quiz</span>
+                        <span class="nav-label">Interview Prep</span>
+                    </button>
+                    <button id="nav-linkedin-btn" class="nav-item" role="tab" aria-selected="false" data-tab="linkedin" title="LinkedIn Optimizer" data-tooltip="LinkedIn">
+                        <span class="material-symbols-outlined nav-icon">share</span>
+                        <span class="nav-label">LinkedIn</span>
+                    </button>
+                </div>
+
+                <!-- Group 3: EXPLORE -->
+                <div class="nav-group">
+                    <div class="nav-group-label">EXPLORE</div>
+                    <button id="nav-chat-btn" class="nav-item" role="tab" aria-selected="false" data-tab="chat" title="Ask Me (GraphRAG Q&A)" data-tooltip="Ask Me">
+                        <span class="material-symbols-outlined nav-icon">chat</span>
+                        <span class="nav-label">Ask Me</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sidebar Bottom Utilities -->
+            <div class="sidebar-bottom">
+                <button id="open-diag-btn" class="nav-item" title="Engine Diagnostics & Observability" data-tooltip="Diagnostics" aria-label="Diagnostics">
+                    <span class="material-symbols-outlined nav-icon">analytics</span>
+                    <span class="nav-label">Diagnostics</span>
                 </button>
+                <button id="nav-settings-btn" class="nav-item" title="Settings & Preferences" data-tooltip="Settings" aria-label="Settings">
+                    <span class="material-symbols-outlined nav-icon">settings</span>
+                    <span class="nav-label">Settings</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Slim App Header (48px) -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="mobile-menu-btn" class="m3-icon-button mobile-only" aria-label="Toggle Navigation Menu">
+                    <span class="material-symbols-outlined">menu</span>
+                </button>
+                <div class="mobile-logo-area mobile-only">
+                    <span class="material-symbols-outlined logo-icon">description</span>
+                    <span class="mobile-logo-text">Prasad Resumes</span>
+                </div>
+            </div>
+
+            <!-- Global Centered Search Bar -->
+            <div class="header-search-wrapper">
+                <span class="material-symbols-outlined header-search-icon">search</span>
+                <input type="text" id="global-search-input" class="header-search-input" placeholder="Search 10+ yrs skills & projects..." autocomplete="off">
+                <div id="fts-dropdown" class="fts-dropdown hidden"></div>
+            </div>
+
+            <!-- Header Right: System Status -->
+            <div class="header-right">
                 <div class="m3-status-badge" id="system-status">
                     <span class="status-dot green"></span> Engine Active
                 </div>
             </div>
         </header>
 
-        <!-- Main Content Layout -->
+        <!-- Main Content Area -->
         <main class="app-main">
             <!-- View 1: Default Resume View -->
             <div id="default-view" class="tab-view fade-in">
@@ -464,6 +503,53 @@
                 </section>
             </div>
         </main>
+
+        <!-- Mobile Bottom Navigation Bar (Visible ≤767px) -->
+        <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Mobile Navigation">
+            <button class="mobile-nav-btn active" data-tab="default">
+                <span class="material-symbols-outlined">article</span>
+                <span>Resume</span>
+            </button>
+            <button class="mobile-nav-btn" data-tab="tailor">
+                <span class="material-symbols-outlined">auto_awesome</span>
+                <span>Tailor</span>
+            </button>
+            <button class="mobile-nav-btn" data-tab="chat">
+                <span class="material-symbols-outlined">chat</span>
+                <span>Ask Me</span>
+            </button>
+            <button class="mobile-nav-btn" id="mobile-more-btn">
+                <span class="material-symbols-outlined">more_horiz</span>
+                <span>More</span>
+            </button>
+        </nav>
+
+        <!-- Mobile "More" Bottom Sheet -->
+        <div id="mobile-more-sheet" class="mobile-more-sheet hidden">
+            <div class="more-sheet-handle"></div>
+            <div class="more-sheet-header">
+                <h3>Additional Features</h3>
+                <button id="close-more-sheet-btn" class="m3-icon-button"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="more-sheet-grid">
+                <button class="more-sheet-item" data-tab="cover">
+                    <span class="material-symbols-outlined">mail</span>
+                    <span>Cover Letter</span>
+                </button>
+                <button class="more-sheet-item" data-tab="prep">
+                    <span class="material-symbols-outlined">quiz</span>
+                    <span>Interview Prep</span>
+                </button>
+                <button class="more-sheet-item" data-tab="linkedin">
+                    <span class="material-symbols-outlined">share</span>
+                    <span>LinkedIn</span>
+                </button>
+                <button class="more-sheet-item" id="mobile-diag-btn">
+                    <span class="material-symbols-outlined">analytics</span>
+                    <span>Diagnostics</span>
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Slide-out Observability & Diagnostics Drawer -->
