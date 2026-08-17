@@ -1,10 +1,10 @@
 """OpenRouter provider — OpenAI-compatible protocol."""
 
 import json
-from typing import AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from src.config.providers import ProviderConfig
-from .base import BaseProvider, _ensure_session
+from .base import BaseProvider, _ensure_session, parse_sse_stream
 
 
 class OpenRouterProvider(BaseProvider):
@@ -63,21 +63,16 @@ class OpenRouterProvider(BaseProvider):
         async with session.post(
             self._chat_url(), json=payload, headers=self._headers(),
         ) as resp:
-            async for raw in resp.content:
-                line = raw.decode().strip()
-                if not line.startswith("data: "):
-                    continue
-                data = line[6:]
-                if data.strip() == "[DONE]":
-                    return
-                try:
-                    chunk = json.loads(data)
-                    for choice in chunk.get("choices", []):
-                        token = choice.get("delta", {}).get("content", "")
-                        if token:
-                            yield token
-                except json.JSONDecodeError:
-                    pass
+            def _extract(chunk: Dict[str, Any]) -> List[str]:
+                tokens: List[str] = []
+                for choice in chunk.get("choices", []):
+                    tok = choice.get("delta", {}).get("content", "")
+                    if tok:
+                        tokens.append(tok)
+                return tokens
+
+            async for token in parse_sse_stream(resp.content, _extract):
+                yield token
 
     # ── embedding ───────────────────────────────────────────────────────
 

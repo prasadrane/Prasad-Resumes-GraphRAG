@@ -44,8 +44,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Generate sub-command
     generate_parser = subparsers.add_parser("generate", help="Generate tailored resume text and rule-based PDF from Job Description")
-    generate_parser.add_argument("--company", type=str, required=True, help="Target company name")
+    generate_parser.add_argument("--company", type=str, default="", help="Target company name (auto-inferred if --jd-url is provided)")
     generate_parser.add_argument("--jd-file", type=str, help="Optional path to Job Description text file")
+    generate_parser.add_argument("--jd-url", type=str, help="Optional URL to automatically scrape Job Description from")
 
     # Query sub-command
     query_parser = subparsers.add_parser("query", help="Query the GraphRAG knowledge graph")
@@ -90,33 +91,68 @@ def main() -> None:
         start_proxy_server(config_path, port=args.port)
 
     elif args.command == "generate":
+        company = args.company
         jd_text = ""
-        if args.jd_file:
+
+        if args.jd_url:
+            from src.converters.jd_extractor import extract_jd_from_url
+            print(f"[CLI] Scraping and extracting Job Description from {args.jd_url}...")
+            try:
+                extracted = extract_jd_from_url(args.jd_url)
+                jd_text = extracted["jd_text"]
+                if not company:
+                    company = extracted["company"]
+                print(f"[CLI] Extracted role: '{extracted['title']}' at '{company}'")
+            except Exception as e:
+                print(f"[CLI ERROR] Failed to fetch Job Description from URL: {e}")
+                sys.exit(1)
+        elif args.jd_file:
             jd_path = Path(args.jd_file)
             if not jd_path.exists():
                 print(f"[CLI ERROR] Job Description file not found: {jd_path}")
                 sys.exit(1)
             jd_text = jd_path.read_text(encoding="utf-8")
         else:
-            print(f"[CLI] Please paste the Job Description for {args.company} (Press Ctrl+D or Ctrl+Z then Enter to finish):")
+            if not company:
+                print("[CLI ERROR] --company name is required when not using --jd-url.")
+                sys.exit(1)
+            print(f"[CLI] Please paste the Job Description for {company} (Press Ctrl+D or Ctrl+Z then Enter to finish):")
             try:
                 jd_text = sys.stdin.read()
             except (KeyboardInterrupt, EOFError):
                 print("\nCancelled.")
                 sys.exit(0)
 
+        if not company:
+            company = "Target Company"
+
         if not jd_text.strip():
             print("[CLI ERROR] Job Description cannot be empty.")
             sys.exit(1)
 
-        print(f"[CLI] Performing ATS keyword extraction & generating tailored raw_resume.txt for {args.company}...")
-        raw_resume_path = generate_raw_resume(args.company, jd_text)
+        print(f"[CLI] Performing ATS keyword extraction & generating tailored raw_resume.txt for {company}...")
+        raw_resume_path = generate_raw_resume(company, jd_text)
         print(f"[CLI SUCCESS] Created: {raw_resume_path}")
 
         pdf_output_path = raw_resume_path.parent / "Prasad_Rane_Resume.pdf"
         print(f"[CLI] Rendering rule-based PDF resume (Prasad_Rane_Resume.pdf)...")
         render_pdf_resume(raw_resume_path, pdf_output_path)
         print(f"[CLI SUCCESS] Created: {pdf_output_path}")
+
+        # Real-time ATS match scoring
+        if raw_resume_path.exists():
+            from src.generators.ats_scorer import calculate_ats_score
+            report = calculate_ats_score(raw_resume_path.read_text(encoding="utf-8"), jd_text)
+            print("\n" + "=" * 60)
+            print(f"📊 ATS Match Score: {report.overall_score}%")
+            print(f"   - Skills Coverage:       {report.section_scores.skills}%")
+            print(f"   - Experience Coverage:   {report.section_scores.experience}%")
+            print(f"   - Metric Quantification: {report.section_scores.quantification}%")
+            if report.suggestions:
+                print("💡 Actionable Suggestions:")
+                for s in report.suggestions:
+                    print(f"   • {s}")
+            print("=" * 60 + "\n")
 
     elif args.command == "query":
         if not check_proxy_health(port=8002):
@@ -130,8 +166,8 @@ def main() -> None:
             sys.exit(1)
 
     elif args.command == "benchmark":
-        from evaluation.evaluate_retrieval import run_evaluation, DEFAULT_DATASET
-        run_evaluation(DEFAULT_DATASET, mode=args.mode)
+        from scripts.benchmark_eval import run_benchmark
+        run_benchmark(output_path=Path(args.output), mode=args.mode)
 
     elif args.command == "ui":
         import importlib.util

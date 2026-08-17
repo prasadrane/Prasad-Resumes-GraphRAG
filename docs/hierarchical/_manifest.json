@@ -1,26 +1,26 @@
 {
-  "generated_at": "2026-08-17T09:25:00Z",
-  "commit_sha": "1a7a581c",
+  "generated_at": "2026-08-17T15:58:00Z",
+  "commit_sha": "HEAD",
   "project": "C-Users-mamat-Github-Prasad-Resumes-GraphRAG",
   "levels_generated": ["earth", "continent"],
   "levels_pending": ["country", "city", "street"],
   "stats": {
-    "total_nodes": 4798,
-    "total_edges": 17003,
+    "total_nodes": 8526,
+    "total_edges": 23268,
     "subsystems_count": 11,
-    "routes_count": 19,
+    "routes_count": 21,
     "entry_points_count": 11
   },
   "subsystems": {
-    "src/config": { "generated": true, "files": 2 },
-    "src/converters": { "generated": true, "files": 5 },
-    "src/gateway": { "generated": true, "files": 7 },
-    "src/generators": { "generated": true, "files": 8 },
+    "src/config": { "generated": true, "files": 3 },
+    "src/converters": { "generated": true, "files": 6 },
+    "src/gateway": { "generated": true, "files": 6 },
+    "src/generators": { "generated": true, "files": 12 },
     "src/llm": { "generated": true, "files": 2 },
     "src/observability": { "generated": true, "files": 1 },
     "src/postprocessing": { "generated": true, "files": 2 },
     "src/proxy": { "generated": true, "files": 2 },
-    "src/query": { "generated": true, "files": 7 },
+    "src/query": { "generated": true, "files": 6 },
     "src/shared": { "generated": true, "files": 3 },
     "src/web": { "generated": true, "files": 5 }
   }

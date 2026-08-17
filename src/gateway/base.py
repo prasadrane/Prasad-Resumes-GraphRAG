@@ -15,67 +15,36 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 import urllib.request
 from abc import ABC, abstractmethod
-from typing import Any, AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
+
+from src.config.llm_constants import (
+    DEFAULT_EMBEDDING_DIM,
+    EMBEDDING_DIM,
+    LLM_MAX_TOKENS,
+    RATE_LIMIT_TAGS,
+)
+from src.config.providers import ProviderConfig
 
 logger = logging.getLogger(__name__)
 
-# ── Shared Constants (lazy-loaded from generators.constants to avoid
-#    circular imports — base.py is imported very early by many modules) ─────
 
-_DEFAULT_EMBEDDING_DIM: int = 2048
-_RATE_LIMIT_TAGS: tuple[str, ...] = (
-    "rate_limit",
-    "rate limited",
-    "429",
-    "resource_exhausted",
-    "quota",
-)
-
-
-def _embedding_dim():
-    """Resolve the canonical embedding dimension, falling back to 2048."""
-    try:
-        mod = sys.modules.get("src.generators.constants")
-        if mod is not None:
-            return getattr(mod, "EMBEDDING_DIM", _DEFAULT_EMBEDDING_DIM)
-    except Exception:
-        pass
-    return _DEFAULT_EMBEDDING_DIM
-
-
-def _rate_limit_tags() -> tuple[str, ...]:
-    """Return the unified rate-limit detection tags."""
-    try:
-        mod = sys.modules.get("src.generators.constants")
-        if mod is not None and hasattr(mod, "RATE_LIMIT_TAGS"):
-            return getattr(mod, "RATE_LIMIT_TAGS")
-    except Exception:
-        pass
-    return _RATE_LIMIT_TAGS
-
-
-# ── Shared Embedding Helpers ────────────────────────────────────────────────
+# ── Shared Embedding & Error Helpers ────────────────────────────────────────
 
 def pad_embedding(emb: List[float], target_dim: int | None = None) -> List[float]:
-    """Pad or truncate an embedding list to *target_dim*.
-
-    Defaults to the value configured in :mod:`src.generators.constants`
-    (falls back to ``2048`` when that module isn't available yet).
+    """Pad or truncate an embedding list to *target_dim* (default EMBEDDING_DIM).
 
     Returns a *new* list so callers' original data is never mutated.
     """
-    if target_dim is None:
-        target_dim = _embedding_dim()
+    dim = target_dim if target_dim is not None else EMBEDDING_DIM
     length = len(emb)
-    if length == target_dim:
+    if length == dim:
         return list(emb)
-    if length > target_dim:
-        return list(emb[:target_dim])
+    if length > dim:
+        return list(emb[:dim])
     padded = list(emb)
-    padded.extend([0.0] * (target_dim - length))
+    padded.extend([0.0] * (dim - length))
     return padded
 
 
@@ -86,7 +55,7 @@ def is_rate_limit_error(err: BaseException | Exception | str) -> bool:
     converts sensibly via ``str()`` — handles HTTP status codes too.
     """
     err_str = str(err).lower()
-    if any(tag in err_str for tag in _rate_limit_tags()):
+    if any(tag in err_str for tag in RATE_LIMIT_TAGS):
         return True
     status = getattr(err, "status_code", None)
     if status is not None:
@@ -97,7 +66,48 @@ def is_rate_limit_error(err: BaseException | Exception | str) -> bool:
     return False
 
 
-# Lazily-initialized aiohttp session shared by all providers.
+# ── Shared SSE Stream Parser ────────────────────────────────────────────────
+
+async def parse_sse_stream(
+    content_stream: Any,
+    extract_fn: Callable[[Dict[str, Any]], Optional[Union[str, List[str]]]],
+) -> AsyncGenerator[str, None]:
+    """Parse Server-Sent Events (SSE) from an async byte/string stream.
+
+    Handles line decoding, 'data:' prefix stripping, [DONE] termination,
+    and JSON parsing. Calls *extract_fn(chunk_dict)* to yield extracted tokens.
+    """
+    async for raw in content_stream:
+        if isinstance(raw, (bytes, bytearray)):
+            line = raw.decode("utf-8", errors="replace").strip()
+        else:
+            line = str(raw).strip()
+
+        if not line.startswith("data:"):
+            continue
+
+        data = line[5:].strip()
+        if not data or data == "[DONE]":
+            if data == "[DONE]":
+                return
+            continue
+
+        try:
+            chunk = json.loads(data)
+            tokens = extract_fn(chunk)
+            if tokens is not None:
+                if isinstance(tokens, list):
+                    for tok in tokens:
+                        if tok:
+                            yield tok
+                elif isinstance(tokens, str) and tokens:
+                    yield tokens
+        except (json.JSONDecodeError, KeyError, TypeError, IndexError):
+            pass
+
+
+# ── Shared Aiohttp Session Pool ─────────────────────────────────────────────
+
 _aiohttp_session: Optional["aiohttp.ClientSession"] = None
 
 

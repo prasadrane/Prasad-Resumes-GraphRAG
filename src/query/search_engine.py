@@ -9,21 +9,16 @@ metrics counters that can be integrated with W4's MetricsCollector later.
 import json
 import logging
 import os
-import subprocess
-import sys
 import threading
 import time
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from src.config import ROOT_DIR
 from src.gateway import call_serverless_llm
 from src.query.static_graph_reader import read_precomputed_entities, search_static_resume
 
 logger = logging.getLogger(__name__)
-
-# Command Runner Protocol type hint
-CommandRunner = Callable[[list, str], subprocess.CompletedProcess]
 
 
 class TTLCache:
@@ -83,27 +78,6 @@ class TTLCache:
             return len(self._cache)
 
 
-def default_command_runner(cmd: list, cwd_path: str) -> subprocess.CompletedProcess:
-    """Default process runner using subprocess.run."""
-    return subprocess.run(cmd, cwd=cwd_path, capture_output=True, text=True, encoding="utf-8")
-
-
-def _run_graphrag_query_uncached(
-    query: str, mode: str, root_dir: Path, runner: CommandRunner = default_command_runner
-) -> str:
-    """Execute raw GraphRAG query subprocess adhering to Dependency Inversion."""
-    cmd = [
-        sys.executable, "-m", "graphrag", "query",
-        "--root", str(root_dir),
-        "--method", mode,
-        "--query", query,
-    ]
-    result = runner(cmd, str(root_dir))
-    if result.returncode != 0:
-        err_msg = result.stderr.strip() if result.stderr else \
-            (result.stdout.strip() if result.stdout else "Unknown GraphRAG execution error")
-        raise RuntimeError(f"GraphRAG query execution failed (code {result.returncode}):\n{err_msg}")
-    return result.stdout
 
 
 # ---------------------------------------------------------------------------

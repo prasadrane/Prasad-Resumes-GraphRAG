@@ -5,11 +5,10 @@ The ``base_url`` in :class:`ProviderConfig` is the OpenAI-compatible path
 (reserved for future use); the endpoints below are the Direct REST paths.
 """
 
-import json
-from typing import AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from src.config.providers import ProviderConfig
-from .base import BaseProvider, _ensure_session, pad_embedding, is_rate_limit_error
+from .base import BaseProvider, _ensure_session, pad_embedding, is_rate_limit_error, parse_sse_stream
 
 
 _GEMINI_GENERATE_URL = (
@@ -88,21 +87,17 @@ class GeminiProvider(BaseProvider):
             if resp.status == 429:
                 err = await resp.text()
                 raise RuntimeError(f"Gemini rate limited (429): {err}")
-            async for raw in resp.content:
-                line = raw.decode()
-                if not line.startswith("data: "):
-                    continue
-                data = line[6:].strip()
-                if not data:
-                    continue
-                try:
-                    chunk = json.loads(data)
-                    for c in chunk.get("candidates", []):
-                        for p in c.get("content", {}).get("parts", []):
-                            if "text" in p:
-                                yield p["text"]
-                except json.JSONDecodeError:
-                    pass
+
+            def _extract(chunk: Dict[str, Any]) -> List[str]:
+                tokens: List[str] = []
+                for c in chunk.get("candidates", []):
+                    for p in c.get("content", {}).get("parts", []):
+                        if "text" in p and p["text"]:
+                            tokens.append(p["text"])
+                return tokens
+
+            async for token in parse_sse_stream(resp.content, _extract):
+                yield token
 
     # ── embedding ───────────────────────────────────────────────────────
 
@@ -115,5 +110,6 @@ class GeminiProvider(BaseProvider):
             json=payload,
             headers={"Content-Type": "application/json"},
         ) as resp:
+            import json
             data = json.loads(await resp.text())
             return pad_embedding(data["embedding"]["values"])

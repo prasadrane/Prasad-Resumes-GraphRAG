@@ -1,19 +1,15 @@
-"""Gateway facade — provider cache, failover orchestration, public API.
+"""Gateway facade: unified entry points with circuit breaking, retry, and latency tracking.
 
-This module is the single entry-point for callers that want to talk to an LLM
-or get an embedding. It owns:
+Public API:
+  - :func:`call_serverless_llm`        (sync chat with failover + retry)
+  - :func:`call_serverless_llm_stream` (async streaming chat)
+  - :func:`get_embedding`              (async embedding)
 
-- A lazily-populated cache of provider instances (:func:`_client`)
-- The sync failover chain (:func:`_try_chain`, moved verbatim from
-  serverless_gateway.py: skip empty-string results, forward rate-limit errors
-  immediately, RuntimeError only when all providers fail)
-- Streaming / embedding failover wrappers (streaming uses a consumed-flag
-  loop; embedding is sequential try/except with WARN logging)
-- The legacy public API: ``call_serverless_llm``, ``call_serverless_llm_stream``,
-  ``get_embedding``
-
-Sync chat calls stay on ``urllib`` (no asyncio bridge on the Vercel hot path).
-Streaming + embedding use ``aiohttp`` via the shared session in ``base.py``.
+Behavioral guarantees:
+  - Skip empty-string results, forward rate-limit errors
+  - Automatic circuit breaking on persistent failures
+  - Exponential backoff retry on transient network errors
+  - Latency-weighted provider selection
 """
 
 import functools
@@ -21,53 +17,54 @@ import json
 import logging
 import os
 import time
-from typing import Any, AsyncGenerator, Callable, List, Optional
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional
 
-from src.config.providers import get_model_for, get_provider
-from .base import BaseProvider, _ensure_session, pad_embedding, is_rate_limit_error
+from src.config.providers import get_provider
 from .alibaba import AlibabaProvider
+from .base import (
+    BaseProvider,
+    _ensure_session,
+    is_rate_limit_error,
+    pad_embedding,
+)
 from .circuit_breaker import CircuitBreaker, ProviderCircuitOpen
-from .openrouter import OpenRouterProvider
 from .gemini import GeminiProvider
-
+from .openrouter import OpenRouterProvider
 
 log = logging.getLogger(__name__)
 
+# Re-exported for backward compatibility
+ALIBABA_RESUME_MODEL = "qwen3.6-flash"
 
-# ── Provider cache ─────────────────────────────────────────────────────────
-
-_PROVIDER_CLASSES = {
-    "alibaba": AlibabaProvider,
-    "openrouter": OpenRouterProvider,
-    "gemini": GeminiProvider,
-}
-# Failover order for chat / streaming — matches the original chain.
+# Canonical chain orders
 _CHAT_CHAIN_ORDER = ("alibaba", "openrouter", "gemini")
+_EMBED_CHAIN_ORDER = ("openrouter", "gemini")
 
-# Circuit-breaker registry keyed by provider name — lazily initialized.
-_circuit_breakers: dict[str, CircuitBreaker] = {}
-
-_client_cache: dict[str, BaseProvider] = {}
+# Module-level singletons
+_CLIENT_CACHE: Dict[str, BaseProvider] = {}
+_BREAKER_CACHE: Dict[str, CircuitBreaker] = {}
 
 
 def _client(name: str) -> BaseProvider:
-    """Return a cached provider instance by name."""
-    if name not in _client_cache:
-        if name not in _PROVIDER_CLASSES:
+    """Return (and cache) a provider client instance."""
+    if name not in _CLIENT_CACHE:
+        cfg = get_provider(name)
+        if name == "alibaba":
+            _CLIENT_CACHE[name] = AlibabaProvider(cfg)
+        elif name == "openrouter":
+            _CLIENT_CACHE[name] = OpenRouterProvider(cfg)
+        elif name == "gemini":
+            _CLIENT_CACHE[name] = GeminiProvider(cfg)
+        else:
             raise ValueError(f"Unknown provider '{name}'")
-        _client_cache[name] = _PROVIDER_CLASSES[name](get_provider(name))
-    return _client_cache[name]
+    return _CLIENT_CACHE[name]
 
 
 def _breaker(name: str) -> CircuitBreaker:
-    """Return (or create) the circuit breaker for *name*."""
-    if name not in _circuit_breakers:
-        _circuit_breakers[name] = CircuitBreaker(
-            name=name,
-            failure_threshold=3,
-            recovery_timeout=30,
-        )
-    return _circuit_breakers[name]
+    """Return (and cache) a CircuitBreaker for *name*."""
+    if name not in _BREAKER_CACHE:
+        _BREAKER_CACHE[name] = CircuitBreaker(name=name)
+    return _BREAKER_CACHE[name]
 
 
 def _has_key(name: str) -> bool:
@@ -78,30 +75,39 @@ def _has_key(name: str) -> bool:
         return False
 
 
-# ── Sync failover (moved verbatim from serverless_gateway.py) ──────────────
+def _resolve_provider_model(name: str, requested_model: Optional[str] = None, use_case: str = "chat") -> str:
+    """Resolve the effective model name for a provider."""
+    if requested_model:
+        return requested_model
+    provider_config = get_provider(name)
+    model = provider_config.models.get(use_case)
+    if not model:
+        raise ValueError(f"Provider '{name}' has no '{use_case}' model configured")
+    return model
 
-def _is_empty_response(res) -> bool:
+
+# ── Sync Failover Chain ─────────────────────────────────────────────────────
+
+def _is_empty_response(res: Any) -> bool:
     return isinstance(res, str) and res.strip() == ""
 
 
-def _try_chain(primary_fn, *fallback_fns, max_retries: int = 1):
-    """Try a sequence of callables, returning the first success.
+def _try_chain(primary_fn: Callable[[], Any], *fallback_fns: Callable[[], Any]) -> Any:
+    """Try a sequence of callables in order, returning the first success.
 
     Empty-string results are treated as wrong-endpoint signals and trigger
     continuation to the next provider. Rate-limit errors are forwarded
     immediately via :func:`base.is_rate_limit_error`.
-    ``RuntimeError`` only when every callable fails every time.
     """
     for fn in (primary_fn,) + fallback_fns:
-        for _ in range(max_retries + 1):
-            try:
-                res = fn()
-                if _is_empty_response(res):
-                    continue
-                return res
-            except Exception as err:
-                if is_rate_limit_error(err):
-                    raise
+        try:
+            res = fn()
+            if _is_empty_response(res):
+                continue
+            return res
+        except Exception as err:
+            if is_rate_limit_error(err):
+                raise
     raise RuntimeError("All providers in the fallback chain failed.")
 
 
@@ -113,9 +119,8 @@ def retry_with_backoff(
 ):
     """Decorator that retries a callable on transient errors with exponential backoff.
 
-    Applies to *network* and *timeout* errors (not rate-limit or semantic failures).
+    Applies to network and timeout errors (not rate-limit or circuit-open failures).
     Delay doubles each attempt: ``base_delay * 2^attempt``.
-    Rate-limit errors pass through immediately.
     """
 
     def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -153,16 +158,10 @@ def retry_with_backoff(
     return decorator
 
 
-# ── LiteLLM proxy embed (kept for chain parity; not a provider call) ──────
+# ── LiteLLM proxy embed (kept for chain parity; not a provider call) ────────
 
 async def _litellm_embed(text: str, api_key: str) -> List[float]:
-    """Embed via local LiteLLM proxy (OpenAI-compatible /v1/embeddings).
-
-    Retained for backward compatibility with the existing embedding chain.
-    In serverless (Vercel) deployments the local proxy is unreachable, so this
-    call will fail and the chain will continue to the Gemini fallback.
-    """
-    import aiohttp
+    """Embed via local LiteLLM proxy (OpenAI-compatible /v1/embeddings)."""
     session = _ensure_session()
     payload = {
         "model": "llama-nemotron-embed-vl-1b-v2",
@@ -200,13 +199,7 @@ def call_serverless_llm(
     temperature: float = 0.3,
     timeout: int = 30,
 ) -> str:
-    """Sync chat completion — health & latency aware failover across providers.
-
-    Each provider is governed by a :class:`CircuitBreaker` so that
-    persistently failing providers are skipped automatically.  Transient
-    network errors within a single provider are retried with exponential
-    backoff (up to 3 retries).
-    """
+    """Sync chat completion — health & latency aware failover across providers."""
     if not any(_has_key(n) for n in _CHAT_CHAIN_ORDER):
         raise ValueError(
             "Neither OPENROUTER_API_KEY nor GEMINI_API_KEY environment variable "
@@ -215,14 +208,7 @@ def call_serverless_llm(
 
     def make_safe_fn(name: str):
         provider = _client(name)
-        # Each provider uses its own chat model (or explicit model if provided)
-        if model:
-            provider_model = model
-        else:
-            provider_config = get_provider(name)
-            provider_model = provider_config.models.get("chat")
-            if not provider_model:
-                raise ValueError(f"Provider '{name}' has no chat model configured")
+        provider_model = _resolve_provider_model(name, model, "chat")
 
         @retry_with_backoff(max_retries=3, base_delay=1.0)
         def call_with_retry():
@@ -260,15 +246,11 @@ async def call_serverless_llm_stream(
             continue
         any_attempted = True
         provider = _client(name)
-        # Each provider uses its own chat model (or explicit model if provided)
-        if model:
-            provider_model = model
-        else:
-            provider_config = get_provider(name)
-            provider_model = provider_config.models.get("chat")
-            if not provider_model:
-                last_error = ValueError(f"Provider '{name}' has no chat model configured")
-                continue
+        try:
+            provider_model = _resolve_provider_model(name, model, "chat")
+        except Exception as err:
+            last_error = err
+            continue
 
         try:
             gen = provider.chat_stream(system_prompt, user_message, provider_model, temperature, timeout)
@@ -297,7 +279,6 @@ async def call_serverless_llm_stream(
         raise ValueError(
             "No API keys set (ALIBABA_API_KEY, OPENROUTER_API_KEY, or GEMINI_API_KEY)."
         )
-    # All providers failed — raise the last error with context
     if last_error:
         raise RuntimeError(f"All streaming providers failed. Last error: {last_error}") from last_error
     raise RuntimeError("All streaming providers in the chain failed.")

@@ -17,11 +17,18 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH
+from src.converters.jd_extractor import extract_jd_from_url
+from src.generators.ats_scorer import calculate_ats_score
 from src.generators.pdf_renderer import render_pdf_resume
 from src.query.graphrag_engine import get_engine, reset_engine
 from src.query.conversation_store import get_conversation_store, reset_conversation_store
 from src.security.sanitizer import InputSanitizer
-from src.shared.api_models import QueryRequest, SaveEditRequest
+from src.shared.api_models import (
+    ATSSimulationRequest,
+    ExtractJDURLRequest,
+    QueryRequest,
+    SaveEditRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -239,3 +246,44 @@ def save_edit_endpoint(req: SaveEditRequest):
     except Exception:
         logger.exception("Failed to update resume")
         raise HTTPException(status_code=500, detail="Failed to save edit and re-render PDF.")
+
+
+# ── ATS Match Scoring & JD URL Extraction Routes ────────────────────────────
+
+@shared_router.post("/api/ats-score")
+def ats_score_endpoint(req: ATSSimulationRequest):
+    """Compute real-time ATS match score, keyword breakdown, and actionable suggestions."""
+    if not req.resume_text or not req.resume_text.strip():
+        raise HTTPException(status_code=400, detail="Resume text cannot be empty.")
+    if not req.jd_text or not req.jd_text.strip():
+        raise HTTPException(status_code=400, detail="Job description text cannot be empty.")
+
+    try:
+        report = calculate_ats_score(req.resume_text, req.jd_text)
+        return {
+            "status": "success",
+            "report": report.model_dump(),
+        }
+    except Exception:
+        logger.exception("ATS score calculation failed")
+        raise HTTPException(status_code=500, detail="Failed to calculate ATS match score.")
+
+
+@shared_router.post("/api/extract-jd-url")
+def extract_jd_url_endpoint(req: ExtractJDURLRequest):
+    """Scrape and extract normalized job description text and metadata from a URL."""
+    if not req.url or not req.url.strip():
+        raise HTTPException(status_code=400, detail="URL cannot be empty.")
+
+    try:
+        data = extract_jd_from_url(req.url)
+        return {
+            "status": "success",
+            "data": data,
+        }
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as exc:
+        logger.exception("Failed to extract JD from URL")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job description: {exc}")
+

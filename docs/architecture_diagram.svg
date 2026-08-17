@@ -1,156 +1,183 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1000" width="1800" height="1000" role="img" aria-label="Prasad Resumes GraphRAG Architecture &amp; Data Flow">
-<rect x="0" y="0" width="1800" height="1000" fill="#0f172a"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1060" width="1800" height="1060" role="img" aria-label="Prasad Resumes GraphRAG Architecture">
+<style>
+
+        text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        .band-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+        .box-title { font-size: 15px; font-weight: 600; fill: #0f172a; }
+        .box-sub { font-size: 12px; fill: #64748b; }
+        .box-badge { font-size: 11px; font-weight: 600; }
+        .edge-label { font-size: 11px; font-style: italic; font-weight: 500; }
+        .legend-text { font-size: 12px; fill: #334155; font-weight: 500; }
+    
+</style>
+<rect width="1800" height="1060" fill="#f8fafc" />
 <defs>
-<marker id="ah-req" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#38bdf8"/></marker>
-<marker id="ah-llm" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f59e0b"/></marker>
-<marker id="ah-graph" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#10b981"/></marker>
-<marker id="ah-heal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ec4899"/></marker>
+<marker id="ah-control" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#475569" />
+</marker>
+<marker id="ah-graph" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#059669" />
+</marker>
+<marker id="ah-llm" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#b45309" />
+</marker>
+<marker id="ah-artifact" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#7c3aed" />
+</marker>
 </defs>
-
-<!-- Header Title -->
-<text x="60" y="48" font-family="Segoe UI, system-ui, sans-serif" font-size="28" font-weight="700" fill="#f8fafc">Prasad Resumes — GraphRAG Knowledge Graph &amp; Talent Analytics Platform</text>
-<text x="60" y="74" font-family="Segoe UI, system-ui, sans-serif" font-size="14" fill="#94a3b8">Multi-Agent Guardrails · SME Tech Ontology · Action-Verb Impact Scoring · Voice Multimodal UI · Multi-Provider Serverless Gateway</text>
-
-<!-- Legend -->
-<rect x="1320" y="24" width="440" height="56" rx="8" fill="#1e293b" stroke="#334155"/>
-<line x1="1340" y1="52" x2="1370" y2="52" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#ah-req)"/>
-<text x="1378" y="56" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1">Control / Route</text>
-<line x1="1470" y1="52" x2="1500" y2="52" stroke="#10b981" stroke-width="2.5" marker-end="url(#ah-graph)"/>
-<text x="1508" y="56" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1">Graph / Vector</text>
-<line x1="1590" y1="52" x2="1620" y2="52" stroke="#ec4899" stroke-width="2.5" marker-end="url(#ah-heal)"/>
-<text x="1628" y="56" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1">Self-Healing</text>
-<line x1="1700" y1="52" x2="1730" y2="52" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#ah-llm)"/>
-<text x="1738" y="56" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1">LLM Call</text>
-
-<!-- Layer 1: User & Ingestion Layer -->
-<rect x="40" y="95" width="1720" height="150" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
-<text x="60" y="125" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#38bdf8" letter-spacing="1">1. MULTIMODAL USER INPUT &amp; INGESTION LAYER</text>
-
-<!-- Chat Question Card -->
-<rect x="70" y="140" width="380" height="85" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
-<text x="260" y="174" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Chat &amp; Voice Question</text>
-<text x="260" y="200" font-family="Segoe UI, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">Text Query or Web Speech API (mic)</text>
-
-<!-- Target Job Description Card -->
-<rect x="710" y="140" width="380" height="85" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
-<text x="900" y="174" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Target Job Description (JD)</text>
-<text x="900" y="200" font-family="Segoe UI, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">Raw JD Text (Pasted or CLI / File)</text>
-
-<!-- Master Resumes & Story Bank Card -->
-<rect x="1350" y="140" width="380" height="85" rx="8" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5"/>
-<text x="1540" y="174" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Master Resume &amp; Story Bank</text>
-<text x="1540" y="200" font-family="Segoe UI, sans-serif" font-size="13" fill="#94a3b8" text-anchor="middle">MASTER_RESUME.txt (20KB) + Story Bank (85KB)</text>
-
-<!-- Layer 2: Understanding, Matching & Knowledge Layer -->
-<rect x="40" y="270" width="1720" height="190" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
-<text x="60" y="300" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#10b981" letter-spacing="1">2. INTENT ROUTING, SME ONTOLOGY &amp; KNOWLEDGE RETRIEVAL LAYER</text>
-
-<!-- Intent Classifier Card -->
-<rect x="70" y="320" width="380" height="120" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-<text x="260" y="352" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Intent Classifier &amp; Router</text>
-<text x="260" y="378" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">6 Intents: Skill, Company, Experience, Metrics,</text>
-<text x="260" y="398" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Comparative, General · Fast-Path Routing</text>
-<text x="260" y="422" font-family="Segoe UI, sans-serif" font-size="12" fill="#10b981" font-weight="600" text-anchor="middle">src/query/intent_classifier.py</text>
-
-<!-- GraphRAG & LanceDB Card -->
-<rect x="490" y="320" width="400" height="120" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-<text x="690" y="352" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">GraphRAG &amp; LanceDB Vector Store</text>
-<text x="690" y="378" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">3 Modes: Local Context · Global Summary · DRIFT</text>
-<text x="690" y="398" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Parquet Tables: Entities, Relationships, Text Units</text>
-<text x="690" y="422" font-family="Segoe UI, sans-serif" font-size="12" fill="#10b981" font-weight="600" text-anchor="middle">src/query/graphrag_engine.py</text>
-
-<!-- SME Tech Ontology & ATS Matcher Card -->
-<rect x="930" y="320" width="390" height="120" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-<text x="1125" y="352" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">SME Tech Ontology &amp; ATS Matcher</text>
-<text x="1125" y="378" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Synonym Normalization (k8s → kubernetes)</text>
-<text x="1125" y="398" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Category-to-Child Term Expansion</text>
-<text x="1125" y="422" font-family="Segoe UI, sans-serif" font-size="12" fill="#10b981" font-weight="600" text-anchor="middle">src/generators/sme_ontology.py</text>
-
-<!-- Action-Verb Impact Scorer Card -->
-<rect x="1350" y="320" width="380" height="120" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
-<text x="1540" y="352" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Action-Verb Impact Scorer</text>
-<text x="1540" y="378" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Bloom's Taxonomy Tiers (1.0 / 0.7 / 0.4)</text>
-<text x="1540" y="398" font-family="Segoe UI, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Quantified Metrics + Exp Recency Decay</text>
-<text x="1540" y="422" font-family="Segoe UI, sans-serif" font-size="12" fill="#10b981" font-weight="600" text-anchor="middle">src/generators/scoring.py</text>
-
-<!-- Layer 3: Guardrail & Multi-Provider LLM Routing Layer -->
-<rect x="40" y="485" width="1720" height="230" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
-<text x="60" y="515" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#f59e0b" letter-spacing="1">3. RESILIENCE GUARDRAILS &amp; SERVERLESS LLM GATEWAY LAYER</text>
-
-<!-- Self-Healing Retrieval Guardrail Card -->
-<rect x="70" y="535" width="480" height="155" rx="8" fill="#0f172a" stroke="#ec4899" stroke-width="1.5"/>
-<text x="310" y="568" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Self-Healing Retrieval Guardrail Agent</text>
-<text x="310" y="594" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">Pre-Synthesis Context Quality Inspector</text>
-<text x="310" y="618" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">• Token Density Check (&gt;30 tokens)</text>
-<text x="310" y="638" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">• Query Entity Hit Rate &amp; Overlap</text>
-<text x="310" y="658" font-family="Segoe UI, sans-serif" font-size="12" fill="#ec4899" font-weight="600" text-anchor="middle">• Autonomous Mode Escalation: local → drift → global</text>
-<text x="310" y="678" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#94a3b8" text-anchor="middle">src/query/retrieval_guardrail.py</text>
-
-<!-- Multi-Provider LLM Gateway Card -->
-<rect x="580" y="535" width="670" height="155" rx="8" fill="#0f172a" stroke="#f59e0b" stroke-width="1.5"/>
-<text x="915" y="568" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">LLM Gateway Facade · src/gateway/facade.py</text>
-<text x="915" y="594" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">Dynamic Failover Routing (_try_chain) &amp; Protocol Adaptation</text>
-
-<!-- Provider Sub-Pills -->
-<rect x="605" y="615" width="195" height="55" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
-<text x="702" y="638" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#f8fafc" text-anchor="middle">Alibaba Cloud</text>
-<text x="702" y="656" font-family="Segoe UI, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">qwen3.6 / qwen3.7</text>
-
-<rect x="815" y="615" width="195" height="55" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
-<text x="912" y="638" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#f8fafc" text-anchor="middle">OpenRouter</text>
-<text x="912" y="656" font-family="Segoe UI, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Free Pool / Embeddings</text>
-
-<rect x="1025" y="615" width="195" height="55" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1"/>
-<text x="1122" y="638" font-family="Segoe UI, sans-serif" font-size="13" font-weight="600" fill="#f8fafc" text-anchor="middle">Gemini Direct</text>
-<text x="1122" y="656" font-family="Segoe UI, sans-serif" font-size="11" fill="#94a3b8" text-anchor="middle">Google AI Studio REST</text>
-
-<!-- Synthetic Benchmark Evaluator Card -->
-<rect x="1280" y="535" width="450" height="155" rx="8" fill="#0f172a" stroke="#818cf8" stroke-width="1.5"/>
-<text x="1505" y="568" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Synthetic RAG Benchmark Harness</text>
-<text x="1505" y="594" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">Automated Precision, Recall, Faithfulness Tracking</text>
-<text x="1505" y="618" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">• 7 Synthetic Ground-Truth Query Test Cases</text>
-<text x="1505" y="638" font-family="Segoe UI, sans-serif" font-size="12" fill="#cbd5e1" text-anchor="middle">• Output: output/benchmark_report.md</text>
-<text x="1505" y="662" font-family="Segoe UI, sans-serif" font-size="12" fill="#818cf8" font-weight="600" text-anchor="middle">python src/cli.py benchmark</text>
-
-<!-- Layer 4: Output & Multimodal Presentation Layer -->
-<rect x="40" y="740" width="1720" height="225" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
-<text x="60" y="770" font-family="Segoe UI, sans-serif" font-size="13" font-weight="700" fill="#a855f7" letter-spacing="1">4. MULTIMODAL PRESENTATION, VOICE &amp; ATS EXPORT LAYER</text>
-
-<!-- Chat Answer & Voice Audio Briefing Card -->
-<rect x="70" y="790" width="530" height="150" rx="8" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
-<text x="335" y="825" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Streaming Chat &amp; Audio Briefing</text>
-<text x="335" y="852" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Server-Sent Events (SSE) token-by-token streaming</text>
-<text x="335" y="874" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Web Speech API SpeechSynthesis audio briefing toggle</text>
-<text x="335" y="896" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Expandable Reasoning &amp; Guardrail Trace Badge</text>
-<text x="335" y="920" font-family="Segoe UI, sans-serif" font-size="12" fill="#a855f7" font-weight="600" text-anchor="middle">POST /api/chat-stream</text>
-
-<!-- Tailored Resume & Live Editor Card -->
-<rect x="630" y="790" width="540" height="150" rx="8" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
-<text x="900" y="825" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Live Markdown Editor &amp; Preview Drawer</text>
-<text x="900" y="852" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• In-memory stateful markdown editing without reload</text>
-<text x="900" y="874" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Precision keyword bolding (&lt;20% ATS character cap)</text>
-<text x="900" y="896" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Instant Save &amp; Re-render integration</text>
-<text x="900" y="920" font-family="Segoe UI, sans-serif" font-size="12" fill="#a855f7" font-weight="600" text-anchor="middle">POST /api/save-edit</text>
-
-<!-- Standard ATS PDF Engine Card -->
-<rect x="1200" y="790" width="530" height="150" rx="8" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
-<text x="1465" y="825" font-family="Segoe UI, sans-serif" font-size="16" font-weight="600" fill="#f8fafc" text-anchor="middle">Standard ATS 2-Page PDF Engine</text>
-<text x="1465" y="852" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Strict 2-Page budget guarantee across all 4 companies</text>
-<text x="1465" y="874" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Calibri typography, 0.55" margins, KeepTogether blocks</text>
-<text x="1465" y="896" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#94a3b8" text-anchor="middle">• Clickable hyperlinks &amp; clean contact headers</text>
-<text x="1465" y="920" font-family="Segoe UI, sans-serif" font-size="12" fill="#a855f7" font-weight="600" text-anchor="middle">src/generators/pdf_renderer.py</text>
-
-<!-- Connecting Vectors & Routing Lines -->
-<line x1="260" y1="225" x2="260" y2="320" stroke="#38bdf8" stroke-width="2" marker-end="url(#ah-req)"/>
-<line x1="450" y1="380" x2="490" y2="380" stroke="#10b981" stroke-width="2" marker-end="url(#ah-graph)"/>
-<line x1="900" y1="225" x2="1050" y2="320" stroke="#38bdf8" stroke-width="2" marker-end="url(#ah-req)"/>
-<line x1="1540" y1="225" x2="1540" y2="320" stroke="#38bdf8" stroke-width="2" marker-end="url(#ah-req)"/>
-<line x1="690" y1="440" x2="350" y2="535" stroke="#10b981" stroke-width="2" marker-end="url(#ah-graph)"/>
-<path d="M 120 535 C 100 480, 480 470, 490 445" fill="none" stroke="#ec4899" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#ah-heal)"/>
-<line x1="550" y1="612" x2="580" y2="612" stroke="#f59e0b" stroke-width="2" marker-end="url(#ah-llm)"/>
-<line x1="1350" y1="440" x2="1100" y2="535" stroke="#10b981" stroke-width="2" marker-end="url(#ah-graph)"/>
-<line x1="750" y1="690" x2="335" y2="790" stroke="#a855f7" stroke-width="2" marker-end="url(#ah-llm)"/>
-<line x1="915" y1="690" x2="900" y2="790" stroke="#a855f7" stroke-width="2" marker-end="url(#ah-llm)"/>
-<line x1="1170" y1="865" x2="1200" y2="865" stroke="#a855f7" stroke-width="2" marker-end="url(#ah-req)"/>
-
+<text x="60" y="44" font-size="24" font-weight="700" fill="#0f172a">Prasad Resumes — GraphRAG &amp; Talent Analytics Platform</text>
+<text x="60" y="66" font-size="13" fill="#64748b">Knowledge Graph RAG · Real-Time ATS Match Scoring · Multi-Provider Serverless Gateway (Alibaba/Gemini/OpenRouter)</text>
+<g transform="translate(1120, 26)">
+<rect width="620" height="46" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+<line x1="20" y1="23" x2="44" y2="23" stroke="#475569" stroke-width="2" marker-end="url(#ah-control)" />
+<text x="52" y="27" class="legend-text">Route / Request</text>
+<line x1="160" y1="23" x2="184" y2="23" stroke="#059669" stroke-width="2" marker-end="url(#ah-graph)" />
+<text x="192" y="27" class="legend-text">Graph / KG Query</text>
+<line x1="320" y1="23" x2="344" y2="23" stroke="#b45309" stroke-width="2" marker-end="url(#ah-llm)" />
+<text x="352" y="27" class="legend-text">LLM Inference</text>
+<line x1="460" y1="23" x2="484" y2="23" stroke="#7c3aed" stroke-width="2" marker-end="url(#ah-artifact)" />
+<text x="492" y="27" class="legend-text">Artifact / PDF</text>
+</g>
+<rect x="40" y="90" width="1720" height="150" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-opacity="0.25" stroke-width="1.5" />
+<text x="60" y="114" fill="#2563eb" class="band-title">LAYER 1: Multimodal User Ingestion & URL Scraper</text>
+<rect x="40" y="270" width="1720" height="170" rx="12" fill="#f0fdf4" stroke="#059669" stroke-opacity="0.25" stroke-width="1.5" />
+<text x="60" y="294" fill="#059669" class="band-title">LAYER 2: Intent Routing, SME Ontology & ATS Scoring</text>
+<rect x="40" y="470" width="1720" height="170" rx="12" fill="#fffbeb" stroke="#b45309" stroke-opacity="0.25" stroke-width="1.5" />
+<text x="60" y="494" fill="#b45309" class="band-title">LAYER 3: Resume Tailoring & Story Context Orchestration</text>
+<rect x="40" y="670" width="1720" height="170" rx="12" fill="#faf5ff" stroke="#7c3aed" stroke-opacity="0.25" stroke-width="1.5" />
+<text x="60" y="694" fill="#7c3aed" class="band-title">LAYER 4: Multi-Provider LLM Gateway & Fallback Matrix</text>
+<rect x="40" y="870" width="1720" height="150" rx="12" fill="#f0f9ff" stroke="#0284c7" stroke-opacity="0.25" stroke-width="1.5" />
+<text x="60" y="894" fill="#0284c7" class="band-title">LAYER 5: Knowledge Graph Artifacts & ReportLab PDF Renderer</text>
+<polyline points="270,220 270,310" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="270.0" y="261.0" fill="#475569" text-anchor="middle" class="edge-label">dispatch query</text>
+<polyline points="690,220 690,310" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="690.0" y="261.0" fill="#475569" text-anchor="middle" class="edge-label">expand skills</text>
+<polyline points="1110,220 1110,310" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="1110.0" y="261.0" fill="#475569" text-anchor="middle" class="edge-label">parsed JD</text>
+<polyline points="1530,220 1530,310" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-graph)" />
+<text x="1530.0" y="261.0" fill="#059669" text-anchor="middle" class="edge-label">sanitize</text>
+<polyline points="270,415 270,510" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="270.0" y="458.5" fill="#475569" text-anchor="middle" class="edge-label">classify domain</text>
+<polyline points="690,415 690,510" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="690.0" y="458.5" fill="#475569" text-anchor="middle" class="edge-label">taxonomy map</text>
+<polyline points="1110,415 1110,510" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="1110.0" y="458.5" fill="#475569" text-anchor="middle" class="edge-label">ats keywords</text>
+<polyline points="1530,415 1530,510" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-graph)" />
+<text x="1530.0" y="458.5" fill="#059669" text-anchor="middle" class="edge-label">retrieve entities</text>
+<polyline points="270,615 270,710" fill="none" stroke="#b45309" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-llm)" />
+<text x="270.0" y="658.5" fill="#b45309" text-anchor="middle" class="edge-label">orchestrate LLM</text>
+<polyline points="690,615 690,710" fill="none" stroke="#b45309" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-llm)" />
+<text x="690.0" y="658.5" fill="#b45309" text-anchor="middle" class="edge-label">single-call prompt</text>
+<polyline points="1110,615 1110,710" fill="none" stroke="#b45309" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-llm)" />
+<text x="1110.0" y="658.5" fill="#b45309" text-anchor="middle" class="edge-label">fallback prompt</text>
+<polyline points="1530,615 1530,710" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-graph)" />
+<text x="1530.0" y="658.5" fill="#059669" text-anchor="middle" class="edge-label">embed / query</text>
+<polyline points="270,815 270,905" fill="none" stroke="#059669" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-graph)" />
+<text x="270.0" y="856.0" fill="#059669" text-anchor="middle" class="edge-label">graph query</text>
+<polyline points="690,815 690,905" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-artifact)" />
+<text x="690.0" y="856.0" fill="#7c3aed" text-anchor="middle" class="edge-label">render PDF</text>
+<polyline points="1110,815 1110,905" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="1110.0" y="856.0" fill="#475569" text-anchor="middle" class="edge-label">record metrics</text>
+<polyline points="1530,815 1530,905" fill="none" stroke="#475569" stroke-width="2" stroke-linejoin="round" marker-end="url(#ah-control)" />
+<text x="1530.0" y="856.0" fill="#475569" text-anchor="middle" class="edge-label">stream SSE</text>
+<rect x="80" y="125" width="380" height="95" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="270.0" y="157" text-anchor="middle" class="box-title">Unified CLI Engine</text>
+<text x="270.0" y="179" text-anchor="middle" class="box-sub">cli.py: query, generate, benchmark, ui</text>
+<rect x="210.0" y="192" width="120" height="20" rx="6" fill="#2563eb" fill-opacity="0.1" />
+<text x="270.0" y="206" text-anchor="middle" fill="#2563eb" class="box-badge">Fast Entrypoint</text>
+<rect x="500" y="125" width="380" height="95" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="690.0" y="157" text-anchor="middle" class="box-title">Web UI & Multimodal Voice</text>
+<text x="690.0" y="179" text-anchor="middle" class="box-sub">FastAPI app.py + Web Speech API + SSE</text>
+<rect x="630.0" y="192" width="120" height="20" rx="6" fill="#2563eb" fill-opacity="0.1" />
+<text x="690.0" y="206" text-anchor="middle" fill="#2563eb" class="box-badge">Browser Client</text>
+<rect x="920" y="125" width="380" height="95" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1110.0" y="157" text-anchor="middle" class="box-title">JD URL Scraper & Normalizer</text>
+<text x="1110.0" y="179" text-anchor="middle" class="box-sub">jd_extractor.py: LinkedIn, Greenhouse, Lever</text>
+<rect x="1050.0" y="192" width="120" height="20" rx="6" fill="#2563eb" fill-opacity="0.1" />
+<text x="1110.0" y="206" text-anchor="middle" fill="#2563eb" class="box-badge">Auto-Extraction</text>
+<rect x="1340" y="125" width="380" height="95" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1530.0" y="157" text-anchor="middle" class="box-title">Master Resumes & Story Bank</text>
+<text x="1530.0" y="179" text-anchor="middle" class="box-sub">MASTER_RESUME.txt + STAR Story Bank</text>
+<rect x="1470.0" y="192" width="120" height="20" rx="6" fill="#2563eb" fill-opacity="0.1" />
+<text x="1530.0" y="206" text-anchor="middle" fill="#2563eb" class="box-badge">Candidate Baseline</text>
+<rect x="80" y="310" width="380" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="270.0" y="342" text-anchor="middle" class="box-title">Intent Classifier & Router</text>
+<text x="270.0" y="364" text-anchor="middle" class="box-sub">intent_classifier.py: 8 Intent Categories</text>
+<rect x="210.0" y="387" width="120" height="20" rx="6" fill="#059669" fill-opacity="0.1" />
+<text x="270.0" y="401" text-anchor="middle" fill="#059669" class="box-badge">Query Routing</text>
+<rect x="500" y="310" width="380" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="690.0" y="342" text-anchor="middle" class="box-title">SME Tech Ontology & Taxonomy</text>
+<text x="690.0" y="364" text-anchor="middle" class="box-sub">sme_ontology.py: 120+ Skill Taxonomies</text>
+<rect x="630.0" y="387" width="120" height="20" rx="6" fill="#059669" fill-opacity="0.1" />
+<text x="690.0" y="401" text-anchor="middle" fill="#059669" class="box-badge">Domain Expansion</text>
+<rect x="920" y="310" width="380" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1110.0" y="342" text-anchor="middle" class="box-title">Real-Time ATS Scorer Engine</text>
+<text x="1110.0" y="364" text-anchor="middle" class="box-sub">ats_scorer.py: Match %, Gaps, Suggestions</text>
+<rect x="1050.0" y="387" width="120" height="20" rx="6" fill="#059669" fill-opacity="0.1" />
+<text x="1110.0" y="401" text-anchor="middle" fill="#059669" class="box-badge">Real-Time Analytics</text>
+<rect x="1340" y="310" width="380" height="105" rx="10" fill="#ffffff" stroke="#059669" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1530.0" y="342" text-anchor="middle" class="box-title">Retrieval Guardrail & Redactor</text>
+<text x="1530.0" y="364" text-anchor="middle" class="box-sub">retrieval_guardrail.py + pii_redactor.py</text>
+<rect x="1470.0" y="387" width="120" height="20" rx="6" fill="#059669" fill-opacity="0.1" />
+<text x="1530.0" y="401" text-anchor="middle" fill="#059669" class="box-badge">Hallucination Shield</text>
+<rect x="80" y="510" width="380" height="105" rx="10" fill="#ffffff" stroke="#b45309" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="270.0" y="542" text-anchor="middle" class="box-title">Domain Variant Matcher</text>
+<text x="270.0" y="564" text-anchor="middle" class="box-sub">domain_matcher.py: AI/Cloud/DevEx/Security</text>
+<rect x="210.0" y="587" width="120" height="20" rx="6" fill="#b45309" fill-opacity="0.1" />
+<text x="270.0" y="601" text-anchor="middle" fill="#b45309" class="box-badge">Summary Pre-select</text>
+<rect x="500" y="510" width="380" height="105" rx="10" fill="#ffffff" stroke="#b45309" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="690.0" y="542" text-anchor="middle" class="box-title">Prompt Builder & Metric Extractor</text>
+<text x="690.0" y="564" text-anchor="middle" class="box-sub">prompt_builder.py: Single-call synthesis</text>
+<rect x="630.0" y="587" width="120" height="20" rx="6" fill="#b45309" fill-opacity="0.1" />
+<text x="690.0" y="601" text-anchor="middle" fill="#b45309" class="box-badge">Metric & Story Inject</text>
+<rect x="920" y="510" width="380" height="105" rx="10" fill="#ffffff" stroke="#b45309" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1110.0" y="542" text-anchor="middle" class="box-title">Text Formatter & ATS Bolder</text>
+<text x="1110.0" y="564" text-anchor="middle" class="box-sub">text_formatter.py: <20% Bold Cap, 2-Page Budget</text>
+<rect x="1050.0" y="587" width="120" height="20" rx="6" fill="#b45309" fill-opacity="0.1" />
+<text x="1110.0" y="601" text-anchor="middle" fill="#b45309" class="box-badge">ATS Rules Engine</text>
+<rect x="1340" y="510" width="380" height="105" rx="10" fill="#ffffff" stroke="#b45309" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1530.0" y="542" text-anchor="middle" class="box-title">GraphRAG & Static Search Engine</text>
+<text x="1530.0" y="564" text-anchor="middle" class="box-sub">static_graph_reader.py + search_engine.py</text>
+<rect x="1470.0" y="587" width="120" height="20" rx="6" fill="#b45309" fill-opacity="0.1" />
+<text x="1530.0" y="601" text-anchor="middle" fill="#b45309" class="box-badge">Sub-second Graph</text>
+<rect x="80" y="710" width="380" height="105" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="270.0" y="742" text-anchor="middle" class="box-title">Gateway Facade & Circuit Breaker</text>
+<text x="270.0" y="764" text-anchor="middle" class="box-sub">facade.py: Provider failover & backoff</text>
+<rect x="210.0" y="787" width="120" height="20" rx="6" fill="#7c3aed" fill-opacity="0.1" />
+<text x="270.0" y="801" text-anchor="middle" fill="#7c3aed" class="box-badge">High Availability</text>
+<rect x="500" y="710" width="380" height="105" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="690.0" y="742" text-anchor="middle" class="box-title">Alibaba Cloud Provider</text>
+<text x="690.0" y="764" text-anchor="middle" class="box-sub">qwen3.7-plus (Primary Resume Tailor)</text>
+<rect x="630.0" y="787" width="120" height="20" rx="6" fill="#7c3aed" fill-opacity="0.1" />
+<text x="690.0" y="801" text-anchor="middle" fill="#7c3aed" class="box-badge">Primary Tailor</text>
+<rect x="920" y="710" width="380" height="105" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1110.0" y="742" text-anchor="middle" class="box-title">Google Gemini AI Studio</text>
+<text x="1110.0" y="764" text-anchor="middle" class="box-sub">gemini-2.5-flash-lite (1500 RPD Free Pool)</text>
+<rect x="1050.0" y="787" width="120" height="20" rx="6" fill="#7c3aed" fill-opacity="0.1" />
+<text x="1110.0" y="801" text-anchor="middle" fill="#7c3aed" class="box-badge">Active Fallback</text>
+<rect x="1340" y="710" width="380" height="105" rx="10" fill="#ffffff" stroke="#7c3aed" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1530.0" y="742" text-anchor="middle" class="box-title">OpenRouter Free Pool</text>
+<text x="1530.0" y="764" text-anchor="middle" class="box-sub">freellmapi-chat / Nemotron Embeddings</text>
+<rect x="1470.0" y="787" width="120" height="20" rx="6" fill="#7c3aed" fill-opacity="0.1" />
+<text x="1530.0" y="801" text-anchor="middle" fill="#7c3aed" class="box-badge">Global Routing</text>
+<rect x="80" y="905" width="380" height="95" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="270.0" y="937" text-anchor="middle" class="box-title">GraphRAG Knowledge Graph</text>
+<text x="270.0" y="959" text-anchor="middle" class="box-sub">entities.parquet, relationships.parquet</text>
+<rect x="210.0" y="972" width="120" height="20" rx="6" fill="#0284c7" fill-opacity="0.1" />
+<text x="270.0" y="986" text-anchor="middle" fill="#0284c7" class="box-badge">Knowledge Store</text>
+<rect x="500" y="905" width="380" height="95" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="690.0" y="937" text-anchor="middle" class="box-title">ReportLab PDF Renderer</text>
+<text x="690.0" y="959" text-anchor="middle" class="box-sub">pdf_renderer.py + pdf_styles.py (2-Page)</text>
+<rect x="630.0" y="972" width="120" height="20" rx="6" fill="#0284c7" fill-opacity="0.1" />
+<text x="690.0" y="986" text-anchor="middle" fill="#0284c7" class="box-badge">Print Engine</text>
+<rect x="920" y="905" width="380" height="95" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1110.0" y="937" text-anchor="middle" class="box-title">Observability & Benchmarks</text>
+<text x="1110.0" y="959" text-anchor="middle" class="box-sub">benchmark_eval.py + metrics.py + correlation</text>
+<rect x="1050.0" y="972" width="120" height="20" rx="6" fill="#0284c7" fill-opacity="0.1" />
+<text x="1110.0" y="986" text-anchor="middle" fill="#0284c7" class="box-badge">Metrics & Tracing</text>
+<rect x="1340" y="905" width="380" height="95" rx="10" fill="#ffffff" stroke="#0284c7" stroke-width="2"  filter="drop-shadow(0 2px 4px rgba(0,0,0,0.04))" />
+<text x="1530.0" y="937" text-anchor="middle" class="box-title">Vercel / Production Deployment</text>
+<text x="1530.0" y="959" text-anchor="middle" class="box-sub">api/index.py + vercel.json + Static UI</text>
+<rect x="1470.0" y="972" width="120" height="20" rx="6" fill="#0284c7" fill-opacity="0.1" />
+<text x="1530.0" y="986" text-anchor="middle" fill="#0284c7" class="box-badge">Edge Serverless</text>
 </svg>

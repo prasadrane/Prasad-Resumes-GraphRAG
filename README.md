@@ -1,45 +1,50 @@
 # Prasad Resumes — GraphRAG Knowledge Graph, Talent Analytics & Tailored Resume Generator
 
-A production-grade, serverless-ready GraphRAG knowledge graph engine, automated ATS resume generator, and conversational talent analytics platform built over Prasad Rane's master resumes and story bank.
+A production-grade, serverless-ready GraphRAG knowledge graph engine, automated ATS resume generator, real-time match scoring dashboard, and conversational talent analytics platform built over Prasad Rane's master resumes and story bank.
 
 ---
 
 ## 🏛️ System Architecture & Data Flow
 
-![Architecture & System Data Flow](docs/architecture_diagram.svg)
+![Architecture & System Data Flow](docs/architecture_diagram.png)
 
-The platform operates across four decoupled layers sharing a unified knowledge and multi-provider LLM substrate:
+The platform operates across five decoupled layers sharing a unified knowledge and multi-provider LLM substrate:
 
-1. **Multimodal User Input & Ingestion:** Ingests master resumes (`input/MASTER_RESUME.txt`) and 85KB narrative story banks into GraphRAG Parquet tables and LanceDB vector stores. Supports real-time text and Web Speech API voice queries.
-2. **Intent Routing & Knowledge Layer:** Zero-shot intent classifier (6 intents) and SME Technology Ontology (`SMEOntology`) with synonym normalization and child-skill query expansion.
-3. **Guardrails & LLM Gateway Layer:** Self-Healing Retrieval Guardrail (`RetrievalGuardrail`) inspecting pre-synthesis token density and entity overlap with autonomous fallback escalation (`local` $\rightarrow$ `drift` $\rightarrow$ `global`), routed through a multi-provider LLM Gateway (`Alibaba Cloud`, `OpenRouter`, `Google Gemini REST`).
-4. **Multimodal Presentation & ATS Export:** Real-time token streaming with audio briefing synthesis (`SpeechSynthesis`), in-memory markdown editor, and a standard 2-page ATS PDF compilation engine.
+1. **Multimodal User Ingestion & URL Scraper:** Ingests master resumes (`input/MASTER_RESUME.txt`), 85KB narrative story banks, and public job posting URLs (`src/converters/jd_extractor.py`). Supports real-time text and Web Speech API voice queries.
+2. **Intent Routing, SME Ontology & ATS Scoring:** Zero-shot intent classifier (8 intents), SME Technology Ontology (`SMEOntology` with 120+ skill taxonomies), and a real-time ATS match scoring engine (`ats_scorer.py`).
+3. **Resume Tailoring & Story Context Orchestration:** Modular Single Responsibility (SRP) pipeline splitting domain matching (`domain_matcher.py`), single-call prompt construction (`prompt_builder.py`), and ATS markdown formatting (`text_formatter.py`).
+4. **Multi-Provider LLM Gateway Layer:** Self-Healing Retrieval Guardrail (`RetrievalGuardrail`) with autonomous fallback escalation (`local` $\rightarrow$ `drift` $\rightarrow$ `global`), routed through a multi-provider LLM Gateway (`Alibaba Cloud qwen3.7-plus`, `Google Gemini AI Studio 2.5-flash-lite`, `OpenRouter free pool`).
+5. **Multimodal Presentation & ATS Export:** Real-time SSE token streaming, in-memory markdown editor, and a standard 2-page ATS PDF compilation engine using ReportLab.
 
 ---
 
 ## 🚀 Key Innovations & Features
 
-### 1. SME Technology Ontology & Synonym Expansion
-- **Canonical Normalization:** Normalizes variations like `k8s` $\rightarrow$ `kubernetes`, `postgres` $\rightarrow$ `postgresql`, `py-torch` $\rightarrow$ `pytorch`, `fast-api` $\rightarrow$ `fastapi`.
+### 1. Real-Time ATS Match Scorer & Actionable Analytics
+- **Composite Match Scoring:** Computes holistic 0–100% match scores based on keyword coverage, experience depth, and quantitative metrics.
+- **Section-by-Section Breakdown:** Visualizes match percentages for Skills, Experience, and Executive Summary.
+- **Actionable Suggestions:** Provides direct suggestions (e.g. *Add 'Kafka' to Experience bullets to prove hands-on impact*).
+
+### 2. Automated Job Description Extraction from URL
+- **Multi-Portal Scraping:** Automatically extracts and normalizes job descriptions from LinkedIn, Greenhouse, Lever, Indeed, and career portals.
+- **CLI & Web Integration:** Run `python src/cli.py generate --jd-url <URL>` to auto-infer company/role, tailor the resume, and report ATS scores.
+
+### 3. SME Technology Ontology & Synonym Expansion
+- **Canonical Normalization:** Normalizes variations like `k8s` $\rightarrow$ `kubernetes`, `postgres` $\rightarrow$ `postgresql`, `fast-api` $\rightarrow$ `fastapi`.
 - **Bidirectional Skill Hierarchy:** Maps high-level JD requirements (e.g. *Event-Driven Architecture*, *Deep Learning*) to concrete master resume tools (*Kafka*, *PyTorch*, *AWS ECS Fargate*).
 
-### 2. Action-Verb Impact Scoring & Recency Decay (EEOC / EU AI Act Compliant)
+### 4. Action-Verb Impact Scoring & Recency Decay (EEOC / EU AI Act Compliant)
 - **Bloom's Taxonomy Verb Tiering:** Scores candidate accomplishments using deterministic action-verb tiers (Tier 1 = $1.0$, Tier 2 = $0.7$, Tier 3 = $0.4$).
 - **Quantified Impact Detection:** Detects and rewards business metrics (`70% latency reduction`, `$400K cost savings`, `10M requests`).
 - **Exponential Recency Decay:** Prioritizes current skills via $e^{-\lambda \Delta t}$ ($\lambda = 0.15$) while maintaining full career history.
 
-### 3. Self-Healing Retrieval Guardrail Agent
+### 5. Self-Healing Retrieval Guardrail Agent
 - **Pre-Synthesis Quality Inspection:** Checks context sufficiency and entity overlap before calling the LLM.
 - **Autonomous Mode Escalation:** If initial local retrieval has low token density ($<30$ tokens), automatically escalates across `local` $\rightarrow$ `drift` $\rightarrow$ `global` and returns an execution trace badge in the UI.
 
-### 4. Synthetic RAG Benchmark Evaluation Harness
+### 6. Synthetic RAG Benchmark Evaluation Harness
 - **Defensible Quantitative Tracking:** Evaluates retrieval performance across Context Precision, Context Recall, Faithfulness, and Latency.
 - **CLI Runner:** Run `python src/cli.py benchmark` to execute test suites and export Markdown reports to `output/benchmark_report.md`.
-
-### 5. Multimodal Voice Assistant & Interactive Web UI
-- **Voice Query Input:** Speak naturally into the search bar using browser Web Speech API.
-- **Audio Briefings:** Click speaker icons on answers for synthesized text-to-speech audio summaries.
-- **In-Memory Markdown & PDF Preview:** Edit raw resume content live and re-render standard ATS PDFs in one click without losing page budget.
 
 ---
 
@@ -48,16 +53,16 @@ The platform operates across four decoupled layers sharing a unified knowledge a
 Following Google Maps-style hierarchical documentation principles (**Earth → Continent → Country → City → Street**):
 
 - 🌍 **[Master Architecture Index (Earth Level)](docs/hierarchical/README.md)**
-- ⚙️ **[src/config (Provider Registry)](docs/hierarchical/src/config/README.md)**
-- 📥 **[src/converters (Ingestion & Normalization)](docs/hierarchical/src/converters/README.md)**
+- ⚙️ **[src/config (Provider Registry & Constants)](docs/hierarchical/src/config/README.md)**
+- 📥 **[src/converters (Ingestion & JD URL Scraper)](docs/hierarchical/src/converters/README.md)**
 - 🏢 **[src/gateway (Multi-Provider LLM Routing)](docs/hierarchical/src/gateway/README.md)**
-- 📄 **[src/generators (Ontology, Scoring & PDF Renderer)](docs/hierarchical/src/generators/README.md)**
+- 📄 **[src/generators (Ontology, ATS Scorer, Modular Tailorer & PDF Renderer)](docs/hierarchical/src/generators/README.md)**
 - 🤖 **[src/llm (LLM Service Abstraction)](docs/hierarchical/src/llm/README.md)**
 - 📊 **[src/observability (Telemetry & Benchmarking)](docs/hierarchical/src/observability/README.md)**
 - 🔗 **[src/postprocessing (Graph Deduplication & Entity Resolution)](docs/hierarchical/src/postprocessing/README.md)**
 - 🔄 **[src/proxy (LiteLLM Proxy Runner)](docs/hierarchical/src/proxy/README.md)**
 - 🔍 **[src/query (GraphRAG Engine & Guardrails)](docs/hierarchical/src/query/README.md)**
-- 📦 **[src/shared (API Schemas & Route Handlers)](docs/hierarchical/src/shared/README.md)**
+- 📦 **[src/shared (API Schemas & Shared Router)](docs/hierarchical/src/shared/README.md)**
 - 🌐 **[src/web (FastAPI Server & Voice UI)](docs/hierarchical/src/web/README.md)**
 - 📖 **[Comprehensive How-It-Works Walkthrough](docs/HOW-IT-WORKS.md)**
 - 📑 **[Strategic Architectural Blueprint](docs/STRATEGIC_ARCHITECTURAL_BLUEPRINT.md)**
@@ -103,7 +108,11 @@ python src/cli.py ui
 
 ### 3. Generate Tailored Resume via CLI
 ```powershell
-python src/cli.py generate --company <Company_Name> --jd-file <Path_To_JD.txt>
+# From Job Description text file:
+python src/cli.py generate --company Google --jd-file path/to/jd.txt
+
+# Or directly from a Job Posting URL:
+python src/cli.py generate --jd-url https://stripe.com/jobs/senior-backend-engineer
 ```
 
 ### 4. Query Knowledge Graph via CLI
@@ -116,10 +125,10 @@ python src/cli.py query --mode local "What AWS technologies did Prasad use?"
 python src/cli.py benchmark --mode all --output output/benchmark_report.md
 ```
 
-### 6. Run Unit Test Suite
+### 6. Run Complete Test Suite
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
-# 367/367 passing tests (100% pass rate)
+.\venv\Scripts\python.exe -m pytest tests/
+# 455 passed, 0 failures (100% pass rate)
 ```
 
 ---
@@ -130,7 +139,9 @@ python src/cli.py benchmark --mode all --output output/benchmark_report.md
 |---|---|---|---|
 | `GET` | `/` | `index_endpoint` | Material Design 3 single-page web UI |
 | `POST` | `/api/generate` | `generate_resume_endpoint` | Tailors raw markdown & PDF resume against target JD |
-| `POST` | `/api/render_pdf` | `render_pdf_endpoint` | Compiles raw markdown into standard ATS PDF |
+| `POST` | `/api/ats-score` | `ats_score_endpoint` | Calculates real-time ATS match score, keyword breakdown, and suggestions |
+| `POST` | `/api/extract-jd-url`| `extract_jd_url_endpoint` | Scrapes and extracts normalized JD body from public web URLs |
+| `POST` | `/api/render_pdf` | `save_edit_endpoint` | Compiles raw markdown into standard ATS PDF |
 | `POST` | `/api/save-edit` | `save_edit_endpoint` | Saves edited markdown and re-renders PDF |
 | `POST` | `/api/query` | `query_endpoint` | Synchronous GraphRAG Q&A query |
 | `POST` | `/api/chat-stream` | `chat_stream_endpoint` | SSE token streaming with guardrail traces |

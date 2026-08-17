@@ -23,6 +23,8 @@ class TestSharedRoutes(unittest.TestCase):
         self.assertIn("/api/chat-stream", paths)
         self.assertIn("/api/save-edit", paths)
         self.assertIn("/api/render_pdf", paths)
+        self.assertIn("/api/ats-score", paths)
+        self.assertIn("/api/extract-jd-url", paths)
 
     def test_vercel_app_exposes_shared_routes(self):
         from api.index import app
@@ -31,6 +33,8 @@ class TestSharedRoutes(unittest.TestCase):
         self.assertIn("/api/chat-stream", paths)
         self.assertIn("/api/save-edit", paths)
         self.assertIn("/api/render_pdf", paths)
+        self.assertIn("/api/ats-score", paths)
+        self.assertIn("/api/extract-jd-url", paths)
 
     def test_both_apps_use_the_same_handler(self):
         from src.web.app import app as local_app

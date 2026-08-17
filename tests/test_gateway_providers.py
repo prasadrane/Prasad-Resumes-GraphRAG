@@ -17,7 +17,7 @@ from src.config.providers import ProviderConfig
 from src.gateway.alibaba import AlibabaProvider
 from src.gateway.openrouter import OpenRouterProvider
 from src.gateway.gemini import GeminiProvider
-from src.gateway.base import pad_embedding, is_rate_limit_error
+from src.gateway.base import pad_embedding, is_rate_limit_error, parse_sse_stream
 from src.gateway.circuit_breaker import CircuitBreaker, ProviderCircuitOpen, State
 from src.gateway.facade import retry_with_backoff
 
@@ -310,5 +310,58 @@ class TestGeminiProvider(_KeysPatched, unittest.TestCase):
         self.assertIn("rate limited", str(ctx.exception).lower())
 
 
+import asyncio
+import concurrent.futures
+
+def _sync_run(coro):
+    """Run an async coroutine in an isolated thread to prevent event loop collision with Playwright."""
+    def _worker():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(_worker).result()
+
+
+class TestParseSSEStream(unittest.TestCase):
+
+    def test_parse_sse_stream_extracts_tokens(self):
+        async def _test():
+            async def mock_stream():
+                yield b"data: {\"token\": \"hello\"}\n"
+                yield b"data: {\"token\": \" world\"}\n"
+                yield b"data: [DONE]\n"
+
+            tokens = []
+            async for t in parse_sse_stream(mock_stream(), lambda c: c.get("token")):
+                tokens.append(t)
+            return tokens
+
+        tokens = _sync_run(_test())
+        self.assertEqual(tokens, ["hello", " world"])
+
+    def test_parse_sse_stream_handles_malformed_and_empty(self):
+        async def _test():
+            async def mock_stream():
+                yield b": comment\n"
+                yield b"data: not-json\n"
+                yield b"data: \n"
+                yield b"data: {\"tokens\": [\"foo\", \"bar\"]}\n"
+
+            tokens = []
+            async for t in parse_sse_stream(mock_stream(), lambda c: c.get("tokens")):
+                tokens.append(t)
+            return tokens
+
+        tokens = _sync_run(_test())
+        self.assertEqual(tokens, ["foo", "bar"])
+
+
 if __name__ == "__main__":
     unittest.main()
+
+

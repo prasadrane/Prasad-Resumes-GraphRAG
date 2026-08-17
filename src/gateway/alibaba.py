@@ -1,23 +1,10 @@
 """Alibaba Cloud Token Plan provider — Anthropic-compatible Messages protocol."""
 
-import json
-import sys
-from typing import AsyncGenerator, Optional
+from typing import Any, AsyncGenerator, Dict, Optional
 
+from src.config.llm_constants import LLM_MAX_TOKENS
 from src.config.providers import ProviderConfig
-from .base import BaseProvider, _ensure_session
-
-# Lazy constant resolution to avoid circular imports at module load time.
-_DEFAULT_MAX_TOKENS = 4096
-
-def _max_tokens():
-    try:
-        mod = sys.modules.get("src.generators.constants")
-        if mod is not None:
-            return getattr(mod, "LLM_MAX_TOKENS", _DEFAULT_MAX_TOKENS)
-    except Exception:
-        pass
-    return _DEFAULT_MAX_TOKENS
+from .base import BaseProvider, _ensure_session, parse_sse_stream
 
 
 class AlibabaProvider(BaseProvider):
@@ -41,7 +28,7 @@ class AlibabaProvider(BaseProvider):
     ) -> str:
         payload = {
             "model": model,
-            "max_tokens": _max_tokens(),
+            "max_tokens": LLM_MAX_TOKENS,
             "messages": [{"role": "user", "content": prompt}],
         }
         if system_prompt:
@@ -75,7 +62,7 @@ class AlibabaProvider(BaseProvider):
         session = _ensure_session()
         payload = {
             "model": model,
-            "max_tokens": _max_tokens(),
+            "max_tokens": LLM_MAX_TOKENS,
             "messages": [{"role": "user", "content": user_message}],
             "stream": True,
         }
@@ -93,15 +80,13 @@ class AlibabaProvider(BaseProvider):
             if resp.status == 429:
                 err = await resp.text()
                 raise RuntimeError(f"Alibaba rate limited (429): {err}")
-            async for raw in resp.content:
-                line = raw.decode().strip()
-                if not line.startswith("data:"):
-                    continue
-                try:
-                    chunk = json.loads(line[5:].strip())
-                    if chunk.get("type") == "content_block_delta":
-                        delta = chunk.get("delta", {})
-                        if delta.get("type") == "text_delta":
-                            yield delta.get("text", "")
-                except json.JSONDecodeError:
-                    pass
+
+            def _extract(chunk: Dict[str, Any]) -> Optional[str]:
+                if chunk.get("type") == "content_block_delta":
+                    delta = chunk.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        return delta.get("text", "")
+                return None
+
+            async for token in parse_sse_stream(resp.content, _extract):
+                yield token
