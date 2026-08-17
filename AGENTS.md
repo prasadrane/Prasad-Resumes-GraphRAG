@@ -6,6 +6,7 @@ This repository builds and queries a GraphRAG knowledge graph over Prasad Rane's
 
 ## Key files & Indexing Assets
 
+- `docs/hierarchical/` — Google Maps-style hierarchical documentation (Earth + 11 Continent subsystem docs)
 - `graphify-out/` — Persistent Codebase Knowledge Graph (`graph.json`, `GRAPH_REPORT.md`, `graph.html`)
 - `README.md` — primary setup, usage, architecture, and feature documentation
 - `src/cli.py` — unified CLI for input conversion, knowledge graph queries, and tailored resume generation
@@ -14,12 +15,18 @@ This repository builds and queries a GraphRAG knowledge graph over Prasad Rane's
 - `config/` — centralized configurations (`settings.yaml`, `litellm-config.yaml`)
 - `output/`, `cache/`, `logs/` — runtime artifacts, not source files
 
-## Codebase Entry Protocol (Graphify - Mandatory for Antigravity & AI Agents)
+## Codebase Entry Protocol (codebase-memory MCP & Graphify - Mandatory)
 
-Before exploring raw files or executing cold-start scans, always use the pre-built Graphify knowledge graph index to navigate architecture, symbol relationships, and dependencies with minimal token consumption:
+Before exploring raw files or executing cold-start scans, always use `codebase-memory` MCP and the pre-built Graphify knowledge graph index to navigate architecture, symbol relationships, and dependencies with minimal token consumption:
 
-- **Orientation**: Read `graphify-out/GRAPH_REPORT.md` or parse `graphify-out/graph.json`.
-- **Querying Architecture / Symbols**:
+- **Hierarchical Index**: Read [`docs/hierarchical/README.md`](docs/hierarchical/README.md).
+- **codebase-memory MCP Navigation**:
+  - Project Overview: `get_architecture(project="C-Users-mamat-Github-Prasad-Resumes-GraphRAG", aspects=["overview", "clusters"])`
+  - Subsystem Structure: `get_architecture(project=..., aspects=["structure"], path="src/<subsystem>")`
+  - Symbol Search: `search_graph(project=..., query="<symbol_or_keyword>")`
+  - Blast Radius & Changes: `detect_changes(project=...)`
+- **Graphify Orientation**: Read `graphify-out/GRAPH_REPORT.md` or parse `graphify-out/graph.json`.
+- **Querying Architecture / Symbols via Graphify**:
   ```powershell
   python -m graphify query "<natural language query or function/class name>"
   # e.g.:

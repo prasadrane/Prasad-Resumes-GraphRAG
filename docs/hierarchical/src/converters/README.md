@@ -1,41 +1,34 @@
-# SUBSYSTEM: src/converters — Ingestion & Document Conversion
+# Subsystem: `src/converters` (Continent Level)
 
-**RESPONSIBILITY:** Ingests raw source resumes, PDFs, and Markdown story banks, extracts structured career entries, and standardizes data for GraphRAG indexing.
-
-**LEVEL:** Continent (Subsystem) | **CONFIDENCE:** [Documented] [Inferred]
+**Responsibility:** Document parsing, text extraction, structured resume parsing, and normalization into master knowledge graph inputs.
 
 ---
 
-## 1. Subsystem Architecture
+## 1. Overview & Responsibility
 
-**[Documented]**
-The Converters subsystem provides deterministic document parsing for PDF and Markdown files, normalizing candidate information into standardized `MASTER_RESUME.txt` and story bank units consumed by GraphRAG indexers and resume tailoring engines.
+**[Documented]** `src/converters` handles extracting text from PDF resumes and raw text source files, structuring work experience, skills, and projects into normalized JSON and Markdown artifacts (`input/MASTER_RESUME.txt`).
+
+**[Inferred]** This subsystem forms the top of the data ingestion pipeline, transforming unstructured raw artifacts into consistent representations before GraphRAG embedding and entity resolution.
+
+---
+
+## 2. Key Modules & Classes
+
+| Module / Class | File | Responsibility |
+|:---|:---|:---|
+| [`PDFParser`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/pdf_parser.py) | `src/converters/pdf_parser.py` | Extracts text and layout metadata from PDF files using pdfplumber / pypdf. |
+| [`StructuredResumeParser`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/resume_structured_parser.py) | `src/converters/resume_structured_parser.py` | Parses raw resume text into structured Pydantic `ResumeData` representations. |
+| `input_converter` | `src/converters/input_converter.py` | Converts input files into GraphRAG-ready chunked text formats. |
+| `resume_structurer` | `src/converters/resume_structurer.py` | Structures messy resume text into clean markdown sections. |
+
+---
+
+## 3. Data Flow & Dependencies
 
 ```mermaid
-graph LR
-    A[PDF & Markdown Source Files] --> B[input_converter.py / pdf_parser.py]
-    B --> C[resume_structured_parser.py: Entity & Section Normalization]
-    C --> D[input/MASTER_RESUME.txt]
-    C --> E[input/03-Story-Bank.txt]
+flowchart TD
+    RawPDF["Raw PDF / Text Resumes"] --> Parser[PDFParser]
+    Parser --> Structurer[StructuredResumeParser]
+    Structurer --> Master["input/MASTER_RESUME.txt"]
+    Master --> GraphRAG["GraphRAG Indexer"]
 ```
-
----
-
-## 2. Feature Clusters & Modules
-
-| File | Role / Responsibility | Confidence |
-|------|-----------------------|:---:|
-| [`input_converter.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/input_converter.py) | Batch converts heterogeneous source directories into GraphRAG `input/` text assets. | [Documented] |
-| [`pdf_parser.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/pdf_parser.py) | Lightweight PDF text extraction layer wrapping `pypdf` with encoding sanitization. | [Documented] |
-| [`resume_structured_parser.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/resume_structured_parser.py) | Extracts structured sections (Experience, Education, Skills, Summary variants) into Pydantic models. | [Documented] |
-| [`resume_structurer.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/resume_structurer.py) | Helper routines formatting parsed candidate objects into canonical Markdown representation. | [Documented] |
-
----
-
-## 3. Data Extraction Flow
-
-**[Inferred]**
-1. **Source Document Discovery:** Scans source directories for `.pdf` and `.md` resumes.
-2. **Layout & Text Extraction:** Extracts clean text lines while normalizing Unicode characters, em-dashes (`—` $\rightarrow$ `-`), and bullet markers.
-3. **Structured Entity Resolution:** Groups chronological company tenures, job titles, date ranges, and accomplishment bullets into deterministic `JobEntry` schemas.
-4. **Canonical Master Export:** Writes clean, validated text to `input/MASTER_RESUME.txt` ensuring high indexing quality during `python -m graphrag index`.

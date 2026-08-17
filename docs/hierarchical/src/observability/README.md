@@ -1,58 +1,31 @@
-# SUBSYSTEM: src/observability — Telemetry & Synthetic RAG Evaluation
+# Subsystem: `src/observability` (Continent Level)
 
-**RESPONSIBILITY:** Provides correlation-ID structured logging across asynchronous threads and executes automated synthetic evaluation benchmarks measuring GraphRAG retrieval performance.
-
-**LEVEL:** Continent (Subsystem) | **CONFIDENCE:** [Documented] [Inferred]
+**Responsibility:** Structured JSON logging, metrics instrumentation, and synthetic benchmark evaluation.
 
 ---
 
-## 1. Subsystem Architecture
+## 1. Overview & Responsibility
 
-**[Documented]**
-The Observability subsystem provides two key pillars:
-1. **Runtime Correlation Telemetry:** Generates and propagates UUID correlation IDs through `ContextVar` instances, emitting single-line JSON log objects for auditability.
-2. **Automated Synthetic RAG Evaluation:** A defensible benchmarking engine that runs synthetic candidate test queries against retrieval modes, calculating Context Precision, Context Recall, Faithfulness, and Latency metrics.
+**[Documented]** `src/observability` provides structured logging formats (`_StructuredFormatter`), execution tracing, latency measurements, and the automated synthetic benchmark evaluation harness (`BenchmarkEvaluator`).
 
-```mermaid
-graph TD
-    subgraph Logging ["Structured Logging"]
-        A[Incoming Request] --> B[ContextVar Correlation ID]
-        B --> C[_StructuredFormatter: JSON Log Emitter]
-    end
-
-    subgraph Evaluation ["Synthetic Evaluation Harness"]
-        D[DEFAULT_BENCHMARK_DATASET] --> E[BenchmarkEvaluator]
-        E --> F[GraphRAG Retrieval Engine]
-        F --> G[Precision, Recall, Faithfulness Calculation]
-        G --> H[output/benchmark_report.md]
-    end
-```
+**[Inferred]** This subsystem enables production monitoring and automated regression detection across context precision, context recall, and retrieval latency metrics.
 
 ---
 
-## 2. Feature Clusters & Modules
+## 2. Key Modules & Classes
 
-| File | Role / Responsibility | Confidence |
-|------|-----------------------|:---:|
-| [`benchmark_eval.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/benchmark_eval.py) | Evaluation engine defining `BenchmarkCase`, `EvaluationResult`, `AggregateBenchmarkReport`, `DEFAULT_BENCHMARK_DATASET`, and metric algorithms. | [Documented] |
-| [`__init__.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/__init__.py) | Exposes `logger`, `get_logger`, `get_correlation_id`, `set_correlation_id`, and evaluation models. | [Documented] |
-
----
-
-## 3. Evaluation Metrics Definition
-
-| Metric | Mathematical / Algorithmic Definition | Target Value |
-| :--- | :--- | :---: |
-| **Context Precision** | $\frac{|\text{Retrieved Entities} \cap \text{Expected Entities}|}{|\text{Expected Entities}|}$ | $> 65\%$ |
-| **Context Recall** | $\frac{\text{Matching Ground Truth Token Clusters}}{\text{Total Reference Fact Tokens}}$ | $> 50\%$ |
-| **Faithfulness** | $\frac{\text{Generated Claims Supported by Retrieved Context}}{\text{Total Generated Claims}}$ | $100\%$ |
-| **Execution Latency** | Wall-clock time required for retrieval & guardrail evaluation | $< 50\text{ms}$ (Local) |
+| Module / Class | File | Responsibility |
+|:---|:---|:---|
+| `_StructuredFormatter` | `src/observability/__init__.py` | Formats log records into structured JSON objects with timestamps, log level, and component tags. |
+| `get_logger` | `src/observability/__init__.py` | Configures and returns standard loggers with JSON or human-readable handlers. |
+| [`MetricsCollector`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/metrics.py) | `src/metrics.py` | In-process thread-safe counters, latency histograms, and Prometheus-compatible endpoint formats. |
+| `benchmark_eval` | `src/observability/benchmark_eval.py` | Runs synthetic evaluation queries against ground truth datasets to benchmark retrieval quality. |
 
 ---
 
-## 4. Benchmark CLI Execution
+## 3. Metrics Tracked
 
-```powershell
-python src/cli.py benchmark --mode all --output output/benchmark_report.md
-```
-Outputs an aggregated table comparing `local`, `drift`, and `global` retrieval metrics against synthetic career queries.
+- `llm.calls.total`: Counter of LLM requests grouped by provider.
+- `llm.calls.failed`: Counter of failed provider invocations.
+- `retrieval.latency.ms`: Histogram of graph search and vector query duration.
+- `guardrail.escalations`: Counter of self-healing retrieval escalations (e.g. `local` $\rightarrow$ `drift`).

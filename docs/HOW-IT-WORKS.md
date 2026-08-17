@@ -11,33 +11,34 @@ This document details how **Vector Embeddings**, **Microsoft GraphRAG**, **SME T
 3. [Action-Verb Impact Scoring & Recency Decay](#action-verb-impact-scoring--recency-decay)
 4. [Conversational Q&A & Self-Healing Guardrail Flow](#conversational-qa--self-healing-guardrail-flow)
 5. [ATS Resume Tailoring Flow](#ats-resume-tailoring-flow)
-6. [Synthetic Benchmark Evaluation Harness](#synthetic-benchmark-evaluation-harness)
-7. [Multimodal Voice Assistant & UI](#multimodal-voice-assistant--ui)
-8. [Key Modules & File Reference](#key-modules--file-reference)
+6. [Graph Post-Processing & Entity Resolution](#graph-post-processing--entity-resolution)
+7. [Synthetic Benchmark Evaluation Harness](#synthetic-benchmark-evaluation-harness)
+8. [Multimodal Voice Assistant & UI](#multimodal-voice-assistant--ui)
+9. [Hierarchical Subsystems & File Reference](#hierarchical-subsystems--file-reference)
 
 ---
 
 ## 1. Core Architectural Concepts
 
 ### 1. Vector Embeddings
-- **Purpose:** Converts textual questions and resume text units into dense 1536-dimensional float vectors that capture semantic meaning.
-- **In this project:** Questions and resume text units are indexed in **LanceDB**. When a query arrives, vector distance retrieves the most semantically relevant text units.
+- **[Documented]** Converts textual questions and resume text units into dense 1536-dimensional float vectors that capture semantic meaning.
+- **[Inferred]** Questions and resume text units are indexed in **LanceDB**. When a query arrives, vector distance retrieves the most semantically relevant text units.
 
 ### 2. Microsoft GraphRAG (Knowledge Graph)
-- **Purpose:** Connects entities (`Prasad Rane`, `AWS ECS Fargate`, `Rocket Mortgage`, `Kafka`, `FastAPI`) via rich relationships.
-- **In this project:** Indexes master resumes and the 85KB story bank into entities, relationships, text units, and hierarchical community reports stored in Parquet tables.
+- **[Documented]** Connects entities (`Prasad Rane`, `AWS ECS Fargate`, `Rocket Mortgage`, `Kafka`, `FastAPI`) via rich relationships.
+- **[Inferred]** Indexes master resumes and the 85KB story bank into entities, relationships, text units, and hierarchical community reports stored in Parquet tables.
 
 ### 3. Serverless Multi-Provider LLM Gateway
-- **Purpose:** Generates answers and adapts executive summaries without vendor lock-in.
-- **In this project:** Uses `facade.py` to route across **Alibaba Cloud Token Plan** (`qwen3.6/3.7`), **OpenRouter** (`openai/text-embedding-3-small`), and direct **Google Gemini AI Studio API** with automatic failover (`_try_chain`).
+- **[Documented]** Generates answers and adapts executive summaries without vendor lock-in.
+- **[Inferred]** Uses `facade.py` to route across **Alibaba Cloud Token Plan** (`qwen3.6/3.7`), **OpenRouter** (`openai/text-embedding-3-small`), and direct **Google Gemini AI Studio API** with automatic failover (`_try_chain`) and circuit breaking.
 
 ---
 
 ## 2. SME Technology Ontology & Taxonomy
 
-**File:** [`src/generators/sme_ontology.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/sme_ontology.py)
+**File:** [`src/generators/sme_ontology.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/sme_ontology.py)
 
-Candidate resumes rarely match job descriptions verbatim. A JD asking for *"Event-Driven Architecture"* or *"Deep Learning Frameworks"* requires semantic bridge matching to *"Kafka"* or *"PyTorch"*.
+**[Documented]** Candidate resumes rarely match job descriptions verbatim. A JD asking for *"Event-Driven Architecture"* or *"Deep Learning Frameworks"* requires semantic bridge matching to *"Kafka"* or *"PyTorch"*.
 
 ```mermaid
 graph TD
@@ -49,17 +50,17 @@ graph TD
 ```
 
 ### Key Capabilities:
-- **Synonym Normalization:** Canonicalizes variations like `k8s` $\rightarrow$ `kubernetes`, `postgres` $\rightarrow$ `postgresql`, `py-torch` $\rightarrow$ `pytorch`, `fast-api` $\rightarrow$ `fastapi`.
-- **Category-to-Children Expansion:** Expands high-level requirements into concrete tools.
-- **Bidirectional Relatedness Check:** Verifies whether two technical terms belong to the same technical taxonomy.
+- **[Documented] Synonym Normalization:** Canonicalizes variations like `k8s` $\rightarrow$ `kubernetes`, `postgres` $\rightarrow$ `postgresql`, `py-torch` $\rightarrow$ `pytorch`, `fast-api` $\rightarrow$ `fastapi`.
+- **[Documented] Category-to-Children Expansion:** Expands high-level requirements into concrete tools.
+- **[Documented] Bidirectional Relatedness Check:** Verifies whether two technical terms belong to the same technical taxonomy.
 
 ---
 
 ## 3. Action-Verb Impact Scoring & Recency Decay
 
-**File:** [`src/generators/scoring.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/scoring.py)
+**File:** [`src/generators/scoring.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/scoring.py)
 
-To comply with **EEOC** and **EU AI Act** requirements for explainable candidate evaluation, ranking uses a deterministic, parameterized formula rather than black-box graph embeddings:
+**[Documented]** To comply with **EEOC** and **EU AI Act** requirements for explainable candidate evaluation, ranking uses a deterministic, parameterized formula rather than black-box graph embeddings:
 
 $$W_{(c,s)} = \alpha \cdot \text{DurationScore} + \beta \cdot \text{RecencyScore} + \gamma \cdot \text{ImpactScore}$$
 
@@ -73,18 +74,18 @@ flowchart LR
 ```
 
 ### Scoring Components:
-1. **Bloom's Taxonomy / Action-Verb Tiering:**
+1. **[Documented] Bloom's Taxonomy / Action-Verb Tiering:**
    - **Tier 1 ($1.0$):** *Architected, Spearheaded, Engineered, Orchestrated, Pioneered, Founded*
    - **Tier 2 ($0.7$):** *Implemented, Developed, Built, Optimized, Migrated, Scaled, Delivered*
    - **Tier 3 ($0.4$):** *Maintained, Supported, Assisted, Monitored, Updated, Documented*
-2. **Quantified Impact Detection:** Detects percentages (`70%`), currency (`$400K`), latency improvements (`50ms`, `3.5x`), and scale indicators (`10M requests`).
-3. **Exponential Recency Decay:** Applies $e^{-\lambda \cdot \Delta t}$ with $\lambda = 0.15$, prioritizing recent achievements while preserving full career history.
+2. **[Documented] Quantified Impact Detection:** Detects percentages (`70%`), currency (`$400K`), latency improvements (`50ms`, `3.5x`), and scale indicators (`10M requests`).
+3. **[Documented] Exponential Recency Decay:** Applies $e^{-\lambda \cdot \Delta t}$ with $\lambda = 0.15$, prioritizing recent achievements while preserving full career history.
 
 ---
 
 ## 4. Conversational Q&A & Self-Healing Guardrail Flow
 
-When a user submits a question (via text or speech), the system follows this multi-stage execution pipeline:
+**[Documented]** When a user submits a question (via text or speech), the system follows this multi-stage execution pipeline:
 
 ```mermaid
 sequenceDiagram
@@ -114,7 +115,7 @@ sequenceDiagram
 
 ## 5. ATS Resume Tailoring Flow
 
-When tailoring a resume for a specific target company:
+**[Documented]** When tailoring a resume for a specific target company:
 
 1. **ATS Keyword Extraction:** `ats_matcher.extract_ats_keywords(jd_text, expand_ontology=True)` extracts direct keywords and expands domain terms via `SMEOntology`.
 2. **Candidate Bullet Ranking:** `rank_experience_bullets()` scores every bullet from `MASTER_RESUME.txt` using `ImpactScorer`.
@@ -124,11 +125,21 @@ When tailoring a resume for a specific target company:
 
 ---
 
-## 6. Synthetic Benchmark Evaluation Harness
+## 6. Graph Post-Processing & Entity Resolution
 
-**File:** [`src/observability/benchmark_eval.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/benchmark_eval.py)
+**File:** [`src/postprocessing/entity_resolver.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/postprocessing/entity_resolver.py)
 
-To measure retrieval accuracy quantitatively:
+**[Documented]** Graph extraction models frequently extract aliases of the same entity (e.g., `Prasad Rane` vs. `Prasad Sudhir Rane`, or `AWS ECS` vs. `Amazon Elastic Container Service`).
+- **Union-Find Deduplication:** Identifies synonym clusters and merges disconnected nodes into unified canonical entities.
+- **Edge Rewiring:** Automatically updates source/target references across relationship tables to eliminate orphan graph edges.
+
+---
+
+## 7. Synthetic Benchmark Evaluation Harness
+
+**File:** [`src/observability/benchmark_eval.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/benchmark_eval.py)
+
+**[Documented]** To measure retrieval accuracy quantitatively:
 - **Metrics Tracked:**
   - **Context Precision:** $\frac{|\text{Retrieved Entities} \cap \text{Expected Entities}|}{|\text{Expected Entities}|}$
   - **Context Recall:** Token overlap between ground-truth reference facts and retrieved context.
@@ -138,11 +149,11 @@ To measure retrieval accuracy quantitatively:
   ```powershell
   python src/cli.py benchmark --mode all
   ```
-  Generates automated evaluation reports at [`output/benchmark_report.md`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/output/benchmark_report.md).
+  Generates automated evaluation reports at [`output/benchmark_report.md`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/output/benchmark_report.md).
 
 ---
 
-## 7. Multimodal Voice Assistant & UI
+## 8. Multimodal Voice Assistant & UI
 
 - **Speech-to-Text (Voice Queries):** Click the microphone button in the web search bar to speak questions. Uses the browser's `SpeechRecognition` API with real-time transcription and automatic submission.
 - **Text-to-Speech (Audio Briefings):** Click the speaker button on any assistant answer to hear a synthesized audio briefing via `SpeechSynthesis`.
@@ -150,18 +161,18 @@ To measure retrieval accuracy quantitatively:
 
 ---
 
-## 8. Key Modules & File Reference
+## 9. Hierarchical Subsystems & File Reference
 
-| Module | File Path | Key Responsibilities |
-| :--- | :--- | :--- |
-| **SME Ontology** | [`src/generators/sme_ontology.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/sme_ontology.py) | Tech hierarchy, synonym dictionary, child/parent expansion |
-| **Impact Scorer** | [`src/generators/scoring.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/scoring.py) | Action-verb tiers, metric bonuses, recency decay |
-| **ATS Matcher** | [`src/generators/ats_matcher.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/ats_matcher.py) | JD keyword extraction, bullet ranking |
-| **Resume Generator** | [`src/generators/resume_generator.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/resume_generator.py) | Resume assembly, keyword bolding (<20% cap) |
-| **PDF Renderer** | [`src/generators/pdf_renderer.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/pdf_renderer.py) | ReportLab PDF compilation, 2-page budget layout |
-| **Intent Router** | [`src/query/intent_classifier.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/query/intent_classifier.py) | Query intent taxonomy, entity recognition |
-| **Retrieval Guardrail** | [`src/query/retrieval_guardrail.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/query/retrieval_guardrail.py) | Pre-synthesis context evaluation & mode escalation |
-| **GraphRAG Engine** | [`src/query/graphrag_engine.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/query/graphrag_engine.py) | LanceDB vector search, Parquet graph reader, SSE stream |
-| **LLM Gateway** | [`src/gateway/facade.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/gateway/facade.py) | Multi-provider failover (`_try_chain`) |
-| **Evaluation Harness** | [`src/observability/benchmark_eval.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/benchmark_eval.py) | Synthetic benchmark evaluation & report generation |
-| **Web Server & UI** | [`src/web/app.py`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/web/app.py), [`src/web/static/app.js`](file:///c:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/web/static/app.js) | FastAPI routes, voice recognition, audio briefing |
+| Subsystem | Continent Doc | Primary Files | Key Responsibilities |
+| :--- | :--- | :--- | :--- |
+| **Config** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/config/README.md) | [`src/config/providers.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/config/providers.py) | Provider registry and settings resolution `[Documented]` |
+| **Converters** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/converters/README.md) | [`src/converters/pdf_parser.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/pdf_parser.py), [`resume_structured_parser.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/converters/resume_structured_parser.py) | PDF text extraction and master resume structuring `[Documented]` |
+| **Gateway** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/gateway/README.md) | [`src/gateway/facade.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/gateway/facade.py), [`circuit_breaker.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/gateway/circuit_breaker.py) | Multi-provider failover (`_try_chain`) & circuit breaker `[Documented]` |
+| **Generators** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/generators/README.md) | [`src/generators/ats_matcher.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/ats_matcher.py), [`pdf_renderer.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/generators/pdf_renderer.py) | ATS matching, scoring, bolding caps & ReportLab PDF compilation `[Documented]` |
+| **LLM** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/llm/README.md) | [`src/llm/service.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/llm/service.py) | Application-level LLM client wrapper `[Documented]` |
+| **Observability** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/observability/README.md) | [`src/metrics.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/metrics.py), [`src/observability/__init__.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/observability/__init__.py) | Structured logging, latency metrics & benchmark evaluation `[Documented]` |
+| **Postprocessing**| [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/postprocessing/README.md) | [`src/postprocessing/entity_resolver.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/postprocessing/entity_resolver.py) | Union-Find entity deduplication & edge rewiring `[Documented]` |
+| **Proxy** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/proxy/README.md) | [`src/proxy/litellm_runner.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/proxy/litellm_runner.py) | Local LiteLLM proxy execution on port 8002 `[Documented]` |
+| **Query** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/query/README.md) | [`src/query/graphrag_engine.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/query/graphrag_engine.py), [`intent_classifier.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/query/intent_classifier.py) | Intent classification, GraphRAG engine & guardrails `[Documented]` |
+| **Shared** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/shared/README.md) | [`src/shared/api_models.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/shared/api_models.py), [`api_routes.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/shared/api_routes.py) | Shared Pydantic API schemas & route registration `[Documented]` |
+| **Web** | [Continent Doc](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/docs/hierarchical/src/web/README.md) | [`src/web/app.py`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/web/app.py), [`src/web/static/app.js`](file:///C:/Users/mamat/Github/Prasad-Resumes-GraphRAG/src/web/static/app.js) | FastAPI routes, SSE endpoints, and Web Speech UI `[Documented]` |

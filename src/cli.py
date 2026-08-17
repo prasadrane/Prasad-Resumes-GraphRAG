@@ -130,8 +130,8 @@ def main() -> None:
             sys.exit(1)
 
     elif args.command == "benchmark":
-        from scripts.benchmark_eval import run_benchmark
-        run_benchmark(Path(args.output), mode=args.mode)
+        from evaluation.evaluate_retrieval import run_evaluation, DEFAULT_DATASET
+        run_evaluation(DEFAULT_DATASET, mode=args.mode)
 
     elif args.command == "ui":
         import importlib.util

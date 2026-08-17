@@ -48,11 +48,16 @@ The platform operates across four decoupled layers sharing a unified knowledge a
 Following Google Maps-style hierarchical documentation principles (**Earth → Continent → Country → City → Street**):
 
 - 🌍 **[Master Architecture Index (Earth Level)](docs/hierarchical/README.md)**
-- 🏢 **[src/gateway (Multi-Provider LLM Routing)](docs/hierarchical/src/gateway/README.md)**
-- 🔍 **[src/query (GraphRAG Engine & Guardrails)](docs/hierarchical/src/query/README.md)**
-- 📄 **[src/generators (Ontology, Scoring & PDF Renderer)](docs/hierarchical/src/generators/README.md)**
+- ⚙️ **[src/config (Provider Registry)](docs/hierarchical/src/config/README.md)**
 - 📥 **[src/converters (Ingestion & Normalization)](docs/hierarchical/src/converters/README.md)**
+- 🏢 **[src/gateway (Multi-Provider LLM Routing)](docs/hierarchical/src/gateway/README.md)**
+- 📄 **[src/generators (Ontology, Scoring & PDF Renderer)](docs/hierarchical/src/generators/README.md)**
+- 🤖 **[src/llm (LLM Service Abstraction)](docs/hierarchical/src/llm/README.md)**
 - 📊 **[src/observability (Telemetry & Benchmarking)](docs/hierarchical/src/observability/README.md)**
+- 🔗 **[src/postprocessing (Graph Deduplication & Entity Resolution)](docs/hierarchical/src/postprocessing/README.md)**
+- 🔄 **[src/proxy (LiteLLM Proxy Runner)](docs/hierarchical/src/proxy/README.md)**
+- 🔍 **[src/query (GraphRAG Engine & Guardrails)](docs/hierarchical/src/query/README.md)**
+- 📦 **[src/shared (API Schemas & Route Handlers)](docs/hierarchical/src/shared/README.md)**
 - 🌐 **[src/web (FastAPI Server & Voice UI)](docs/hierarchical/src/web/README.md)**
 - 📖 **[Comprehensive How-It-Works Walkthrough](docs/HOW-IT-WORKS.md)**
 - 📑 **[Strategic Architectural Blueprint](docs/STRATEGIC_ARCHITECTURAL_BLUEPRINT.md)**
