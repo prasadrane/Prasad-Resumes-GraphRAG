@@ -7,11 +7,20 @@ OUTPUT_DIR_PATH / ROOT_DIR names the reader resolves at call time. Pytest-style
 """
 
 import json
+import pytest
 
 import src.query.static_graph_reader as reader
 
 
+@pytest.fixture(autouse=True)
+def reset_reader_cache():
+    reader.clear_static_cache()
+    yield
+    reader.clear_static_cache()
+
+
 def _patch_dirs(monkeypatch, out_dir, root_dir):
+    reader.clear_static_cache()
     monkeypatch.setattr(reader, "OUTPUT_DIR_PATH", out_dir)
     monkeypatch.setattr(reader, "ROOT_DIR", root_dir)
 
