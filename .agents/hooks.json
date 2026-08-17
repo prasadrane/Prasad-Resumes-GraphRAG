@@ -12,33 +12,5 @@
         ]
       }
     ]
-  },
-  "sqz-compression-guard": {
-    "PreToolUse": [
-      {
-        "matcher": "run_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "C:/Users/mamat/AppData/Local/Programs/sqz/bin/sqz.exe hook claude",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
-  "port-conflict-guard": {
-    "PreToolUse": [
-      {
-        "matcher": "run_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node C:/Users/mamat/.claude/hooks/rewrite-port.js",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
   }
 }
