@@ -9,8 +9,9 @@ import unittest
 class TestSharedRoutes(unittest.TestCase):
 
     def _route_paths(self, app):
+        routes = getattr(getattr(app, "router", None), "routes", getattr(app, "routes", []))
         paths = set()
-        for r in app.routes:
+        for r in routes:
             p = getattr(r, "path", None)
             if p:
                 paths.add(p)
@@ -28,9 +29,6 @@ class TestSharedRoutes(unittest.TestCase):
 
     def test_local_app_exposes_shared_routes(self):
         from src.web.app import app
-        from src.shared.api_routes import shared_router
-        if "/api/query" not in self._route_paths(app):
-            app.include_router(shared_router)
         paths = self._route_paths(app)
         self.assertIn("/api/query", paths)
         self.assertIn("/api/chat-stream", paths)
@@ -41,9 +39,6 @@ class TestSharedRoutes(unittest.TestCase):
 
     def test_vercel_app_exposes_shared_routes(self):
         from api.index import app
-        from src.shared.api_routes import shared_router
-        if "/api/query" not in self._route_paths(app):
-            app.include_router(shared_router)
         paths = self._route_paths(app)
         self.assertIn("/api/query", paths)
         self.assertIn("/api/chat-stream", paths)
@@ -55,12 +50,11 @@ class TestSharedRoutes(unittest.TestCase):
     def test_both_apps_use_the_same_handler(self):
         from src.web.app import app as local_app
         from api.index import app as vercel_app
-        from src.shared.api_routes import shared_router, query_endpoint
+        from src.shared.api_routes import query_endpoint
         for app in (local_app, vercel_app):
-            if "/api/query" not in self._route_paths(app):
-                app.include_router(shared_router)
+            routes = getattr(getattr(app, "router", None), "routes", getattr(app, "routes", []))
             handlers = []
-            for r in app.routes:
+            for r in routes:
                 if getattr(r, "path", None) == "/api/query":
                     handlers.append(r.endpoint)
                 if hasattr(r, "routes"):
