@@ -607,6 +607,52 @@ body {
     font-size: 0.84rem;
 }
 
+/* M3 Segmented Control & View Toggles */
+.m3-segmented-control {
+    display: inline-flex;
+    align-items: center;
+    background-color: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-full);
+    padding: 3px;
+    gap: 3px;
+}
+
+.m3-segmented-tab {
+    background: transparent;
+    border: none;
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 6px 14px;
+    border-radius: var(--md-sys-shape-full);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all var(--md-sys-motion-duration-short) var(--md-sys-motion-easing-emphasized);
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.m3-segmented-tab:hover {
+    color: var(--md-sys-color-on-surface);
+    background-color: var(--md-sys-color-surface-container-high);
+}
+
+.m3-segmented-tab.active {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.tab-icon {
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+}
+
 /* Action Chips */
 .sample-questions {
     display: flex;

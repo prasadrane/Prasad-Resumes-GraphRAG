@@ -79,6 +79,10 @@ class TestSidebarNavigation(unittest.TestCase):
         self.assertIn("backdrop-filter", self.css_content)
         self.assertIn("blur(", self.css_content)
 
+        # Segmented control toggle styling
+        self.assertIn(".m3-segmented-control", self.css_content)
+        self.assertIn(".m3-segmented-tab", self.css_content)
+
         # Responsive media queries
         self.assertTrue(
             bool(re.search(r"@media\s*\([^\)]*max-width:\s*(?:1023px|1024px)", self.css_content)),
