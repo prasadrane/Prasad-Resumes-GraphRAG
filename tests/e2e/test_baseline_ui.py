@@ -9,7 +9,7 @@ import re
 
 from playwright.sync_api import expect
 
-PAGE_TITLE = "Prasad Resumes — GraphRAG Knowledge Graph & Tailored Resume Engine"
+PAGE_TITLE = "Prasad Resumes — GraphRAG Knowledge Graph & Tailored Career Engine"
 HIDDEN_RE = re.compile("hidden")
 
 
