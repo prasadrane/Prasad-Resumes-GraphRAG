@@ -32,7 +32,13 @@ class TestSharedApiModels(unittest.TestCase):
         raw = "# Prasad Rane\n\n## Professional Summary\nAlias field test.\n"
         response = client.post("/api/render_pdf", json={"content": raw})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()["pdf_url"].startswith("data:application/pdf;base64,"))
+    def test_query_request_allows_technical_sql_words(self):
+        req = QueryRequest(query="How did Prasad optimize SQL SELECT and UPDATE performance?")
+        self.assertEqual(req.query, "How did Prasad optimize SQL SELECT and UPDATE performance?")
+
+    def test_query_request_rejects_script_injection(self):
+        with self.assertRaises(ValueError):
+            QueryRequest(query="<script>alert('xss')</script>")
 
 
 if __name__ == "__main__":

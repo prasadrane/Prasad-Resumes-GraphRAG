@@ -9,6 +9,7 @@ from src.generators.ats_matcher import (
     extract_ats_keywords,
     match_graphrag_stories,
     rank_experience_bullets,
+    compute_bm25_relevance,
 )
 
 
@@ -88,6 +89,13 @@ class TestATSMatcher(unittest.TestCase):
         with patch("src.generators.ats_matcher.execute_graphrag_query") as mock_query:
             self.assertEqual(match_graphrag_stories([]), [])
         mock_query.assert_not_called()
+
+    def test_compute_bm25_relevance(self):
+        doc = "Architected AWS ECS Fargate microservices with Kafka streaming."
+        score_high = compute_bm25_relevance(["AWS", "Kafka", "Fargate"], doc)
+        score_low = compute_bm25_relevance(["Python", "Kubernetes"], doc)
+        self.assertGreater(score_high, score_low)
+        self.assertEqual(compute_bm25_relevance([], doc), 0.0)
 
 
 if __name__ == "__main__":

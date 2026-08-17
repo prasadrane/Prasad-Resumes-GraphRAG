@@ -15,10 +15,9 @@ from pydantic import BaseModel, Field, model_validator
 from typing import Literal
 
 
-# Regex: common injection patterns (SQL/JS/html)
+# Regex: common script and delimiter injection patterns (HTML/JS/eval)
 _INJECTION_RE = re.compile(
     r"""
-        \b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\b|
         ;.*--|
         javascript:|
         on\w+\s*=|
@@ -120,3 +119,34 @@ class SaveEditRequest(BaseModel):
     raw_text: Optional[str] = Field(default=None, description="Updated raw resume text content")
     content: Optional[str] = Field(default=None, description="Updated raw resume text content (alias)")
     company: Optional[str] = Field(default="Tailored", description="Company name")
+
+
+class BehavioralQuestionRequest(BaseModel):
+    question: str = Field(..., min_length=5, max_length=1000, description="Behavioral interview question")
+    context: Optional[str] = Field(default=None, description="Optional custom background context")
+
+
+class DiffResumeRequest(BaseModel):
+    tailored_text: str = Field(..., min_length=10, description="Tailored resume text to compare against master")
+    candidate_id: Optional[str] = Field(default="default", description="Candidate profile ID")
+
+
+class ATSSimulationRequest(BaseModel):
+    resume_text: str = Field(..., min_length=10, description="Resume text to evaluate")
+    jd_text: str = Field(..., min_length=10, description="Target job description text")
+
+
+class CoverLetterRequest(BaseModel):
+    company: str = Field(..., min_length=2, max_length=100, description="Target company name")
+    jd_text: str = Field(default="", description="Job description text")
+    candidate_name: Optional[str] = Field(default="Prasad Rane", description="Candidate name")
+    role_title: Optional[str] = Field(default="Senior Software Engineer", description="Target role title")
+
+
+class InterviewPrepRequest(BaseModel):
+    jd_text: str = Field(..., min_length=10, description="Target job description text")
+
+
+class LinkedInProfileRequest(BaseModel):
+    target_role: Optional[str] = Field(default="Senior Software Engineer / Tech Lead", description="Target role or headline focus")
+    candidate_name: Optional[str] = Field(default="Prasad Rane", description="Candidate name")

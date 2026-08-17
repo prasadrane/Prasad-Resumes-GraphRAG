@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prasad Resumes — GraphRAG Knowledge Graph & Tailored Resume Engine</title>
+    <title>Prasad Resumes — GraphRAG Knowledge Graph & Tailored Career Engine</title>
 
     <!-- Material Design 3 Fonts & Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,30 +22,56 @@
                     <span class="material-symbols-outlined logo-icon">description</span>
                     <h1>Prasad Resumes <span>GraphRAG</span></h1>
                 </div>
+
+                <!-- Global FTS5 Search Bar -->
+                <div class="header-search-wrapper">
+                    <span class="material-symbols-outlined header-search-icon">search</span>
+                    <input type="text" id="global-search-input" class="header-search-input" placeholder="Search 10+ yrs skills & projects..." autocomplete="off">
+                    <div id="fts-dropdown" class="fts-dropdown hidden"></div>
+                </div>
+
                 <!-- Top Navigation Tabs (Material Design 3 Segmented Control) -->
                 <nav class="m3-segmented-control" role="tablist">
                     <button id="nav-default-btn" class="m3-segmented-tab active" role="tab" aria-selected="true">
                         <span class="material-symbols-outlined tab-icon">article</span>
-                        <span>Default Resume</span>
+                        <span>Resume</span>
                     </button>
                     <button id="nav-tailor-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
                         <span class="material-symbols-outlined tab-icon">auto_awesome</span>
-                        <span>Tailor Resume</span>
+                        <span>Tailor</span>
+                    </button>
+                    <button id="nav-cover-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
+                        <span class="material-symbols-outlined tab-icon">mail</span>
+                        <span>Cover Letter</span>
+                    </button>
+                    <button id="nav-prep-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
+                        <span class="material-symbols-outlined tab-icon">quiz</span>
+                        <span>Interview Prep</span>
+                    </button>
+                    <button id="nav-linkedin-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
+                        <span class="material-symbols-outlined tab-icon">share</span>
+                        <span>LinkedIn</span>
                     </button>
                     <button id="nav-chat-btn" class="m3-segmented-tab" role="tab" aria-selected="false">
                         <span class="material-symbols-outlined tab-icon">chat</span>
-                        <span>Ask Me Questions</span>
+                        <span>Ask Me</span>
                     </button>
                 </nav>
             </div>
-            <div class="m3-status-badge" id="system-status">
-                <span class="status-dot green"></span> Engine Active
+
+            <div class="header-right" style="display: flex; align-items: center; gap: 12px;">
+                <button id="open-diag-btn" class="m3-icon-button" title="Engine Diagnostics & Observability" aria-label="Diagnostics">
+                    <span class="material-symbols-outlined">analytics</span>
+                </button>
+                <div class="m3-status-badge" id="system-status">
+                    <span class="status-dot green"></span> Engine Active
+                </div>
             </div>
         </header>
 
         <!-- Main Content Layout -->
         <main class="app-main">
-            <!-- View 1: Default Resume View (Encapsulated) -->
+            <!-- View 1: Default Resume View -->
             <div id="default-view" class="tab-view fade-in">
                 <section class="m3-card default-panel">
                     <div class="panel-header flex-between">
@@ -86,7 +112,7 @@
                 </section>
             </div>
 
-            <!-- View 2: Generator View (Encapsulated) -->
+            <!-- View 2: Generator View -->
             <div id="generator-view" class="tab-view hidden fade-in">
                 <section class="m3-card generator-panel">
                     <div class="panel-header">
@@ -113,11 +139,33 @@
                             </div>
                         </div>
 
-                        <button type="submit" id="generate-btn" class="m3-button m3-button-filled">
-                            <span class="material-symbols-outlined btn-icon">auto_awesome</span>
-                            <span class="btn-text">Generate Tailored Resume</span>
-                        </button>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <button type="submit" id="generate-btn" class="m3-button m3-button-filled">
+                                <span class="material-symbols-outlined btn-icon">auto_awesome</span>
+                                <span class="btn-text">Generate Tailored Resume</span>
+                            </button>
+                            <button type="button" id="check-ats-btn" class="m3-button m3-button-outlined">
+                                <span class="material-symbols-outlined btn-icon">fact_check</span>
+                                <span>Check ATS Score & Gap</span>
+                            </button>
+                        </div>
                     </form>
+
+                    <!-- Interactive ATS Match Gauge & Gap Inspector Card -->
+                    <div id="ats-score-container" class="ats-score-card hidden">
+                        <div class="ats-gauge-wrapper">
+                            <svg class="ats-gauge-svg" viewBox="0 0 100 100">
+                                <circle class="ats-gauge-bg" cx="50" cy="50" r="40" />
+                                <circle id="ats-gauge-fill" class="ats-gauge-progress" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="251.2" />
+                            </svg>
+                            <div id="ats-score-value" class="ats-gauge-text">0%</div>
+                        </div>
+                        <div class="ats-details">
+                            <h4><span class="material-symbols-outlined" style="font-size: 18px; color: var(--md-sys-color-primary);">verified</span> ATS Match Analysis</h4>
+                            <div id="ats-covered-chips" class="keyword-chips-container"></div>
+                            <div id="ats-missing-chips" class="keyword-chips-container" style="margin-top: 6px;"></div>
+                        </div>
+                    </div>
 
                     <div id="form-alert" class="m3-alert hidden"></div>
                 </section>
@@ -136,7 +184,7 @@
                     </div>
                 </section>
 
-                <!-- Tailored Resume Preview Drawer (Inside Generator View) -->
+                <!-- Tailored Resume Preview Drawer -->
                 <section id="preview-section" class="m3-preview-drawer hidden slide-up" style="margin-top: 1.5rem;">
                     <div class="preview-header">
                         <div class="preview-title">
@@ -151,13 +199,30 @@
                                 </button>
                                 <button id="toggle-edit-btn" class="m3-segmented-tab">
                                     <span class="material-symbols-outlined tab-icon">edit_note</span>
-                                    <span>Edit Raw Content</span>
+                                    <span>Edit Raw</span>
+                                </button>
+                                <button id="toggle-diff-btn" class="m3-segmented-tab">
+                                    <span class="material-symbols-outlined tab-icon">difference</span>
+                                    <span>Visual Diff</span>
                                 </button>
                             </div>
-                            <a id="preview-download-link" href="#" download="Prasad_Rane_Resume.pdf" class="m3-button m3-button-filled btn-sm">
-                                <span class="material-symbols-outlined btn-icon">download</span>
-                                <span>Download PDF</span>
-                            </a>
+
+                            <!-- Multi-Format Export Dropdown -->
+                            <div class="export-dropdown">
+                                <button id="export-hub-btn" class="m3-button m3-button-filled btn-sm">
+                                    <span class="material-symbols-outlined btn-icon">download</span>
+                                    <span>Export As...</span>
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">arrow_drop_down</span>
+                                </button>
+                                <div id="export-hub-menu" class="export-menu hidden">
+                                    <button class="export-item" data-format="pdf"><span class="material-symbols-outlined">picture_as_pdf</span> PDF Document</button>
+                                    <button class="export-item" data-format="typst"><span class="material-symbols-outlined">code</span> Typst Markup (.typ)</button>
+                                    <button class="export-item" data-format="latex"><span class="material-symbols-outlined">functions</span> LaTeX Source (.tex)</button>
+                                    <button class="export-item" data-format="markdown"><span class="material-symbols-outlined">markdown</span> Markdown (.md)</button>
+                                    <button class="export-item" data-format="txt"><span class="material-symbols-outlined">description</span> Plain Text (.txt)</button>
+                                </div>
+                            </div>
+
                             <a id="preview-open-link" href="#" target="_blank" class="m3-button m3-button-outlined btn-sm">
                                 <span>Open in New Tab</span>
                                 <span class="material-symbols-outlined btn-icon">open_in_new</span>
@@ -171,9 +236,15 @@
                         <div id="pdf-view-container" class="view-container">
                             <iframe id="pdf-iframe" src="about:blank" frameborder="0"></iframe>
                         </div>
+
                         <div id="edit-view-container" class="view-container hidden">
+                            <!-- Real-Time Bullet Impact Scorer Bar -->
+                            <div id="bullet-impact-bar" class="impact-scorer-bar">
+                                <span><strong>Bullet Impact Scorer (Google X-Y-Z):</strong> <span id="impact-score-desc">Strong metrics & action verbs detected</span></span>
+                                <span id="impact-badge" class="impact-badge high"><span class="material-symbols-outlined" style="font-size: 14px;">bolt</span> High Impact</span>
+                            </div>
                             <div class="editor-toolbar">
-                                <span>Edit Markdown raw content directly below, then click Save & Re-render PDF:</span>
+                                <span>Edit Markdown content below, then click Save & Re-render PDF:</span>
                                 <button id="save-rerender-btn" class="m3-button m3-button-filled btn-sm">
                                     <span class="material-symbols-outlined btn-icon">sync</span>
                                     <span class="btn-text">Save & Re-render PDF</span>
@@ -181,11 +252,154 @@
                             </div>
                             <textarea id="raw-edit-textarea" rows="25" spellcheck="false" placeholder="Loading raw content..."></textarea>
                         </div>
+
+                        <!-- Side-by-Side Visual Diff Container -->
+                        <div id="diff-view-container" class="view-container hidden">
+                            <div class="diff-viewer-panel" id="diff-content-panel">
+                                <p style="color: var(--md-sys-color-on-surface-variant);">Computing visual diff against master resume...</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>
 
-            <!-- View 3: Chatbot View (Encapsulated) -->
+            <!-- View 3: Cover Letter Studio -->
+            <div id="cover-view" class="tab-view hidden fade-in">
+                <section class="m3-card">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined header-symbol">mail</span> 1-Page Tailored Cover Letter Studio</h2>
+                        <p>Synthesize a personalized cover letter matching target company values and GraphRAG achievements.</p>
+                    </div>
+
+                    <div class="cover-letter-grid">
+                        <form id="cover-letter-form" class="resume-form">
+                            <div class="m3-text-field">
+                                <label for="cover-company-input" class="m3-field-label">Target Company Name <span class="required">*</span></label>
+                                <div class="m3-input-wrapper">
+                                    <span class="material-symbols-outlined field-icon">domain</span>
+                                    <input type="text" id="cover-company-input" placeholder="e.g. Stripe, AWS, Datadog" required autocomplete="off">
+                                </div>
+                            </div>
+
+                            <div class="m3-text-field">
+                                <label for="cover-role-input" class="m3-field-label">Target Role Title</label>
+                                <div class="m3-input-wrapper">
+                                    <span class="material-symbols-outlined field-icon">badge</span>
+                                    <input type="text" id="cover-role-input" value="Senior Software Engineer / Tech Lead" autocomplete="off">
+                                </div>
+                            </div>
+
+                            <div class="m3-text-field">
+                                <label for="cover-jd-input" class="m3-field-label">Job Description / Company Focus</label>
+                                <div class="m3-input-wrapper textarea-wrapper">
+                                    <textarea id="cover-jd-input" rows="8" placeholder="Paste job description or engineering principles..."></textarea>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="generate-cover-btn" class="m3-button m3-button-filled">
+                                <span class="material-symbols-outlined btn-icon">auto_awesome</span>
+                                <span>Generate Cover Letter</span>
+                            </button>
+                        </form>
+
+                        <div class="cover-letter-paper">
+                            <div class="flex-between" style="margin-bottom: 16px;">
+                                <h3 id="cover-preview-heading" style="color: var(--md-sys-color-primary);">Cover Letter Preview</h3>
+                                <button id="copy-cover-btn" class="copy-btn-inline">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                                    <span>Copy Letter</span>
+                                </button>
+                            </div>
+                            <div id="cover-letter-body" style="white-space: pre-wrap; color: var(--md-sys-color-on-surface); font-size: 0.95rem;">
+                                Fill in the target company details on the left and click "Generate Cover Letter" to synthesize your personalized letter.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View 4: Interview Prep & STAR Workspace -->
+            <div id="prep-view" class="tab-view hidden fade-in">
+                <section class="m3-card">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined header-symbol">quiz</span> Behavioral & Technical Interview Prep (STAR)</h2>
+                        <p>Generate anticipated questions for your target JD and rehearse structured Situation, Task, Action, Result talking points.</p>
+                    </div>
+
+                    <form id="prep-form" class="resume-form" style="margin-bottom: 24px;">
+                        <div class="m3-text-field">
+                            <label for="prep-jd-input" class="m3-field-label">Job Description (JD)</label>
+                            <div class="m3-input-wrapper textarea-wrapper">
+                                <textarea id="prep-jd-input" rows="5" placeholder="Paste job description to predict anticipated technical and leadership questions..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" id="generate-prep-btn" class="m3-button m3-button-filled">
+                            <span class="material-symbols-outlined btn-icon">psychology</span>
+                            <span>Generate Interview Questions & STAR Points</span>
+                        </button>
+                    </form>
+
+                    <div id="prep-questions-container">
+                        <!-- Questions and STAR flashcards populated by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- View 5: LinkedIn Optimizer -->
+            <div id="linkedin-view" class="tab-view hidden fade-in">
+                <section class="m3-card">
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined header-symbol">share</span> LinkedIn Profile & Headline Optimizer</h2>
+                        <p>Synthesize recruiter-optimized 220-character headlines, "About" career narratives, and keyword-rich experience bullet points.</p>
+                    </div>
+
+                    <form id="linkedin-form" class="resume-form" style="margin-bottom: 24px;">
+                        <div class="m3-text-field">
+                            <label for="linkedin-role-input" class="m3-field-label">Target Role / Focus Area</label>
+                            <div class="m3-input-wrapper">
+                                <span class="material-symbols-outlined field-icon">badge</span>
+                                <input type="text" id="linkedin-role-input" value="Senior Software Engineer / Tech Lead (Cloud & Distributed Systems)" autocomplete="off">
+                            </div>
+                        </div>
+                        <button type="submit" id="generate-linkedin-btn" class="m3-button m3-button-filled">
+                            <span class="material-symbols-outlined btn-icon">auto_awesome</span>
+                            <span>Optimize LinkedIn Assets</span>
+                        </button>
+                    </form>
+
+                    <div class="linkedin-container">
+                        <!-- Headline Card -->
+                        <div class="linkedin-card">
+                            <div class="linkedin-header-row">
+                                <h3>Searchable Headline <span style="font-size: 0.8rem; font-weight: normal; color: var(--md-sys-color-on-surface-variant);">(Max 220 Chars)</span></h3>
+                                <button id="copy-headline-btn" class="copy-btn-inline">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                                    <span>Copy Headline</span>
+                                </button>
+                            </div>
+                            <p id="linkedin-headline-val" style="font-size: 1.05rem; font-weight: 600; color: var(--md-sys-color-primary);">
+                                Senior Software Engineer / Tech Lead | AWS ECS Fargate, Kafka, .NET Core, Python | Enterprise Cloud Modernization & GenAI Microservices
+                            </p>
+                        </div>
+
+                        <!-- About Narrative Card -->
+                        <div class="linkedin-card">
+                            <div class="linkedin-header-row">
+                                <h3>"About" Career Summary</h3>
+                                <button id="copy-about-btn" class="copy-btn-inline">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                                    <span>Copy Summary</span>
+                                </button>
+                            </div>
+                            <div id="linkedin-about-val" style="white-space: pre-wrap; line-height: 1.6; color: var(--md-sys-color-on-surface);">
+                                Over a decade of experience architecting and delivering high-throughput cloud platforms, distributed microservices, and enterprise streaming architectures.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- View 6: Chatbot View -->
             <div id="chatbot-view" class="tab-view hidden fade-in">
                 <section class="m3-card chatbot-panel">
                     <div class="panel-header flex-between">
@@ -237,7 +451,7 @@
                         </div>
                     </div>
 
-                    <!-- Chat Input Bar (M3 Pill Search Container with Voice Input) -->
+                    <!-- Chat Input Bar -->
                     <form id="chat-form" class="m3-chat-input-bar">
                         <input type="text" id="chat-input" placeholder="Type or speak your question about Prasad's experience..." autocomplete="off" required>
                         <button type="button" id="voice-input-btn" class="m3-icon-button voice-btn" aria-label="Voice Input (Speech-to-Text)" title="Voice Query (Speech-to-Text)">
@@ -250,6 +464,42 @@
                 </section>
             </div>
         </main>
+    </div>
+
+    <!-- Slide-out Observability & Diagnostics Drawer -->
+    <div id="diag-drawer" class="diag-drawer">
+        <div class="diag-header">
+            <h3><span class="material-symbols-outlined" style="color: var(--md-sys-color-primary);">analytics</span> Engine Diagnostics</h3>
+            <button id="close-diag-btn" class="m3-icon-button"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 16px;">
+            Real-time telemetry, latency percentiles, and provider health.
+        </p>
+
+        <h4>Span Latencies (ms)</h4>
+        <div class="diag-metric-grid" id="diag-spans-container">
+            <div class="diag-stat-card">
+                <div class="val" id="diag-retrieval-p90">--</div>
+                <div class="lbl">Retrieval P90</div>
+            </div>
+            <div class="diag-stat-card">
+                <div class="val" id="diag-gateway-p90">--</div>
+                <div class="lbl">Gateway P90</div>
+            </div>
+            <div class="diag-stat-card">
+                <div class="val" id="diag-render-avg">--</div>
+                <div class="lbl">PDF Render Avg</div>
+            </div>
+            <div class="diag-stat-card">
+                <div class="val" id="diag-health-val" style="color: #34d399;">Active</div>
+                <div class="lbl">Gateway Health</div>
+            </div>
+        </div>
+
+        <button id="refresh-diag-btn" class="m3-button m3-button-outlined btn-sm" style="width: 100%; margin-top: 20px;">
+            <span class="material-symbols-outlined btn-icon">refresh</span>
+            <span>Refresh Diagnostics</span>
+        </button>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

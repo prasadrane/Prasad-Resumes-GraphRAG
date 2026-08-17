@@ -5,6 +5,7 @@ and GraphRAG story matching with action-verb impact ranking.
 
 import logging
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional, List, Tuple
 
@@ -170,23 +171,43 @@ def rank_experience_bullets(
             if kw_matches > 0:
                 bonus = min(0.15 * kw_matches, 0.3)
                 adjusted_final = min(1.0, score_breakdown.final_score + bonus)
-                # Reconstruct breakdown with adjusted final score
-                score_breakdown = ScoreBreakdown(
-                    verb_score=score_breakdown.verb_score,
-                    metric_bonus=score_breakdown.metric_bonus,
-                    impact_score=score_breakdown.impact_score,
-                    recency_score=score_breakdown.recency_score,
-                    duration_score=score_breakdown.duration_score,
-                    final_score=round(adjusted_final, 4),
-                    detected_metrics=score_breakdown.detected_metrics,
-                    verb_tier=score_breakdown.verb_tier,
-                )
+                score_breakdown = score_breakdown.model_copy(update={"final_score": round(adjusted_final, 4)})
 
         scored_bullets.append((bullet, score_breakdown))
 
     # Sort descending by final score
     scored_bullets.sort(key=lambda item: item[1].final_score, reverse=True)
     return scored_bullets
+
+
+def compute_bm25_relevance(
+    query_terms: list[str],
+    doc_text: str,
+    k1: float = 1.5,
+    b: float = 0.75,
+    avg_doc_len: float = 25.0,
+) -> float:
+    """Compute BM25 term frequency relevance score between query terms and a document/bullet."""
+    if not query_terms or not doc_text:
+        return 0.0
+
+    doc_tokens = re.findall(r"\w+", doc_text.lower())
+    doc_len = len(doc_tokens)
+    if doc_len == 0:
+        return 0.0
+
+    score = 0.0
+    for term in query_terms:
+        term_clean = term.strip().lower()
+        if not term_clean:
+            continue
+        tf = doc_tokens.count(term_clean)
+        if tf > 0:
+            numerator = tf * (k1 + 1)
+            denominator = tf + k1 * (1 - b + b * (doc_len / avg_doc_len))
+            score += numerator / denominator
+
+    return round(score, 4)
 
 
 def match_graphrag_stories(keywords: list[str], root_dir: Optional[Path] = None) -> list[str]:

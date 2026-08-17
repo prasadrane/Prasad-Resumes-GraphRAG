@@ -42,6 +42,20 @@ class TestSharedRoutes(unittest.TestCase):
             handlers = [r.endpoint for r in app.routes if getattr(r, "path", None) == "/api/query"]
             self.assertIn(query_endpoint, handlers)
 
+    def test_new_shared_routes_present(self):
+        from src.web.app import app
+        paths = self._route_paths(app)
+        self.assertIn("/api/behavioral-answer", paths)
+        self.assertIn("/api/profiles", paths)
+        self.assertIn("/api/diff-resume", paths)
+        self.assertIn("/api/ats-score", paths)
+        self.assertIn("/api/cover-letter", paths)
+        self.assertIn("/api/interview-prep", paths)
+        self.assertIn("/api/linkedin-profile", paths)
+        self.assertIn("/api/fts-search", paths)
+        self.assertIn("/api/export-markup", paths)
+        self.assertIn("/api/telemetry-stats", paths)
+
 
 if __name__ == "__main__":
     unittest.main()

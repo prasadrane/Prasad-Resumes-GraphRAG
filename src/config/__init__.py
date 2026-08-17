@@ -17,5 +17,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 INPUT_DIR = ROOT_DIR / "input"
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 OUTPUT_DIR_PATH = ROOT_DIR / OUTPUT_DIR
+CACHE_DIR_PATH = ROOT_DIR / "cache"
 MASTER_RESUME_PATH = INPUT_DIR / "MASTER_RESUME.txt"
 WEB_STATIC_DIR = ROOT_DIR / "src" / "web" / "static"
