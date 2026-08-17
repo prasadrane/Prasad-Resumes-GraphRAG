@@ -19,8 +19,7 @@ from src.shared.api_models import ResumeGenerationRequest
 
 from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
-from src.generators.pdf_renderer import render_pdf_resume
-from src.shared.api_routes import shared_router, _pdf_to_data_uri
+from src.generators.pdf_renderer import render_pdf_resume, _pdf_to_data_uri
 
 # ── Observability imports ─────────────────────────────────────────────────
 from src.observability import (
@@ -35,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ── Correlation-ID middleware (W4.2) ──────────────────────────────────────
 
 app = FastAPI(title="Prasad Resumes GraphRAG UI", version="1.0.0")
-app.include_router(shared_router)
+
 
 
 @app.middleware("http")
@@ -338,10 +337,13 @@ def metrics_endpoint():
     return Response(content=body, media_type="text/plain; charset=utf-8")
 
 
-# Ensure shared router routes are registered
+# ── Shared API router inclusion ───────────────────────────────────────────
+from src.shared.api_routes import shared_router
+
 _existing_paths = {getattr(r, "path", None) for r in app.routes}
 if "/api/query" not in _existing_paths:
     app.include_router(shared_router)
+
 
 
 

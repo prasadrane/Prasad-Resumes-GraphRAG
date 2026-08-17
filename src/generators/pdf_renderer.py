@@ -158,3 +158,15 @@ def render_pdf_resume(raw_resume_source: Union[Path, str], output_pdf_path: Path
     raw_content = raw_path.read_text(encoding="utf-8")
     parsed = parse_resume_markdown(raw_content)
     return render_pdf_from_model(parsed, output_pdf_path)
+
+
+def pdf_to_data_uri(pdf_path: Path) -> str:
+    """Read a PDF file and return base64 encoded data URI."""
+    import base64
+    pdf_bytes = Path(pdf_path).read_bytes()
+    b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
+    return f"data:application/pdf;base64,{b64_pdf}"
+
+
+_pdf_to_data_uri = pdf_to_data_uri
+

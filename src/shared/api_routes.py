@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH
 from src.converters.jd_extractor import extract_jd_from_url
 from src.generators.ats_scorer import calculate_ats_score
-from src.generators.pdf_renderer import render_pdf_resume
+from src.generators.pdf_renderer import render_pdf_resume, _pdf_to_data_uri
 from src.query.graphrag_engine import get_engine, reset_engine
 from src.query.conversation_store import get_conversation_store, reset_conversation_store
 from src.security.sanitizer import InputSanitizer
@@ -197,12 +197,6 @@ async def _stream_query_response(req: QueryRequest) -> AsyncGenerator[str, None]
 
 
 # ── PDF rendering & edit save routes ────────────────────────────────────────
-
-def _pdf_to_data_uri(pdf_path: Path) -> str:
-    pdf_bytes = pdf_path.read_bytes()
-    b64_pdf = base64.b64encode(pdf_bytes).decode("utf-8")
-    return f"data:application/pdf;base64,{b64_pdf}"
-
 
 @shared_router.post("/api/save-edit")
 @shared_router.post("/api/render_pdf")
