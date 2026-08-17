@@ -50,8 +50,8 @@ COMMON_ATS_KEYWORDS: List[str] = [
 ]
 
 # PDF Page Layout
-MARGIN_LEFT_RIGHT = 0.55 * inch
-MARGIN_TOP_BOTTOM = 0.45 * inch
+MARGIN_LEFT_RIGHT = 0.30 * inch
+MARGIN_TOP_BOTTOM = 0.30 * inch
 MAX_PAGES = 2
 
 # ATS Bolding Constraints
