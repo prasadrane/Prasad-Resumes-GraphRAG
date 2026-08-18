@@ -2034,4 +2034,70 @@ body {
     }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Document Tab Strip (Clean Top Rail - GitHub/Docs Style)
+   ───────────────────────────────────────────────────────────────────────── */
+.doc-tab-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.75rem;
+    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.doc-tabs-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.doc-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.doc-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--md-sys-color-on-surface);
+}
+
+.doc-tab-btn.active {
+    background: rgba(168, 199, 250, 0.12);
+    color: #a8c7fa;
+    border-color: rgba(168, 199, 250, 0.25);
+    font-weight: 600;
+}
+
+.doc-tab-btn .tab-icon {
+    font-size: 1.1rem;
+}
+
+.doc-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.btn-icon-only {
+    padding: 0.45rem 0.55rem;
+    min-width: 36px;
+    justify-content: center;
+}
+
+
 

@@ -58,6 +58,12 @@ class TestSidebarNavigation(unittest.TestCase):
         """Verify mobile bottom navigation bar and scrim exist."""
         self.assertIn('id="mobile-bottom-nav"', self.html_content)
         self.assertIn('id="sidebar-scrim"', self.html_content)
+
+    def test_doc_tab_strip_structure(self):
+        """Verify resume viewer has dedicated doc-tab-strip separating tabs from actions."""
+        self.assertIn('class="doc-tab-strip"', self.html_content)
+        self.assertIn('class="doc-tabs-left"', self.html_content)
+        self.assertIn('class="doc-actions-right"', self.html_content)
         self.assertIn('id="mobile-more-sheet"', self.html_content)
 
     def test_css_grid_and_glassmorphism(self):

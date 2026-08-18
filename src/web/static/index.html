@@ -113,12 +113,24 @@
             <!-- View 1: Default Resume View -->
             <div id="default-view" class="tab-view fade-in">
                 <section class="m3-card default-panel">
-                    <div class="panel-header flex-between">
-                        <div>
-                            <h2><span class="material-symbols-outlined header-symbol">badge</span> Master Default Resume</h2>
-                            <p>Standard ATS master resume for Prasad Rane. View PDF preview or inspect raw Markdown content below.</p>
+                    <div class="panel-header">
+                        <h2><span class="material-symbols-outlined header-symbol">badge</span> Master Default Resume</h2>
+                        <p>Standard ATS master resume for Prasad Rane. View PDF preview or inspect raw Markdown content below.</p>
+                    </div>
+
+                    <!-- Clean Top Tab Strip (GitHub / Docs Style) -->
+                    <div class="doc-tab-strip">
+                        <div class="doc-tabs-left">
+                            <button id="default-toggle-pdf-btn" class="doc-tab-btn active" title="View PDF Preview">
+                                <span class="material-symbols-outlined tab-icon">picture_as_pdf</span>
+                                <span>PDF Preview</span>
+                            </button>
+                            <button id="default-toggle-edit-btn" class="doc-tab-btn" title="View Raw Markdown Content">
+                                <span class="material-symbols-outlined tab-icon">edit_note</span>
+                                <span>Raw Content</span>
+                            </button>
                         </div>
-                        <div class="preview-actions">
+                        <div class="doc-actions-right">
                             <!-- 1-Page vs 2-Page Budget Toggle -->
                             <div class="m3-segmented-control page-budget-toggle" title="Select Page Budget">
                                 <button id="default-page-1-btn" class="m3-segmented-tab" data-pages="1">
@@ -130,23 +142,11 @@
                                     <span>2 Pages</span>
                                 </button>
                             </div>
-
-                            <div class="m3-segmented-control view-toggle">
-                                <button id="default-toggle-pdf-btn" class="m3-segmented-tab active">
-                                    <span class="material-symbols-outlined tab-icon">picture_as_pdf</span>
-                                    <span>PDF Preview</span>
-                                </button>
-                                <button id="default-toggle-edit-btn" class="m3-segmented-tab">
-                                    <span class="material-symbols-outlined tab-icon">edit_note</span>
-                                    <span>Raw Content</span>
-                                </button>
-                            </div>
-                            <a id="default-download-link" href="#" download="Prasad_Rane_Default_Resume.pdf" class="m3-button m3-button-filled btn-sm">
+                            <a id="default-download-link" href="#" download="Prasad_Rane_Default_Resume.pdf" class="m3-button m3-button-filled btn-sm" title="Download PDF">
                                 <span class="material-symbols-outlined btn-icon">download</span>
                                 <span>Download PDF</span>
                             </a>
-                            <a id="default-open-link" href="#" target="_blank" class="m3-button m3-button-outlined btn-sm">
-                                <span>Open in New Tab</span>
+                            <a id="default-open-link" href="#" target="_blank" class="m3-button m3-button-outlined btn-icon-only btn-sm" title="Open in New Tab">
                                 <span class="material-symbols-outlined btn-icon">open_in_new</span>
                             </a>
                         </div>
