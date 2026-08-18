@@ -205,7 +205,8 @@ def get_default_resume_endpoint(pages: int = Query(2, ge=1, le=2)):
 
         return {
             "status": "success",
-            "pdf_url": pdf_data_uri,
+            "pdf_url": f"/api/default-resume-pdf?pages={pages}",
+            "pdf_data_uri": pdf_data_uri,
             "txt_url": None,
             "raw_resume": clean_raw_resume,
             "pages": pages,
@@ -213,6 +214,39 @@ def get_default_resume_endpoint(pages: int = Query(2, ge=1, le=2)):
     except Exception:
         logger.exception("Failed to load default resume")
         raise HTTPException(status_code=500, detail="Failed to load default resume.")
+
+
+@app.get("/api/default-resume-pdf")
+@app.get("/api/default_resume_pdf")
+def get_default_resume_pdf_endpoint(pages: int = Query(2, ge=1, le=2)):
+    """Directly stream default master resume PDF for native browser and iframe rendering."""
+    master_path = MASTER_RESUME_PATH
+    if not master_path.exists():
+        raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
+
+    try:
+        master_content = master_path.read_text(encoding="utf-8")
+        parsed = parse_resume_markdown(master_content)
+
+        try:
+            out_dir = OUTPUT_DIR_PATH / "Default"
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError):
+            import tempfile
+            out_dir = Path(tempfile.gettempdir()) / "output" / "Default"
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
+        actual_pdf_path = render_pdf_from_model(parsed, pdf_target, target_pages=pages)
+
+        return FileResponse(
+            str(actual_pdf_path),
+            media_type="application/pdf",
+            filename=f"Prasad_Rane_Resume_{pages}p.pdf"
+        )
+    except Exception:
+        logger.exception("Failed to stream default resume PDF")
+        raise HTTPException(status_code=500, detail="Failed to render default resume PDF.")
 
 
 @app.get("/api/history", response_model=List[ResumeHistoryItem])
