@@ -18,5 +18,17 @@ INPUT_DIR = ROOT_DIR / "input"
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 OUTPUT_DIR_PATH = ROOT_DIR / OUTPUT_DIR
 CACHE_DIR_PATH = ROOT_DIR / "cache"
-MASTER_RESUME_PATH = INPUT_DIR / "MASTER_RESUME.txt"
+def _find_master_resume() -> Path:
+    candidates = [
+        INPUT_DIR / "MASTER_RESUME.txt",
+        Path.cwd() / "input" / "MASTER_RESUME.txt",
+        Path(__file__).resolve().parent.parent.parent / "input" / "MASTER_RESUME.txt",
+        Path("/var/task/input/MASTER_RESUME.txt"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return INPUT_DIR / "MASTER_RESUME.txt"
+
+MASTER_RESUME_PATH = _find_master_resume()
 WEB_STATIC_DIR = ROOT_DIR / "src" / "web" / "static"

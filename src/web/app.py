@@ -242,7 +242,7 @@ def get_default_resume_pdf_endpoint(pages: int = Query(2, ge=1, le=2)):
         return FileResponse(
             str(actual_pdf_path),
             media_type="application/pdf",
-            filename=f"Prasad_Rane_Resume_{pages}p.pdf"
+            content_disposition_type="inline",
         )
     except Exception:
         logger.exception("Failed to stream default resume PDF")
