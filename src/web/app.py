@@ -185,14 +185,23 @@ def get_default_resume_endpoint(pages: int = Query(2, ge=1, le=2)):
         budgeted = budget_resume_for_pages(parsed, target_pages=pages)
         clean_raw_resume = format_tailored_markdown(budgeted, [])
 
-        out_dir = OUTPUT_DIR_PATH / "Default"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        txt_target = out_dir / f"raw_resume_{pages}p.txt"
-        txt_target.write_text(clean_raw_resume, encoding="utf-8")
-        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
-        render_pdf_from_model(parsed, pdf_target, target_pages=pages)
+        try:
+            out_dir = OUTPUT_DIR_PATH / "Default"
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except (OSError, PermissionError):
+            import tempfile
+            out_dir = Path(tempfile.gettempdir()) / "output" / "Default"
+            out_dir.mkdir(parents=True, exist_ok=True)
 
-        pdf_data_uri = _pdf_to_data_uri(pdf_target)
+        try:
+            txt_target = out_dir / f"raw_resume_{pages}p.txt"
+            txt_target.write_text(clean_raw_resume, encoding="utf-8")
+        except (OSError, PermissionError):
+            pass
+
+        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
+        actual_pdf_path = render_pdf_from_model(parsed, pdf_target, target_pages=pages)
+        pdf_data_uri = _pdf_to_data_uri(actual_pdf_path)
 
         return {
             "status": "success",

@@ -17,6 +17,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 "'": '&#039;'
             }[m]));
         },
+        dataUriToBlobUrl(dataUri) {
+            if (!dataUri || typeof dataUri !== 'string' || !dataUri.startsWith('data:application/pdf;base64,')) {
+                return dataUri;
+            }
+            try {
+                const base64Data = dataUri.split(',')[1];
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                return URL.createObjectURL(blob);
+            } catch (e) {
+                console.error('[Utils] Failed to convert data URI to blob URL:', e);
+                return dataUri;
+            }
+        },
         formatMarkdown(text) {
             if (!text) return '';
             if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
@@ -333,13 +352,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Failed to load default resume');
                 const data = await res.json();
 
-                if (this.pdfIframe && data.pdf_url) this.pdfIframe.src = data.pdf_url;
+                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_url);
+                if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
                 if (this.rawTextarea && data.raw_resume) this.rawTextarea.value = data.raw_resume;
-                if (this.downloadLink && data.pdf_url) {
-                    this.downloadLink.href = data.pdf_url;
+                if (this.downloadLink && pdfUrl) {
+                    this.downloadLink.href = pdfUrl;
                     this.downloadLink.download = `Prasad_Rane_Resume_${this.currentPages}p.pdf`;
                 }
-                if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
+                if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
 
                 this.isLoaded = true;
             } catch (err) {
@@ -611,12 +631,13 @@ document.addEventListener('DOMContentLoaded', () => {
         open(data) {
             this.currentData = data;
             if (this.section) this.section.classList.remove('hidden');
-            if (this.pdfIframe && data.pdf_url) this.pdfIframe.src = data.pdf_url;
+            const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_url);
+            if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
             if (this.rawTextarea && data.raw_resume) {
                 this.rawTextarea.value = data.raw_resume;
                 this.analyzeImpact();
             }
-            if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
+            if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
 
             if (data.pages) {
                 this.currentPages = data.pages;
