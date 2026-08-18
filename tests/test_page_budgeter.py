@@ -24,9 +24,10 @@ class TestPageBudgeter(unittest.TestCase):
     def test_budget_for_1_page_curates_bullets(self):
         """Verify 1-page budgeting limits bullets and keeps highest priority achievements."""
         budgeted = budget_resume_for_pages(self.parsed_master, target_pages=1)
-        self.assertLessEqual(len(budgeted.jobs[0].bullets), 4)
-        if len(budgeted.jobs) > 1:
-            self.assertLessEqual(len(budgeted.jobs[1].bullets), 3)
+        self.assertEqual(len(budgeted.jobs[0].bullets), 5)
+        self.assertEqual(len(budgeted.jobs[1].bullets), 2)
+        self.assertEqual(len(budgeted.jobs[2].bullets), 1)
+        self.assertEqual(len(budgeted.jobs[3].bullets), 1)
 
     def test_budget_for_2_pages_retains_full_experience(self):
         """Verify 2-page budgeting retains all high-impact bullets."""

@@ -32,11 +32,8 @@ def budget_resume_for_pages(
 
     if target_pages == 1:
         # 1-Page Constraints:
-        # Role 1: Top 4 bullets (most recent, highest scope)
-        # Role 2: Top 3 bullets
-        # Role 3: Top 1-2 bullets
-        # Role 4: Top 1 bullet
-        role_bullet_limits = [4, 3, 1, 1]
+        # Role 1 (Rocket Mortgage): 5 bullets, Role 2 (LCS): 2 bullets, Role 3 (EXFO): 1 bullet, Role 4 (Tanish): 1 bullet
+        role_bullet_limits = [5, 2, 1, 1]
 
         budgeted_jobs: List[JobEntry] = []
         for idx, job in enumerate(budgeted.jobs):
@@ -52,17 +49,32 @@ def budget_resume_for_pages(
 
         budgeted.jobs = budgeted_jobs
 
+        budgeted_projects: List[JobEntry] = []
+        for idx, proj in enumerate(budgeted.projects):
+            if idx >= 1:
+                break
+            curated_bullets = score_and_select_bullets(
+                bullets=proj.bullets,
+                keywords=kws,
+                max_bullets=2,
+                bullet_stories=proj.bullet_stories,
+            )
+            proj_copy = proj.model_copy(update={"bullets": curated_bullets})
+            budgeted_projects.append(proj_copy)
+
+        budgeted.projects = budgeted_projects
+
         # In 1-page mode, limit certifications and education to concise entries
         if len(budgeted.certifications) > 2:
             budgeted.certifications = budgeted.certifications[:2]
 
     else:
         # 2-Page Constraints:
-        # Role 1: Up to 8 bullets
-        # Role 2: Up to 5 bullets
-        # Role 3: Up to 2 bullets
-        # Role 4: Up to 2 bullets
-        role_bullet_limits = [8, 5, 2, 2]
+        # Role 1 (Rocket Mortgage): Up to 9 bullets
+        # Role 2 (LCS): Up to 5 bullets
+        # Role 3 (EXFO): Up to 2 bullets
+        # Role 4 (Tanish): Up to 2 bullets
+        role_bullet_limits = [9, 5, 2, 2]
 
         budgeted_jobs: List[JobEntry] = []
         for idx, job in enumerate(budgeted.jobs):
@@ -77,5 +89,18 @@ def budget_resume_for_pages(
             budgeted_jobs.append(job_copy)
 
         budgeted.jobs = budgeted_jobs
+
+        budgeted_projects: List[JobEntry] = []
+        for proj in budgeted.projects:
+            curated_bullets = score_and_select_bullets(
+                bullets=proj.bullets,
+                keywords=kws,
+                max_bullets=3,
+                bullet_stories=proj.bullet_stories,
+            )
+            proj_copy = proj.model_copy(update={"bullets": curated_bullets})
+            budgeted_projects.append(proj_copy)
+
+        budgeted.projects = budgeted_projects
 
     return budgeted

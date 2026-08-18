@@ -41,20 +41,20 @@ def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dic
     font_bold = "Helvetica-Bold"
 
     if ultra_compact:
-        body_size, body_lead, bullet_space = 8.5, 11.0, 1.5
-        sec_size, sec_lead, sec_space = 9.5, 12.0, 3.0
-        name_size, name_lead, name_space = 19.0, 22.0, 4.0
-        contact_size, contact_lead, contact_space = 8.5, 11.0, 6.0
+        body_size, body_lead, bullet_space = 8.8, 11.8, 1.8
+        sec_size, sec_lead, sec_space = 9.8, 12.0, 3.5
+        name_size, name_lead, name_space = 19.5, 22.5, 4.0
+        contact_size, contact_lead, contact_space = 8.6, 11.2, 5.5
     elif compact:
-        body_size, body_lead, bullet_space = 9.0, 12.0, 2.0
+        body_size, body_lead, bullet_space = 9.0, 12.2, 2.2
         sec_size, sec_lead, sec_space = 10.0, 12.5, 4.0
+        name_size, name_lead, name_space = 20.0, 23.0, 4.0
+        contact_size, contact_lead, contact_space = 8.8, 11.5, 6.0
+    else:
+        body_size, body_lead, bullet_space = 9.2, 12.5, 2.8
+        sec_size, sec_lead, sec_space = 10.2, 12.8, 4.5
         name_size, name_lead, name_space = 21.0, 24.0, 5.0
         contact_size, contact_lead, contact_space = 9.0, 12.0, 8.0
-    else:
-        body_size, body_lead, bullet_space = 9.5, 13.0, 3.0
-        sec_size, sec_lead, sec_space = 10.5, 13.0, 6.0
-        name_size, name_lead, name_space = 23.0, 26.0, 6.0
-        contact_size, contact_lead, contact_space = 9.5, 13.0, 12.0
 
     return {
         "name": ParagraphStyle(
@@ -202,11 +202,18 @@ def format_contact_paragraph(data: ResumeData) -> str:
         items.append(f'<a href="mailto:{email_clean}"><font color="#0f3460">{email_clean}</font></a>')
     if data.contact_linkedin:
         link_url = data.contact_linkedin if data.contact_linkedin.startswith("http") else f"https://{data.contact_linkedin}"
-        display_text = data.contact_linkedin.replace("https://", "").replace("http://", "")
+        display_text = data.contact_linkedin.replace("https://", "").replace("http://", "").replace("www.", "")
+        # Use compact handle if github is also present to guarantee 1-line header
+        if data.contact_github and "linkedin.com/in/" in display_text:
+            display_text = display_text.replace("linkedin.com/in/", "in/")
         items.append(f'<a href="{link_url}"><font color="#0f3460">{display_text}</font></a>')
+    if data.contact_github:
+        gh_url = data.contact_github if data.contact_github.startswith("http") else f"https://{data.contact_github}"
+        display_gh = data.contact_github.replace("https://", "").replace("http://", "").replace("www.", "")
+        items.append(f'<a href="{gh_url}"><font color="#0f3460">{display_gh}</font></a>')
     if data.contact_portfolio:
         port_url = data.contact_portfolio if data.contact_portfolio.startswith("http") else f"https://{data.contact_portfolio}"
-        display_text = data.contact_portfolio.replace("https://", "").replace("http://", "")
+        display_text = data.contact_portfolio.replace("https://", "").replace("http://", "").replace("www.", "")
         items.append(f'<a href="{port_url}"><font color="#0f3460">{display_text}</font></a>')
 
     return " | ".join(items)

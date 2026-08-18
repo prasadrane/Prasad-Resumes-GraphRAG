@@ -18,6 +18,7 @@ from .constants import (
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
     SECTION_EXPERIENCE,
+    SECTION_PROJECTS,
     SECTION_SKILLS,
     SECTION_SUMMARY,
 )
@@ -37,12 +38,19 @@ def bold_keywords(
     keywords: List[str],
     max_bold_phrases: int = MAX_BOLD_PHRASES_PER_BULLET,
     max_bold_ratio: float = BOLD_CAP_PCT / 100,
+    allow_first_word_bold: bool = False,
 ) -> str:
     """Highlight job description keywords judiciously (max 2-3 phrases, <20% bolded text total)."""
-    if not text or not keywords:
-        return clean_em_dashes(text)
+    if not text:
+        return ""
 
     text = clean_em_dashes(text)
+    if not allow_first_word_bold:
+        text = re.sub(r"^\s*\*\*([A-Za-z0-9\-\s/]+?)\*\*(\s+)", r"\1\2", text)
+
+    if not keywords:
+        return text
+
     existing_bolds = re.findall(r"\*\*(.*?)\*\*", text)
     current_bold_chars = sum(len(b) for b in existing_bolds)
     total_chars = max(len(text), 1)
@@ -57,11 +65,16 @@ def bold_keywords(
         pattern = re.compile(rf"(?<!\*\*)\b({re.escape(kw)})\b(?!\*\*)", re.IGNORECASE)
         match = pattern.search(text)
         if match:
+            if not allow_first_word_bold and match.start() <= 2:
+                continue
             matched_str = match.group(1)
             if _can_bold_keyword(len(matched_str), current_bold_chars, total_chars, max_bold_ratio):
                 text = pattern.sub(r"**\1**", text, count=1)
                 current_bold_chars += len(matched_str)
                 bold_count += 1
+
+    if not allow_first_word_bold:
+        text = re.sub(r"^\s*\*\*([A-Za-z0-9\-\s/]+?)\*\*(\s+)", r"\1\2", text)
 
     return text
 
@@ -131,10 +144,23 @@ def reorder_skills_by_relevance(skills: List[str], keywords: List[str]) -> List[
 
 def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text."""
+    contact_parts = [
+        p
+        for p in [
+            data.contact_location,
+            data.contact_phone,
+            data.contact_email,
+            data.contact_linkedin,
+            data.contact_github,
+            data.contact_portfolio,
+        ]
+        if p
+    ]
+    contact_line = " | ".join(contact_parts)
     out_lines = [
         f"{MARKDOWN_H1_PREFIX}{data.name}",
-        f"**Contact:** {data.contact_location} | {data.contact_phone} | {data.contact_email} | {data.contact_linkedin} | {data.contact_portfolio}",
-        ""
+        f"**Contact:** {contact_line}",
+        "",
     ]
 
     # 1. SUMMARY
@@ -147,7 +173,7 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_EXPERIENCE}")
     for idx, job in enumerate(data.jobs):
         heading_parts = [p for p in [job.title, job.company, job.location, job.dates] if p]
-        clean_heading = " | ".join(heading_parts)
+        clean_heading = " | ".join(heading_parts) or job.heading
         out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
         max_bullets = 7 if idx == 0 else 5
         selected_bullets = score_and_select_bullets(
@@ -158,7 +184,19 @@ def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
             out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
         out_lines.append("")
 
-    # 3. SKILLS
+    # 3. PROJECTS
+    if data.projects:
+        out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_PROJECTS}")
+        for idx, proj in enumerate(data.projects):
+            heading_parts = [p for p in [proj.title, proj.company, proj.location, proj.dates] if p]
+            clean_heading = " | ".join(heading_parts) or proj.heading
+            out_lines.append(f"{MARKDOWN_H3_PREFIX}{clean_heading}")
+            for b in proj.bullets:
+                bolded_bullet = bold_keywords(b, keywords, max_bold_phrases=MAX_BOLD_PHRASES_PER_BULLET, max_bold_ratio=BOLD_CAP_PCT / 100)
+                out_lines.append(f"{MARKDOWN_BULLET_PREFIX}{bolded_bullet}")
+            out_lines.append("")
+
+    # 4. SKILLS
     out_lines.append(f"{MARKDOWN_H2_PREFIX}{SECTION_SKILLS}")
     ordered_skills = reorder_skills_by_relevance(data.skills, keywords)
     for sk in ordered_skills:

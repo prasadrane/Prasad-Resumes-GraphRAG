@@ -23,9 +23,11 @@ class ResumeData(BaseModel):
     contact_phone: str = ""
     contact_email: str = ""
     contact_linkedin: str = ""
+    contact_github: str = ""
     contact_portfolio: str = ""
     summary: str = ""
     jobs: List[JobEntry] = Field(default_factory=list)
+    projects: List[JobEntry] = Field(default_factory=list)
     skills: List[str] = Field(default_factory=list)
     certifications: List[str] = Field(default_factory=list)
     education: List[str] = Field(default_factory=list)

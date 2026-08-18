@@ -235,6 +235,7 @@ def parse_single_call_response(
                 summary_lines.append(line)
         elif current_job_idx >= 0 and line:
             cleaned = re.sub(r"^[\s\-\*\•\·\d\.]+", "", line).strip()
+            cleaned = re.sub(r"^\*\*([A-Za-z0-9\-\s/]+?)\*\*(\s+)", r"\1\2", cleaned)
             if cleaned:
                 current_bullets.append(cleaned)
 

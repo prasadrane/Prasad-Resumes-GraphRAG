@@ -18,6 +18,7 @@ from .constants import (
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
     SECTION_EXPERIENCE,
+    SECTION_PROJECTS,
     SECTION_SKILLS,
     SECTION_SUMMARY,
 )
@@ -73,16 +74,37 @@ def _build_skills_story(parsed: ResumeData, styles: dict) -> List[Any]:
     return story
 
 def _build_experience_story(parsed: ResumeData, styles: dict) -> List[Any]:
-    """Build flowables for Experience section with KeepTogether job blocks."""
+    """Build flowables for Experience section with heading orphan prevention."""
     if not parsed.jobs:
         return []
     story = create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"])
     for job in parsed.jobs:
-        job_flowables = [Paragraph(format_job_heading(job), styles["job_heading"])]
-        for bullet in job.bullets:
-            bullet_html = markdown_to_reportlab_html(bullet)
-            job_flowables.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
-        story.append(KeepTogether(job_flowables))
+        heading_p = Paragraph(format_job_heading(job), styles["job_heading"])
+        if job.bullets:
+            first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(job.bullets[0])}", styles["bullet"])
+            story.append(KeepTogether([heading_p, first_b]))
+            for bullet in job.bullets[1:]:
+                bullet_html = markdown_to_reportlab_html(bullet)
+                story.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
+        else:
+            story.append(heading_p)
+    return story
+
+def _build_projects_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Projects section with heading orphan prevention."""
+    if not parsed.projects:
+        return []
+    story = create_section_header_flowables(SECTION_PROJECTS, styles["sec_header"])
+    for proj in parsed.projects:
+        heading_p = Paragraph(format_job_heading(proj), styles["job_heading"])
+        if proj.bullets:
+            first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(proj.bullets[0])}", styles["bullet"])
+            story.append(KeepTogether([heading_p, first_b]))
+            for bullet in proj.bullets[1:]:
+                bullet_html = markdown_to_reportlab_html(bullet)
+                story.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
+        else:
+            story.append(heading_p)
     return story
 
 def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
@@ -122,19 +144,21 @@ def render_pdf_from_model(
     budgeted = budget_resume_for_pages(parsed, target_pages=target_pages, keywords=keywords)
 
     def _build_with_styles(styles_dict) -> int:
+        tb_margin = 22.0 if target_pages == 1 else MARGIN_TOP_BOTTOM
         doc = SimpleDocTemplate(
             str(output_pdf_path),
             pagesize=letter,
             leftMargin=MARGIN_LEFT_RIGHT,
             rightMargin=MARGIN_LEFT_RIGHT,
-            topMargin=MARGIN_TOP_BOTTOM,
-            bottomMargin=MARGIN_TOP_BOTTOM,
+            topMargin=tb_margin,
+            bottomMargin=tb_margin,
         )
         story = []
         story.extend(_build_header_story(budgeted, styles_dict))
         story.extend(_build_summary_story(budgeted, styles_dict))
         story.extend(_build_skills_story(budgeted, styles_dict))
         story.extend(_build_experience_story(budgeted, styles_dict))
+        story.extend(_build_projects_story(budgeted, styles_dict))
         story.extend(_build_certifications_story(budgeted, styles_dict))
         story.extend(_build_education_story(budgeted, styles_dict))
 

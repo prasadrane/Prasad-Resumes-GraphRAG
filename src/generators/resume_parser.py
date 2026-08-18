@@ -20,6 +20,7 @@ from .constants import (
     SECTION_CERTIFICATIONS,
     SECTION_EDUCATION,
     SECTION_EXPERIENCE,
+    SECTION_PROJECTS,
     SECTION_SKILLS,
     SECTION_SKIP,
     SECTION_SKIP_SUMMARY_VARIANTS,
@@ -28,10 +29,11 @@ from .constants import (
 from .models import JobEntry, ResumeData
 
 def clean_em_dashes(text: str) -> str:
-    """Replace em-dashes in prose text while preserving hyphens in dates and compound words."""
+    """Replace em-dashes in prose text while preserving hyphens in dates, year ranges, and compound words."""
     if not text:
         return ""
-    text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
+    text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s*[—–-]\s*([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
+    text = re.sub(r"(\b\d{4})\s*[—–-]\s*(\b\d{4}|\bPresent\b)", r"\1 - \2", text)
     text = text.replace("—", ". ").replace(" – ", ". ")
     text = re.sub(r"\s+\.\s+", ". ", text)
     return text.strip()
@@ -86,19 +88,28 @@ def create_job_entry(heading: str, bullets: List[str]) -> JobEntry:
     )
 
 def _parse_contact_line(contact_str: str, data: ResumeData) -> None:
-    """Parse contact header line into structured ResumeData contact fields."""
+    """Parse contact header line into structured ResumeData contact fields semantically."""
     raw_parts = [p.strip() for p in contact_str.split("|") if p.strip()]
-    parts = []
     for p in raw_parts:
         cleaned_p = re.sub(r"[📍📞✉️🌐💻📱📧🏠]", "", p).strip()
-        if cleaned_p:
-            parts.append(cleaned_p)
-
-    if len(parts) >= 1: data.contact_location = parts[0]
-    if len(parts) >= 2: data.contact_phone = parts[1]
-    if len(parts) >= 3: data.contact_email = parts[2]
-    if len(parts) >= 4: data.contact_linkedin = clean_link_url(parts[3])
-    if len(parts) >= 5: data.contact_portfolio = clean_link_url(parts[4])
+        if not cleaned_p:
+            continue
+        cleaned_p = clean_link_url(cleaned_p)
+        low = cleaned_p.lower()
+        if "@" in low and not data.contact_email:
+            data.contact_email = cleaned_p
+        elif "linkedin" in low and not data.contact_linkedin:
+            data.contact_linkedin = cleaned_p
+        elif "github" in low and not data.contact_github:
+            data.contact_github = cleaned_p
+        elif any(ext in low for ext in [".app", ".dev", ".io", ".me", "vercel", "github.io"]) and not data.contact_portfolio:
+            data.contact_portfolio = cleaned_p
+        elif ("http" in low or ".com" in low) and not data.contact_portfolio:
+            data.contact_portfolio = cleaned_p
+        elif re.search(r"^\+?[\d\s\-\(\)\.]{7,}$", cleaned_p) and not data.contact_phone:
+            data.contact_phone = cleaned_p
+        elif not data.contact_location:
+            data.contact_location = cleaned_p
 
 def extract_summary_variants(content: str) -> Dict[str, str]:
     """Extract canonical summary and domain variant summaries from MASTER_RESUME text."""
@@ -148,7 +159,25 @@ def parse_resume_markdown(content: str) -> ResumeData:
     current_job_bullets = []
     current_bullet_stories = []
     current_story_title = ""
+    current_proj_header = None
+    current_proj_bullets = []
     summary_lines = []
+
+    def flush_entries():
+        nonlocal current_job_header, current_job_bullets, current_bullet_stories
+        nonlocal current_proj_header, current_proj_bullets
+        if current_job_header:
+            job = create_job_entry(current_job_header, current_job_bullets)
+            job.bullet_stories = current_bullet_stories[:]
+            data.jobs.append(job)
+            current_job_header = None
+            current_job_bullets = []
+            current_bullet_stories = []
+        if current_proj_header:
+            proj = create_job_entry(current_proj_header, current_proj_bullets)
+            data.projects.append(proj)
+            current_proj_header = None
+            current_proj_bullets = []
 
     for raw_line in raw_lines:
         line = raw_line.strip()
@@ -173,11 +202,14 @@ def parse_resume_markdown(content: str) -> ResumeData:
             continue
 
         if line.startswith(MARKDOWN_H2_PREFIX):
+            flush_entries()
             sec_upper = line[len(MARKDOWN_H2_PREFIX):].strip().upper()
             if SECTION_SUMMARY in sec_upper or "PROFILES" in sec_upper:
                 current_sec = SECTION_SUMMARY
             elif SECTION_EXPERIENCE in sec_upper or "BULLET" in sec_upper:
                 current_sec = SECTION_EXPERIENCE
+            elif "PROJECT" in sec_upper:
+                current_sec = SECTION_PROJECTS
             elif "SKILL" in sec_upper:
                 current_sec = SECTION_SKILLS
             elif "CERTIF" in sec_upper:
@@ -245,6 +277,16 @@ def parse_resume_markdown(content: str) -> ResumeData:
                 current_job_bullets.append(clean_em_dashes(line[2:].strip()))
                 current_bullet_stories.append(current_story_title)
 
+        elif current_sec == SECTION_PROJECTS:
+            if line.startswith(MARKDOWN_H3_PREFIX):
+                if current_proj_header:
+                    proj = create_job_entry(current_proj_header, current_proj_bullets)
+                    data.projects.append(proj)
+                current_proj_header = line[len(MARKDOWN_H3_PREFIX):].strip()
+                current_proj_bullets = []
+            elif line.startswith(MARKDOWN_BULLET_PREFIX) or line.startswith("* "):
+                current_proj_bullets.append(clean_em_dashes(line[2:].strip()))
+
         elif current_sec == SECTION_SKILLS and line.startswith(MARKDOWN_BULLET_PREFIX):
             data.skills.append(clean_em_dashes(line[2:].strip()))
 
@@ -254,11 +296,7 @@ def parse_resume_markdown(content: str) -> ResumeData:
         elif current_sec == SECTION_EDUCATION and line.startswith(MARKDOWN_BULLET_PREFIX):
             data.education.append(clean_em_dashes(line[2:].strip()))
 
-    # Flush final job entry
-    if current_job_header:
-        job = create_job_entry(current_job_header, current_job_bullets)
-        job.bullet_stories = current_bullet_stories[:]
-        data.jobs.append(job)
+    flush_entries()
 
     if not data.name:
         data.name = DEFAULT_CANDIDATE_NAME
