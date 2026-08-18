@@ -206,6 +206,7 @@ def save_edit_endpoint(req: SaveEditRequest):
         raise HTTPException(status_code=400, detail="Raw resume text content cannot be empty.")
 
     try:
+        pages = req.pages or 2
         if req.txt_url and req.txt_url.startswith("/api/files/"):
             txt_path_str = req.txt_url.replace("/api/files/", "")
             target_txt = (OUTPUT_DIR_PATH / txt_path_str).resolve()
@@ -216,7 +217,7 @@ def save_edit_endpoint(req: SaveEditRequest):
             else:
                 raw_content = target_txt.read_text(encoding="utf-8")
             pdf_target = target_txt.parent / "Prasad_Rane_Resume.pdf"
-            render_pdf_resume(target_txt, pdf_target)
+            render_pdf_resume(target_txt, pdf_target, target_pages=pages)
         else:
             if not raw_content:
                 raise HTTPException(status_code=400, detail="Resume text content cannot be empty.")
@@ -225,7 +226,7 @@ def save_edit_endpoint(req: SaveEditRequest):
             raw_path = temp_out_dir / "edited_raw_resume.txt"
             raw_path.write_text(raw_content, encoding="utf-8")
             pdf_target = temp_out_dir / "Prasad_Rane_Resume.pdf"
-            render_pdf_resume(raw_path, pdf_target)
+            render_pdf_resume(raw_path, pdf_target, target_pages=pages)
 
         pdf_data_uri = _pdf_to_data_uri(pdf_target)
         return {
@@ -234,6 +235,7 @@ def save_edit_endpoint(req: SaveEditRequest):
             "pdf_url": pdf_data_uri,
             "txt_url": req.txt_url,
             "raw_resume": raw_content,
+            "pages": pages,
         }
     except HTTPException:
         raise

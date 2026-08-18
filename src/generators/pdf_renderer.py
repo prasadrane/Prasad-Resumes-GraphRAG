@@ -1,6 +1,7 @@
 """
 pdf_renderer.py — Rule-based, candidate-agnostic PDF resume generator using ReportLab Platypus and Pydantic models.
 Applies SOLID (SRP, OCP) and DRY principles by reusing unified markdown parsing and modular story builders.
+Supports 1-Page and 2-Page targeted budgeting.
 """
 
 import re
@@ -21,6 +22,7 @@ from .constants import (
     SECTION_SUMMARY,
 )
 from .models import ResumeData
+from .page_budgeter import budget_resume_for_pages
 from .pdf_styles import (
     PageCountCanvas,
     create_section_header_flowables,
@@ -60,6 +62,16 @@ def _build_summary_story(parsed: ResumeData, styles: dict) -> List[Any]:
     story.append(Paragraph(markdown_to_reportlab_html(parsed.summary), styles["summary"]))
     return story
 
+def _build_skills_story(parsed: ResumeData, styles: dict) -> List[Any]:
+    """Build flowables for Technical Skills."""
+    if not parsed.skills:
+        return []
+    story = create_section_header_flowables(SECTION_SKILLS, styles["sec_header"])
+    for skill_cat in parsed.skills:
+        skill_html = markdown_to_reportlab_html(skill_cat)
+        story.append(Paragraph(f"&bull; {skill_html}", styles["skill"]))
+    return story
+
 def _build_experience_story(parsed: ResumeData, styles: dict) -> List[Any]:
     """Build flowables for Experience section with KeepTogether job blocks."""
     if not parsed.jobs:
@@ -71,16 +83,6 @@ def _build_experience_story(parsed: ResumeData, styles: dict) -> List[Any]:
             bullet_html = markdown_to_reportlab_html(bullet)
             job_flowables.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
         story.append(KeepTogether(job_flowables))
-    return story
-
-def _build_skills_story(parsed: ResumeData, styles: dict) -> List[Any]:
-    """Build flowables for Technical Skills."""
-    if not parsed.skills:
-        return []
-    story = create_section_header_flowables(SECTION_SKILLS, styles["sec_header"])
-    for skill_cat in parsed.skills:
-        skill_html = markdown_to_reportlab_html(skill_cat)
-        story.append(Paragraph(f"&bull; {skill_html}", styles["skill"]))
     return story
 
 def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
@@ -102,14 +104,22 @@ def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
         story.append(Paragraph(markdown_to_reportlab_html(edu), styles["edu"]))
     return story
 
-def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
-    """Render PDF document directly from ResumeData Pydantic model with adaptive two-pass 2-page budgeting."""
+def render_pdf_from_model(
+    parsed: ResumeData,
+    output_pdf_path: Path,
+    target_pages: int = 2,
+    keywords: Optional[List[str]] = None,
+) -> Path:
+    """Render PDF document directly from ResumeData Pydantic model with adaptive multi-pass page budgeting."""
     try:
         output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
     except (OSError, PermissionError):
         import tempfile
         output_pdf_path = Path(tempfile.gettempdir()) / "output" / output_pdf_path.name
         output_pdf_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Budget the resume model for the target page count
+    budgeted = budget_resume_for_pages(parsed, target_pages=target_pages, keywords=keywords)
 
     def _build_with_styles(styles_dict) -> int:
         doc = SimpleDocTemplate(
@@ -121,35 +131,47 @@ def render_pdf_from_model(parsed: ResumeData, output_pdf_path: Path) -> Path:
             bottomMargin=MARGIN_TOP_BOTTOM,
         )
         story = []
-        story.extend(_build_header_story(parsed, styles_dict))
-        story.extend(_build_summary_story(parsed, styles_dict))
-        story.extend(_build_experience_story(parsed, styles_dict))
-        story.extend(_build_skills_story(parsed, styles_dict))
-        story.extend(_build_certifications_story(parsed, styles_dict))
-        story.extend(_build_education_story(parsed, styles_dict))
+        story.extend(_build_header_story(budgeted, styles_dict))
+        story.extend(_build_summary_story(budgeted, styles_dict))
+        story.extend(_build_skills_story(budgeted, styles_dict))
+        story.extend(_build_experience_story(budgeted, styles_dict))
+        story.extend(_build_certifications_story(budgeted, styles_dict))
+        story.extend(_build_education_story(budgeted, styles_dict))
 
         AdaptivePageCanvas.last_page_count = 0
         doc.build(story, canvasmaker=AdaptivePageCanvas)
         return AdaptivePageCanvas.last_page_count
 
-    # Pass 1: standard layout
-    styles = get_resume_styles()
-    pages = _build_with_styles(styles)
-
-    # Pass 2: adaptive compaction if content exceeds MAX_PAGES
-    if pages > MAX_PAGES:
+    if target_pages == 1:
+        # Pass 1: Try compact styles
         compact_styles = get_resume_styles(compact=True)
         pages = _build_with_styles(compact_styles)
-        if pages > MAX_PAGES:
+        if pages > 1:
             ultra_styles = get_resume_styles(ultra_compact=True)
             _build_with_styles(ultra_styles)
+    else:
+        # Pass 1: Standard styles
+        styles = get_resume_styles()
+        pages = _build_with_styles(styles)
+        if pages > 2:
+            compact_styles = get_resume_styles(compact=True)
+            pages = _build_with_styles(compact_styles)
+            if pages > 2:
+                ultra_styles = get_resume_styles(ultra_compact=True)
+                _build_with_styles(ultra_styles)
 
     return output_pdf_path
 
-def render_pdf_resume(raw_resume_source: Union[Path, str], output_pdf_path: Path, parsed_data: Optional[ResumeData] = None) -> Path:
+def render_pdf_resume(
+    raw_resume_source: Union[Path, str],
+    output_pdf_path: Path,
+    parsed_data: Optional[ResumeData] = None,
+    target_pages: int = 2,
+    keywords: Optional[List[str]] = None,
+) -> Path:
     """Render rule-based ATS compliant PDF resume supporting Path or pre-parsed ResumeData (OCP/DIP)."""
     if parsed_data is not None:
-        return render_pdf_from_model(parsed_data, output_pdf_path)
+        return render_pdf_from_model(parsed_data, output_pdf_path, target_pages=target_pages, keywords=keywords)
 
     raw_path = Path(raw_resume_source)
     if not raw_path.exists():
@@ -157,7 +179,7 @@ def render_pdf_resume(raw_resume_source: Union[Path, str], output_pdf_path: Path
 
     raw_content = raw_path.read_text(encoding="utf-8")
     parsed = parse_resume_markdown(raw_content)
-    return render_pdf_from_model(parsed, output_pdf_path)
+    return render_pdf_from_model(parsed, output_pdf_path, target_pages=target_pages, keywords=keywords)
 
 
 def pdf_to_data_uri(pdf_path: Path) -> str:
@@ -169,4 +191,3 @@ def pdf_to_data_uri(pdf_path: Path) -> str:
 
 
 _pdf_to_data_uri = pdf_to_data_uri
-

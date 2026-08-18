@@ -893,7 +893,8 @@ body {
 .preview-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .preview-body iframe {

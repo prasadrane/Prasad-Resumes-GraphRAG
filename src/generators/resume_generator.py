@@ -139,7 +139,7 @@ def llm_tailor_resume(
 
 # ── Public Generation APIs ──────────────────────────────────────────────────
 
-def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None) -> Path:
+def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None, target_pages: int = 2) -> Path:
     """Generate LLM-tailored raw_resume.txt per-JD."""
     out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
     raw_resume_path = out_dir / RAW_RESUME_FILENAME
@@ -162,7 +162,7 @@ def generate_raw_resume(company_name: str, jd_text: str, base_output_dir: Option
     return raw_resume_path
 
 
-def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None):
+def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_dir: Optional[Path] = None, target_pages: int = 2):
     """Generate LLM-tailored raw_resume.txt and PDF resume stepwise, yielding progress."""
     out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
     raw_resume_path = out_dir / RAW_RESUME_FILENAME
@@ -203,8 +203,8 @@ def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_di
     raw_resume_path.write_text(tailored_text, encoding="utf-8")
 
     # Step 7: rendering_pdf (88%)
-    yield ("rendering_pdf", "Rendering PDF", 88, "Rendering standard 2-page PDF resume using ReportLab...")
-    render_pdf_resume(raw_resume_path, pdf_path)
+    yield ("rendering_pdf", "Rendering PDF", 88, f"Rendering {target_pages}-page PDF resume using ReportLab...")
+    render_pdf_resume(raw_resume_path, pdf_path, target_pages=target_pages, keywords=keywords)
 
     # Step 8: complete (100%)
     yield (

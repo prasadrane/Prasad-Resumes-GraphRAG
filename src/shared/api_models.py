@@ -84,6 +84,12 @@ class ResumeGenerationRequest(BaseModel):
         default="",
         description="Job description text",
     )
+    target_pages: Optional[int] = Field(
+        default=2,
+        ge=1,
+        le=2,
+        description="Target page budget: 1 for dense single-page, 2 for balanced senior format",
+    )
 
     @model_validator(mode="after")
     def _validate(self):
@@ -119,6 +125,7 @@ class SaveEditRequest(BaseModel):
     raw_text: Optional[str] = Field(default=None, description="Updated raw resume text content")
     content: Optional[str] = Field(default=None, description="Updated raw resume text content (alias)")
     company: Optional[str] = Field(default="Tailored", description="Company name")
+    pages: Optional[int] = Field(default=2, ge=1, le=2, description="Target page budget (1 or 2)")
 
 
 class BehavioralQuestionRequest(BaseModel):

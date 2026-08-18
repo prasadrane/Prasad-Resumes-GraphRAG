@@ -105,6 +105,14 @@ class TestSidebarNavigation(unittest.TestCase):
         self.assertIn("sidebar-scrim", self.js_content)
         self.assertIn("mobile-bottom-nav", self.js_content)
 
+    def test_page_budget_toggle_buttons(self):
+        """Verify 1-page vs 2-pages toggle buttons exist in Master Resume and Tailor Preview."""
+        self.assertIn('id="default-page-1-btn"', self.html_content)
+        self.assertIn('id="default-page-2-btn"', self.html_content)
+        self.assertIn('id="preview-page-1-btn"', self.html_content)
+        self.assertIn('id="preview-page-2-btn"', self.html_content)
+        self.assertIn('class="m3-segmented-control page-budget-toggle"', self.html_content)
+
 
 if __name__ == "__main__":
     unittest.main()

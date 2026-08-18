@@ -284,6 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Default Resume Controller
     const DefaultResumeController = {
         isLoaded: false,
+        currentPages: 2,
+        page1Btn: document.getElementById('default-page-1-btn'),
+        page2Btn: document.getElementById('default-page-2-btn'),
         togglePdfBtn: document.getElementById('default-toggle-pdf-btn'),
         toggleEditBtn: document.getElementById('default-toggle-edit-btn'),
         pdfContainer: document.getElementById('default-pdf-container'),
@@ -294,8 +297,19 @@ document.addEventListener('DOMContentLoaded', () => {
         openLink: document.getElementById('default-open-link'),
 
         init() {
+            if (this.page1Btn) this.page1Btn.addEventListener('click', () => this.switchPages(1));
+            if (this.page2Btn) this.page2Btn.addEventListener('click', () => this.switchPages(2));
             if (this.togglePdfBtn) this.togglePdfBtn.addEventListener('click', () => this.switchMode('pdf'));
             if (this.toggleEditBtn) this.toggleEditBtn.addEventListener('click', () => this.switchMode('edit'));
+        },
+
+        switchPages(pages) {
+            this.currentPages = pages;
+            if (this.page1Btn && this.page2Btn) {
+                this.page1Btn.classList.toggle('active', pages === 1);
+                this.page2Btn.classList.toggle('active', pages === 2);
+            }
+            this.loadDefaultResume(true);
         },
 
         switchMode(mode) {
@@ -312,16 +326,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
-        async loadDefaultResume() {
-            if (this.isLoaded) return;
+        async loadDefaultResume(force = false) {
+            if (this.isLoaded && !force) return;
             try {
-                const res = await fetch('/api/default-resume');
+                const res = await fetch(`/api/default-resume?pages=${this.currentPages}`);
                 if (!res.ok) throw new Error('Failed to load default resume');
                 const data = await res.json();
 
                 if (this.pdfIframe && data.pdf_url) this.pdfIframe.src = data.pdf_url;
                 if (this.rawTextarea && data.raw_resume) this.rawTextarea.value = data.raw_resume;
-                if (this.downloadLink && data.pdf_url) this.downloadLink.href = data.pdf_url;
+                if (this.downloadLink && data.pdf_url) {
+                    this.downloadLink.href = data.pdf_url;
+                    this.downloadLink.download = `Prasad_Rane_Resume_${this.currentPages}p.pdf`;
+                }
                 if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
 
                 this.isLoaded = true;
@@ -524,6 +541,10 @@ document.addEventListener('DOMContentLoaded', () => {
         closeBtn: document.getElementById('close-preview-btn'),
         openLink: document.getElementById('preview-open-link'),
 
+        currentPages: 2,
+        page1Btn: document.getElementById('preview-page-1-btn'),
+        page2Btn: document.getElementById('preview-page-2-btn'),
+
         togglePdfBtn: document.getElementById('toggle-pdf-btn'),
         toggleEditBtn: document.getElementById('toggle-edit-btn'),
         toggleDiffBtn: document.getElementById('toggle-diff-btn'),
@@ -545,6 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
         currentData: null,
 
         init() {
+            if (this.page1Btn) this.page1Btn.addEventListener('click', () => this.switchPages(1));
+            if (this.page2Btn) this.page2Btn.addEventListener('click', () => this.switchPages(2));
+
             if (this.togglePdfBtn) this.togglePdfBtn.addEventListener('click', () => this.switchMode('pdf'));
             if (this.toggleEditBtn) this.toggleEditBtn.addEventListener('click', () => this.switchMode('edit'));
             if (this.toggleDiffBtn) this.toggleDiffBtn.addEventListener('click', () => this.switchMode('diff'));
@@ -575,6 +599,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+        async switchPages(pages) {
+            this.currentPages = pages;
+            if (this.page1Btn && this.page2Btn) {
+                this.page1Btn.classList.toggle('active', pages === 1);
+                this.page2Btn.classList.toggle('active', pages === 2);
+            }
+            await this.handleSave();
+        },
+
         open(data) {
             this.currentData = data;
             if (this.section) this.section.classList.remove('hidden');
@@ -584,6 +617,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.analyzeImpact();
             }
             if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
+
+            if (data.pages) {
+                this.currentPages = data.pages;
+                if (this.page1Btn && this.page2Btn) {
+                    this.page1Btn.classList.toggle('active', data.pages === 1);
+                    this.page2Btn.classList.toggle('active', data.pages === 2);
+                }
+            }
 
             this.switchMode('pdf');
             if (this.section) this.section.scrollIntoView({ behavior: 'smooth' });
@@ -692,12 +733,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/save-edit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ raw_text: content, txt_url: this.currentData ? this.currentData.txt_url : null }),
+                    body: JSON.stringify({
+                        raw_text: content,
+                        txt_url: this.currentData ? this.currentData.txt_url : null,
+                        pages: this.currentPages || 2,
+                    }),
                 });
                 if (!res.ok) throw new Error('Failed to save edit');
                 const data = await res.json();
                 this.currentData = data;
                 if (this.pdfIframe && data.pdf_url) this.pdfIframe.src = data.pdf_url;
+                if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
                 this.switchMode('pdf');
             } catch (err) {
                 alert(`Error saving edit: ${err.message}`);

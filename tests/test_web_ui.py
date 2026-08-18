@@ -39,6 +39,24 @@ class TestWebUI(unittest.TestCase):
         self.assertIn("raw_resume", data)
         self.assertIn("PRASAD RANE", data["raw_resume"])
 
+    def test_default_resume_1p_endpoint(self):
+        """Test GET /api/default-resume?pages=1 returns 1-page budgeted resume."""
+        response = self.client.get("/api/default-resume?pages=1")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data.get("pages"), 1)
+        self.assertIn("pdf_url", data)
+
+    def test_default_resume_2p_endpoint(self):
+        """Test GET /api/default-resume?pages=2 returns 2-page budgeted resume."""
+        response = self.client.get("/api/default-resume?pages=2")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertEqual(data.get("pages"), 2)
+        self.assertIn("pdf_url", data)
+
     def test_history_endpoint(self):
         """Test GET /api/history returns valid resume history entries."""
         response = self.client.get("/api/history")

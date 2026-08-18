@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -19,7 +19,8 @@ from src.shared.api_models import ResumeGenerationRequest
 
 from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
-from src.generators.pdf_renderer import render_pdf_resume, _pdf_to_data_uri
+from src.generators.page_budgeter import budget_resume_for_pages
+from src.generators.pdf_renderer import render_pdf_resume, render_pdf_from_model, _pdf_to_data_uri
 
 # ── Observability imports ─────────────────────────────────────────────────
 from src.observability import (
@@ -172,8 +173,8 @@ def get_keywords(req: ResumeGenerationRequest):
 
 @app.get("/api/default-resume")
 @app.get("/api/default_resume")
-def get_default_resume_endpoint():
-    """Fetch default master resume raw text and PDF preview."""
+def get_default_resume_endpoint(pages: int = Query(2, ge=1, le=2)):
+    """Fetch default master resume raw text and PDF preview (1-page or 2-page)."""
     master_path = MASTER_RESUME_PATH
     if not master_path.exists():
         raise HTTPException(status_code=404, detail="MASTER_RESUME.txt file not found.")
@@ -181,14 +182,15 @@ def get_default_resume_endpoint():
     try:
         master_content = master_path.read_text(encoding="utf-8")
         parsed = parse_resume_markdown(master_content)
-        clean_raw_resume = format_tailored_markdown(parsed, [])
+        budgeted = budget_resume_for_pages(parsed, target_pages=pages)
+        clean_raw_resume = format_tailored_markdown(budgeted, [])
 
         out_dir = OUTPUT_DIR_PATH / "Default"
         out_dir.mkdir(parents=True, exist_ok=True)
-        txt_target = out_dir / "raw_resume.txt"
+        txt_target = out_dir / f"raw_resume_{pages}p.txt"
         txt_target.write_text(clean_raw_resume, encoding="utf-8")
-        pdf_target = out_dir / "Prasad_Rane_Default_Resume.pdf"
-        render_pdf_resume(txt_target, pdf_target)
+        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
+        render_pdf_from_model(parsed, pdf_target, target_pages=pages)
 
         pdf_data_uri = _pdf_to_data_uri(pdf_target)
 
@@ -196,7 +198,8 @@ def get_default_resume_endpoint():
             "status": "success",
             "pdf_url": pdf_data_uri,
             "txt_url": None,
-            "raw_resume": clean_raw_resume
+            "raw_resume": clean_raw_resume,
+            "pages": pages,
         }
     except Exception:
         logger.exception("Failed to load default resume")
@@ -267,12 +270,13 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
 
     try:
+        pages = req.target_pages or 2
         # Step 1: Generate tailored raw resume text
-        raw_text_path = generate_raw_resume(company_name=company_clean, jd_text=req.jd_text or "")
+        raw_text_path = generate_raw_resume(company_name=company_clean, jd_text=req.jd_text or "", target_pages=pages)
 
         # Step 2: Render ATS-compliant PDF
         pdf_output_target = raw_text_path.parent / "Prasad_Rane_Resume.pdf"
-        pdf_path = render_pdf_resume(raw_text_path, pdf_output_target)
+        pdf_path = render_pdf_resume(raw_text_path, pdf_output_target, target_pages=pages)
 
         pdf_data_uri = _pdf_to_data_uri(Path(pdf_path))
 
@@ -283,6 +287,7 @@ def generate_resume_endpoint(req: ResumeGenerationRequest):
             "pdf_url": pdf_data_uri,
             "txt_url": None,
             "raw_resume": raw_text_path.read_text(encoding="utf-8"),
+            "pages": pages,
         }
     except Exception:
         logger.exception("Resume generation failed")
@@ -297,11 +302,14 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
     if not company_clean:
         raise HTTPException(status_code=400, detail="Company name cannot be empty.")
 
+    pages = req.target_pages or 2
+
     def event_generator():
         try:
             for step_id, label, pct, detail in generate_raw_resume_stepwise(
                 company_name=company_clean,
-                jd_text=req.jd_text or ""
+                jd_text=req.jd_text or "",
+                target_pages=pages,
             ):
                 if step_id == "complete" and isinstance(detail, dict):
                     pdf_path = Path(detail["pdf_path"])
@@ -313,7 +321,8 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
                         "company": company_clean,
                         "pdf_url": pdf_data_uri,
                         "txt_url": "",
-                        "raw_resume": detail["raw_resume"]
+                        "raw_resume": detail["raw_resume"],
+                        "pages": pages,
                     }
                     yield f"data: {json.dumps({'step': step_id, 'label': label, 'progress': pct, 'detail': complete_payload})}\n\n"
                 else:
