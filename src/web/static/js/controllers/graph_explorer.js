@@ -281,30 +281,41 @@ export const GraphExplorerController = {
         this.cy.on('tap', 'node[kind="community"]', (evt) => {
             const node = evt.target;
             const children = node.children();
+            if (children.empty()) return;  // no children to bloom
             if (node.hasClass('expanded')) {
                 // Collapse
                 children.style('display', 'none');
-                this.cy.edges().filter(e =>
-                    e.source().parent().id() === node.id() ||
-                    e.target().parent().id() === node.id()
-                ).style('display', 'none');
+                this.cy.edges().forEach(e => {
+                    const srcParent = e.source().parent();
+                    const tgtParent = e.target().parent();
+                    if (srcParent.same(node) || tgtParent.same(node)) {
+                        e.style('display', 'none');
+                    }
+                });
                 node.removeClass('expanded');
             } else {
                 // Expand
                 children.style('display', 'element');
                 node.addClass('expanded');
                 // Show edges between visible entities
-                this.cy.edges().filter(e =>
-                    e.source().style('display') !== 'none' &&
-                    e.target().style('display') !== 'none'
-                ).style('display', 'element');
-                // Re-layout the local area
+                this.cy.edges().forEach(e => {
+                    if (e.source().style('display') !== 'none' &&
+                        e.target().style('display') !== 'none') {
+                        e.style('display', 'element');
+                    }
+                });
+                // Re-layout the children around the community centroid
                 children.layout({
-                    name: 'cose',
+                    name: 'circle',
                     animate: true,
                     animationDuration: 300,
                     fit: false,
-                    nodeDimensionsIncludeLabels: true,
+                    boundingBox: {
+                        x1: node.position().x - 150,
+                        y1: node.position().y - 150,
+                        x2: node.position().x + 150,
+                        y2: node.position().y + 150,
+                    },
                 }).run();
             }
         });
