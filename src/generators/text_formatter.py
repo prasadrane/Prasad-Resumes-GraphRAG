@@ -142,8 +142,10 @@ def reorder_skills_by_relevance(skills: List[str], keywords: List[str]) -> List[
     return [t[2] for t in scored]
 
 
-def format_tailored_markdown(data: ResumeData, keywords: List[str]) -> str:
+def format_tailored_markdown(data: ResumeData, keywords: Optional[List[str]] = None) -> str:
     """Format ResumeData Pydantic model into ATS-tailored raw Markdown resume text."""
+    if keywords is None:
+        keywords = []
     contact_parts = [
         p
         for p in [

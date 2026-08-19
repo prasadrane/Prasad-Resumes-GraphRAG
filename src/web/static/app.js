@@ -667,6 +667,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.stepperList.appendChild(item);
                 item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
+            if (stepData.telemetry) {
+                const t = stepData.telemetry;
+                const zeroEl = document.getElementById('telemetry-zero-cost');
+                const tokEl = document.getElementById('telemetry-tokens');
+                const costEl = document.getElementById('telemetry-cost');
+                const latEl = document.getElementById('telemetry-latency');
+
+                if (zeroEl) zeroEl.textContent = `${t.zero_cost_subagents_run}`;
+                if (tokEl) tokEl.textContent = `${t.total_tokens}`;
+                if (costEl) costEl.textContent = `$${t.estimated_cost_usd.toFixed(4)}`;
+                if (latEl) latEl.textContent = `${Math.round(t.latency_ms)}ms`;
+            }
         },
 
         fail() {
@@ -682,6 +694,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn: document.getElementById('save-rerender-btn'),
         closeBtn: document.getElementById('close-preview-btn'),
         openLink: document.getElementById('preview-open-link'),
+        applyDiffsBtn: document.getElementById('apply-selected-diffs-btn'),
 
         currentPages: 2,
         page1Btn: document.getElementById('preview-page-1-btn'),
@@ -706,6 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
         impactBadge: document.getElementById('impact-badge'),
 
         currentData: null,
+        activeDiffs: [],
 
         init() {
             if (this.page1Btn) this.page1Btn.addEventListener('click', () => this.switchPages(1));
@@ -717,6 +731,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (this.closeBtn) this.closeBtn.addEventListener('click', () => this.close());
             if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.handleSave());
+            if (this.applyDiffsBtn) this.applyDiffsBtn.addEventListener('click', () => this.applySelectedDiffs());
 
             if (this.rawTextarea) {
                 this.rawTextarea.addEventListener('input', () => this.analyzeImpact());
@@ -752,6 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         open(data) {
             this.currentData = data;
+            this.activeDiffs = data.diffs || [];
             if (this.section) this.section.classList.remove('hidden');
             const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_data_uri || data.pdf_url);
             if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
@@ -795,9 +811,40 @@ document.addEventListener('DOMContentLoaded', () => {
         },
 
         async renderDiff() {
-            if (!this.diffPanel || !this.rawTextarea) return;
-            this.diffPanel.innerHTML = '<p style="color: var(--md-sys-color-on-surface-variant);">Computing visual diff...</p>';
+            if (!this.diffPanel) return;
+            
+            // If subagents produced structured diffs, render interactive human-in-the-loop review cards
+            if (this.activeDiffs && this.activeDiffs.length > 0) {
+                let html = '<div class="diff-cards-list" style="display: flex; flex-direction: column; gap: 1rem;">';
+                this.activeDiffs.forEach((diff, idx) => {
+                    const diffId = diff.diff_id || `diff-${idx}`;
+                    html += `
+                        <div class="diff-card" style="padding: 1rem; border-radius: 8px; background: var(--md-sys-color-surface-container-high); border: 1px solid var(--md-sys-color-outline-variant);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <span class="chip-kw covered"><strong>${Utils.escapeHtml(diff.role_title || 'Role')}</strong></span>
+                                <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer;">
+                                    <input type="checkbox" class="diff-accept-checkbox" data-index="${idx}" checked>
+                                    <span>Accept Change</span>
+                                </label>
+                            </div>
+                            <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; border-radius: 4px; font-size: 0.9rem;">
+                                <div style="font-size: 0.75rem; color: #ef4444; font-weight: bold; margin-bottom: 2px;">ORIGINAL BULLET:</div>
+                                <span style="text-decoration: line-through; color: var(--md-sys-color-on-surface-variant);">${Utils.escapeHtml(diff.original_bullet || diff.original || '')}</span>
+                            </div>
+                            <div style="padding: 0.5rem; background: rgba(52, 211, 153, 0.08); border-left: 3px solid #34d399; border-radius: 4px; font-size: 0.9rem;">
+                                <div style="font-size: 0.75rem; color: #34d399; font-weight: bold; margin-bottom: 2px;">REFINED SURGICAL BULLET:</div>
+                                <span style="color: var(--md-sys-color-on-surface); font-weight: 500;">${Utils.escapeHtml(diff.refined_bullet || diff.refined || '')}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                this.diffPanel.innerHTML = html;
+                return;
+            }
 
+            // Fallback to text diff
+            this.diffPanel.innerHTML = '<p style="color: var(--md-sys-color-on-surface-variant);">Computing visual diff against master resume...</p>';
             try {
                 const res = await fetch('/api/diff-resume', {
                     method: 'POST',
@@ -807,23 +854,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Diff calculation failed');
                 const data = await res.json();
 
-                const lines = data.diff_text.split('\n');
-                let formatted = lines.map(line => {
-                    const esc = Utils.escapeHtml(line);
-                    if (line.startsWith('+') && !line.startsWith('+++')) {
-                        return `<span class="diff-line-add">${esc}</span>`;
-                    } else if (line.startsWith('-') && !line.startsWith('---')) {
-                        return `<span class="diff-line-del">${esc}</span>`;
-                    } else if (line.startsWith('@@') || line.startsWith('---') || line.startsWith('+++')) {
-                        return `<span class="diff-line-hdr">${esc}</span>`;
-                    } else {
-                        return `<span class="diff-line-ctx">${esc}</span>`;
-                    }
-                }).join('');
-
-                this.diffPanel.innerHTML = formatted || '<p>No differences detected vs master resume.</p>';
+                if (data.diffs && data.diffs.length > 0) {
+                    this.activeDiffs = data.diffs;
+                    this.renderDiff();
+                } else {
+                    this.diffPanel.innerHTML = '<p>No differences detected vs master resume.</p>';
+                }
             } catch (err) {
                 this.diffPanel.innerHTML = `<p style="color: var(--md-sys-color-error);">Failed to load diff: ${err.message}</p>`;
+            }
+        },
+
+        async applySelectedDiffs() {
+            if (!this.applyDiffsBtn || !this.rawTextarea) return;
+            const checkboxes = this.diffPanel.querySelectorAll('.diff-accept-checkbox');
+            const approved = [];
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    const idx = parseInt(cb.getAttribute('data-index'), 10);
+                    if (!isNaN(idx) && this.activeDiffs[idx]) {
+                        approved.push(this.activeDiffs[idx]);
+                    }
+                }
+            });
+
+            this.applyDiffsBtn.disabled = true;
+            const btnText = this.applyDiffsBtn.querySelector('.btn-text');
+            const origText = btnText ? btnText.textContent : 'Apply Selected Diffs';
+            if (btnText) btnText.textContent = 'Applying & Re-rendering...';
+
+            try {
+                const res = await fetch('/api/apply-diffs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        raw_resume: this.rawTextarea.value,
+                        approved_diffs: approved,
+                        target_pages: this.currentPages || 2,
+                        company: this.currentData ? (this.currentData.company || 'Tailored') : 'Tailored',
+                    }),
+                });
+                if (!res.ok) throw new Error('Failed to apply approved diffs');
+                const data = await res.json();
+                this.rawTextarea.value = data.raw_resume;
+                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_url);
+                if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
+                if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
+                this.switchMode('pdf');
+            } catch (err) {
+                alert(`Error applying diffs: ${err.message}`);
+            } finally {
+                this.applyDiffsBtn.disabled = false;
+                if (btnText) btnText.textContent = origText;
             }
         },
 

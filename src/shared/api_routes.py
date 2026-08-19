@@ -24,6 +24,8 @@ from src.query.graphrag_engine import get_engine, reset_engine
 from src.query.conversation_store import get_conversation_store, reset_conversation_store
 from src.security.sanitizer import InputSanitizer
 from src.shared.api_models import (
+    AgenticResumeRequest,
+    ApplyDiffsRequest,
     ATSSimulationRequest,
     CoverLetterRequest,
     DiffResumeRequest,
@@ -391,6 +393,50 @@ def diff_resume_endpoint(req: DiffResumeRequest):
         raise HTTPException(status_code=500, detail=f"Failed to calculate resume diff: {exc}")
 
 
+@shared_router.post("/api/apply-diffs")
+def apply_diffs_endpoint(req: ApplyDiffsRequest):
+    """Apply approved diffs to raw resume content and recompile 2-page PDF."""
+    try:
+        from src.generators.resume_parser import parse_resume_markdown
+        from src.generators.pdf_renderer import render_pdf_from_model, _pdf_to_data_uri
+        from src.generators.text_formatter import format_tailored_markdown
+        import tempfile
+
+        parsed = parse_resume_markdown(req.raw_resume)
+        
+        # Apply approved replacements
+        for item in req.approved_diffs:
+            orig = item.get("original_bullet") or item.get("original", "")
+            refined = item.get("refined_bullet") or item.get("refined", "")
+            if orig and refined:
+                for job in parsed.jobs:
+                    for idx, b in enumerate(job.bullets):
+                        if b.strip() == orig.strip():
+                            job.bullets[idx] = refined
+                            break
+
+        pages = req.target_pages or 2
+        temp_dir = Path(tempfile.gettempdir()) / "tailored_diffs"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        company_name = req.company or "Tailored"
+        pdf_out = temp_dir / f"{company_name.replace(' ', '_')}_Resume.pdf"
+        
+        rendered_pdf = render_pdf_from_model(parsed, pdf_out, target_pages=pages)
+        new_raw = format_tailored_markdown(parsed)
+        pdf_uri = _pdf_to_data_uri(rendered_pdf)
+
+        return {
+            "status": "success",
+            "message": "Approved diffs applied successfully.",
+            "pdf_url": pdf_uri,
+            "raw_resume": new_raw,
+            "pages": pages,
+        }
+    except Exception as exc:
+        logger.exception("Failed to apply approved diffs")
+        raise HTTPException(status_code=500, detail=f"Failed to apply diffs: {exc}")
+
+
 @shared_router.get("/api/telemetry-stats")
 def telemetry_stats_endpoint():
     """Return runtime telemetry and generation statistics."""
@@ -405,5 +451,7 @@ def telemetry_stats_endpoint():
         }
     except Exception as exc:
         return {"status": "error", "detail": str(exc)}
+
+
 
 

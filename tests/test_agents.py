@@ -207,3 +207,33 @@ def test_agentic_orchestrator_convergence_flow(sample_resume_data, sample_job_po
         
         final_event = [e for e in events if e.step == "complete"][0]
         assert final_event.payload["final_score"] >= 0.0
+        assert final_event.telemetry is not None
+        assert final_event.telemetry.zero_cost_subagents_run >= 4
+        assert final_event.telemetry.latency_ms >= 0.0
+
+
+def test_apply_approved_diffs(sample_resume_data):
+    orchestrator = AgenticPipelineOrchestrator()
+    diff1 = OptimizationDiff(
+        diff_id="diff-1",
+        role_title="Lead Architect",
+        original_bullet="Managed general cloud monitoring and daily operations across multiple teams.",
+        refined_bullet="Architected Prometheus observability pipelines cutting MTTR by 45%.",
+        rationale="Prometheus metrics",
+        target_keywords=["Prometheus"]
+    )
+    diff2 = OptimizationDiff(
+        diff_id="diff-2",
+        role_title="Senior Software Engineer",
+        original_bullet="Maintained internal documentation and bug tickets.",
+        refined_bullet="Engineered automated Sphinx docs with 100% CI coverage.",
+        rationale="Documentation",
+        target_keywords=["Sphinx"]
+    )
+
+    # Approve only diff1, reject diff2
+    updated = orchestrator.apply_approved_diffs(sample_resume_data, [diff1, diff2], approved_ids=["diff-1"])
+    assert updated.jobs[0].bullets[1] == "Architected Prometheus observability pipelines cutting MTTR by 45%."
+    # Second bullet should remain unmodified
+    assert updated.jobs[1].bullets[1] == "Maintained internal documentation and bug tickets."
+

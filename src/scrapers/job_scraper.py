@@ -89,6 +89,68 @@ class JobScraper:
                         raw_description=desc_plain,
                         source_url=url,
                     )
+
+            # 3. Ashby HQ GraphQL Fast-Path
+            ashby_match = re.search(r"jobs\.ashbyhq\.com/([a-zA-Z0-9_-]+)/([a-f0-9-]+)", url)
+            if ashby_match:
+                company_slug = ashby_match.group(1)
+                posting_id = ashby_match.group(2)
+                api_url = "https://jobs.ashbyhq.com/api/non-app-graphql-endpoint"
+                query = {
+                    "operationName": "jobPosting",
+                    "variables": {
+                        "organizationHostedJobsPageName": company_slug,
+                        "jobPostingId": posting_id,
+                    },
+                    "query": "query jobPosting($organizationHostedJobsPageName: String!, $jobPostingId: String!) { jobPosting(organizationHostedJobsPageName: $organizationHostedJobsPageName, jobPostingId: $jobPostingId) { title descriptionHtml locationName isRemote departmentName } }"
+                }
+                resp = requests.post(api_url, json=query, timeout=self.timeout)
+                if resp.status_code == 200:
+                    result = resp.json()
+                    jp_data = result.get("data", {}).get("jobPosting")
+                    if jp_data:
+                        title = jp_data.get("title", "Software Engineer")
+                        company_name = company_slug.replace("-", " ").replace("_", " ").title()
+                        loc = jp_data.get("locationName")
+                        desc_html = jp_data.get("descriptionHtml", "")
+                        soup = BeautifulSoup(desc_html, "html.parser")
+                        clean_desc = soup.get_text(separator="\n", strip=True)
+                        return JobPosting(
+                            company=company_name,
+                            role_title=title,
+                            location=loc,
+                            raw_description=clean_desc,
+                            source_url=url,
+                        )
+
+            # 4. SmartRecruiters REST API Fast-Path
+            sr_match = re.search(r"(?:careers|jobs)\.smartrecruiters\.com/([a-zA-Z0-9_-]+)/([0-9a-zA-Z-]+)", url)
+            if sr_match:
+                company_slug = sr_match.group(1)
+                posting_id = sr_match.group(2)
+                api_url = f"https://api.smartrecruiters.com/v1/companies/{company_slug}/postings/{posting_id}"
+                resp = requests.get(api_url, timeout=self.timeout)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    title = data.get("name", "Software Engineer")
+                    company_name = data.get("company", {}).get("name", company_slug.title())
+                    loc_obj = data.get("location", {})
+                    location = loc_obj.get("city", "") + (f", {loc_obj.get('region')}" if loc_obj.get("region") else "")
+                    
+                    job_ad = data.get("jobAd", {}).get("sections", {})
+                    desc_parts = []
+                    for sec in job_ad.values():
+                        if isinstance(sec, dict) and "text" in sec:
+                            s_soup = BeautifulSoup(sec["text"], "html.parser")
+                            desc_parts.append(s_soup.get_text(separator="\n", strip=True))
+                    clean_desc = "\n\n".join(desc_parts) or data.get("jobAd", {}).get("title", "")
+                    return JobPosting(
+                        company=company_name,
+                        role_title=title,
+                        location=location or None,
+                        raw_description=clean_desc,
+                        source_url=url,
+                    )
         except Exception as exc:
             log.debug("ATS API Fast-Path lookup skipped or encountered error: %s", exc)
 

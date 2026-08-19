@@ -173,3 +173,51 @@ def test_job_scraper_fetch_url_error_handling(mock_get):
     scraper = JobScraper()
     with pytest.raises(ScrapeError):
         scraper.fetch_url("https://example.com/nonexistent")
+
+
+@patch("requests.post")
+def test_job_scraper_ashby_fastpath(mock_post):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "data": {
+            "jobPosting": {
+                "title": "Senior Infrastructure Engineer",
+                "locationName": "San Francisco, CA",
+                "descriptionHtml": "<p>Build Kubernetes and Terraform infrastructure for OpenAI scale.</p>"
+            }
+        }
+    }
+    mock_post.return_value = mock_resp
+
+    scraper = JobScraper()
+    posting = scraper.fetch_ats_api_fastpath("https://jobs.ashbyhq.com/openai/12345-6789")
+    assert posting is not None
+    assert posting.company == "Openai"
+    assert posting.role_title == "Senior Infrastructure Engineer"
+    assert "Kubernetes" in posting.raw_description
+
+
+@patch("requests.get")
+def test_job_scraper_smartrecruiters_fastpath(mock_get):
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "name": "Staff Backend Engineer",
+        "company": {"name": "Visa"},
+        "location": {"city": "Foster City", "region": "CA"},
+        "jobAd": {
+            "sections": {
+                "jobDescription": {"text": "<p>Design payment orchestration microservices with AWS and Java.</p>"}
+            }
+        }
+    }
+    mock_get.return_value = mock_resp
+
+    scraper = JobScraper()
+    posting = scraper.fetch_ats_api_fastpath("https://jobs.smartrecruiters.com/Visa/1234567")
+    assert posting is not None
+    assert posting.company == "Visa"
+    assert posting.role_title == "Staff Backend Engineer"
+    assert "payment orchestration" in posting.raw_description
+

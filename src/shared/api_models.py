@@ -171,3 +171,11 @@ class AgenticResumeRequest(BaseModel):
     min_score: Optional[float] = Field(default=90.0, ge=50.0, le=100.0, description="Target ATS score threshold")
     max_iterations: Optional[int] = Field(default=2, ge=1, le=5, description="Maximum agentic refinement iterations")
 
+
+class ApplyDiffsRequest(BaseModel):
+    raw_resume: str = Field(..., min_length=50, description="Base markdown resume content")
+    approved_diffs: list = Field(default_factory=list, description="List of approved diff objects or IDs")
+    target_pages: Optional[int] = Field(default=2, ge=1, le=2, description="Target page budget: 1 or 2")
+    company: Optional[str] = Field(default="Tailored", description="Company name")
+
+

@@ -255,6 +255,26 @@
                     <div class="stepper-container" id="stepper-container">
                         <!-- Steps populated by JS -->
                     </div>
+
+                    <!-- Live Subagent Cost & Latency Telemetry Dashboard -->
+                    <div id="subagent-telemetry-bar" class="subagent-telemetry-bar" style="display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 1rem; padding: 0.75rem 1rem; background: rgba(56, 189, 248, 0.08); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: #38bdf8;">bolt</span>
+                            <span><strong>Zero-Cost Agents:</strong> <span id="telemetry-zero-cost">0</span></span>
+                        </div>
+                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: #a78bfa;">token</span>
+                            <span><strong>Tokens:</strong> <span id="telemetry-tokens">0</span></span>
+                        </div>
+                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: #34d399;">payments</span>
+                            <span><strong>Est. Cost:</strong> <span id="telemetry-cost">$0.0000</span></span>
+                        </div>
+                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: #fbbf24;">schedule</span>
+                            <span><strong>Latency:</strong> <span id="telemetry-latency">0ms</span></span>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Tailored Resume Preview Drawer -->
@@ -340,6 +360,13 @@
 
                         <!-- Side-by-Side Visual Diff Container -->
                         <div id="diff-view-container" class="view-container hidden">
+                            <div class="diff-actions-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0.5rem 0; border-bottom: 1px solid var(--md-sys-color-outline-variant);">
+                                <span style="font-size: 0.9rem; color: var(--md-sys-color-on-surface-variant);">Review surgical subagent edits. Toggle changes and re-compile PDF:</span>
+                                <button id="apply-selected-diffs-btn" class="m3-button m3-button-filled btn-sm">
+                                    <span class="material-symbols-outlined btn-icon">check_circle</span>
+                                    <span class="btn-text">Apply Selected Diffs</span>
+                                </button>
+                            </div>
                             <div class="diff-viewer-panel" id="diff-content-panel">
                                 <p style="color: var(--md-sys-color-on-surface-variant);">Computing visual diff against master resume...</p>
                             </div>

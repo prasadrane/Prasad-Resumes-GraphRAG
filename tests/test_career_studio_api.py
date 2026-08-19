@@ -68,3 +68,38 @@ def test_telemetry_stats_endpoint(client):
     data = response.json()
     assert data["status"] == "ok"
     assert "avg_ats_score" in data
+
+
+def test_apply_diffs_endpoint(client):
+    raw_md = """# Prasad Rane
+email@example.com | 555-1234
+
+## SUMMARY
+Software engineer with 10 years experience.
+
+## EXPERIENCE
+### Senior Engineer | BigCorp
+* Jan 2022 - Present | NY, NY
+* Managed general cloud tasks.
+* Built high performance APIs.
+"""
+    response = client.post(
+        "/api/apply-diffs",
+        json={
+            "raw_resume": raw_md,
+            "approved_diffs": [
+                {
+                    "original_bullet": "Managed general cloud tasks.",
+                    "refined_bullet": "Architected AWS microservices reducing latency by 40%."
+                }
+            ],
+            "company": "BigCorp",
+            "target_pages": 2
+        }
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "success"
+    assert "pdf_url" in data
+    assert "Architected AWS microservices" in data["raw_resume"]
+
