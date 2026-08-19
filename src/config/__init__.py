@@ -10,10 +10,15 @@ before any src.* import, because they need it on sys.path first.
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # ROOT_DIR calculation: this file is at src/config/__init__.py
 # So: parent = src/config/, parent.parent = src/, parent.parent.parent = project root
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+
+# Automatically load environment variables from .env if present
+load_dotenv(ROOT_DIR / ".env")
+
 INPUT_DIR = ROOT_DIR / "input"
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
 OUTPUT_DIR_PATH = ROOT_DIR / OUTPUT_DIR

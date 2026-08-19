@@ -314,12 +314,51 @@ document.addEventListener('DOMContentLoaded', () => {
         rawTextarea: document.getElementById('default-raw-textarea'),
         downloadLink: document.getElementById('default-download-link'),
         openLink: document.getElementById('default-open-link'),
+        saveBtn: document.getElementById('default-save-rerender-btn'),
 
         init() {
             if (this.page1Btn) this.page1Btn.addEventListener('click', () => this.switchPages(1));
             if (this.page2Btn) this.page2Btn.addEventListener('click', () => this.switchPages(2));
             if (this.togglePdfBtn) this.togglePdfBtn.addEventListener('click', () => this.switchMode('pdf'));
             if (this.toggleEditBtn) this.toggleEditBtn.addEventListener('click', () => this.switchMode('edit'));
+            if (this.saveBtn) this.saveBtn.addEventListener('click', () => this.handleSave());
+        },
+
+        async handleSave() {
+            if (!this.rawTextarea || !this.saveBtn) return;
+            const content = this.rawTextarea.value.trim();
+            if (!content) {
+                alert('Resume content cannot be empty.');
+                return;
+            }
+            this.saveBtn.disabled = true;
+            const btnText = this.saveBtn.querySelector('.btn-text');
+            const origText = btnText ? btnText.textContent : 'Save & Re-render PDF';
+            if (btnText) btnText.textContent = 'Rendering...';
+
+            try {
+                const res = await fetch('/api/save-edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        raw_text: content,
+                        company: 'Default',
+                        pages: this.currentPages || 2,
+                    }),
+                });
+                if (!res.ok) throw new Error('Failed to save and re-render default resume');
+                const data = await res.json();
+                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_data_uri || data.pdf_url);
+                if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
+                if (this.downloadLink && pdfUrl) this.downloadLink.href = pdfUrl;
+                if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
+                this.switchMode('pdf');
+            } catch (err) {
+                alert(`Error saving edit: ${err.message}`);
+            } finally {
+                this.saveBtn.disabled = false;
+                if (btnText) btnText.textContent = origText;
+            }
         },
 
         switchPages(pages) {
@@ -372,8 +411,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Generator & ATS Match Controller
     const GeneratorController = {
         form: document.getElementById('resume-form'),
+        urlInput: document.getElementById('url-input'),
         companyInput: document.getElementById('company-input'),
         jdInput: document.getElementById('jd-input'),
+        agenticToggle: document.getElementById('agentic-mode-toggle'),
         jdCharCount: document.getElementById('jd-char-count'),
         generateBtn: document.getElementById('generate-btn'),
         checkAtsBtn: document.getElementById('check-ats-btn'),
@@ -456,10 +497,12 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleSubmit(e) {
             e.preventDefault();
             const company = this.companyInput ? this.companyInput.value.trim() : '';
+            const url = this.urlInput ? this.urlInput.value.trim() : '';
             const jd = this.jdInput ? this.jdInput.value.trim() : '';
+            const isAgentic = this.agenticToggle ? this.agenticToggle.checked : true;
 
-            if (!company) {
-                Utils.showAlert('Please provide a target company name.', 'error', this.formAlert);
+            if (!company && !url) {
+                Utils.showAlert('Please provide a target company name or job URL.', 'error', this.formAlert);
                 return;
             }
 
@@ -468,10 +511,15 @@ document.addEventListener('DOMContentLoaded', () => {
             StepperController.start();
 
             try {
-                const response = await fetch('/api/generate-stream', {
+                const endpoint = (isAgentic || url) ? '/api/stream-agent-tailor' : '/api/generate-stream';
+                const bodyPayload = (isAgentic || url)
+                    ? { company, url: url || null, jd_text: jd, max_iterations: 2, min_score: 90.0 }
+                    : { company, jd_text: jd };
+
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ company, jd_text: jd }),
+                    body: JSON.stringify(bodyPayload),
                 });
 
                 if (!response.ok) throw new Error(`Generation failed (${response.status})`);
@@ -484,24 +532,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     const { value, done } = await reader.read();
                     if (done) break;
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n\n');
-                    buffer = lines.pop();
+                    const blocks = buffer.split('\n\n');
+                    buffer = blocks.pop(); // Keep partial trailing chunk
 
-                    for (let block of lines) {
-                        const match = block.match(/^data:\s*(.*)/m);
-                        if (match) {
-                            try {
-                                const stepData = JSON.parse(match[1]);
-                                StepperController.update(stepData);
+                    for (let block of blocks) {
+                        block = block.trim();
+                        if (!block) continue;
 
-                                const payload = stepData.data || stepData.detail;
-                                if (stepData.step === 'complete' && payload) {
-                                    PreviewDrawerController.open(payload);
-                                    if (jd) this.checkATSScore();
+                        // Support multi-line data payloads in SSE
+                        const dataLines = block
+                            .split('\n')
+                            .filter(l => l.startsWith('data:'))
+                            .map(l => l.replace(/^data:\s*/, ''))
+                            .join('\n');
+
+                        if (!dataLines) continue;
+
+                        try {
+                            const stepData = JSON.parse(dataLines);
+                            StepperController.update(stepData);
+
+                            const payload = stepData.payload || stepData.data || stepData.detail;
+                            if (stepData.step === 'complete' && payload) {
+                                PreviewDrawerController.open(payload);
+                                if (payload.final_score && GeneratorController.renderATSScore) {
+                                    const breakdown = payload.breakdown || {};
+                                    GeneratorController.renderATSScore(
+                                        payload.final_score,
+                                        breakdown.matched_keywords || [],
+                                        breakdown.missing_keywords || []
+                                    );
+                                } else if (jd) {
+                                    this.checkATSScore();
                                 }
-                            } catch (parseErr) {
-                                console.warn('[Stream] Parse error:', parseErr);
                             }
+                        } catch (parseErr) {
+                            console.warn('[Stream] SSE parse error on block:', parseErr, dataLines);
                         }
                     }
                 }
@@ -531,19 +597,73 @@ document.addEventListener('DOMContentLoaded', () => {
         start() {
             if (this.container) this.container.classList.remove('hidden');
             if (this.stepperList) this.stepperList.innerHTML = '';
-            if (this.progressFill) this.progressFill.style.width = '0%';
-            if (this.progressPct) this.progressPct.textContent = '0%';
+            if (this.progressFill) {
+                this.progressFill.style.width = '5%';
+                this.progressFill.style.backgroundColor = 'var(--md-sys-color-primary)';
+            }
+            if (this.progressPct) this.progressPct.textContent = '5%';
         },
 
         update(stepData) {
-            const pct = Math.min(100, Math.round(stepData.pct || 0));
-            if (this.progressFill) this.progressFill.style.width = `${pct}%`;
-            if (this.progressPct) this.progressPct.textContent = `${pct}%`;
+            let msg = stepData.msg || stepData.label || stepData.status;
+            let pct = stepData.pct || stepData.progress;
 
-            if (this.stepperList && stepData.msg) {
+            if (stepData.agent && stepData.status) {
+                msg = `[${stepData.agent}] ${stepData.status}`;
+            }
+
+            if (pct === undefined) {
+                if (stepData.step === 'ingestion') pct = 15;
+                else if (stepData.step === 'ingestion_complete') pct = 25;
+                else if (stepData.step === 'critic_eval') pct = 40;
+                else if (stepData.step === 'graph_retrieval') pct = 55;
+                else if (stepData.step === 'graph_retrieval_complete') pct = 65;
+                else if (stepData.step === 'optimization') pct = 75;
+                else if (stepData.step === 'fact_guard_audit') pct = 82;
+                else if (stepData.step === 'iteration_complete') pct = 88;
+                else if (stepData.step === 'converged') pct = 90;
+                else if (stepData.step === 'rendering') pct = 95;
+                else if (stepData.step === 'complete') pct = 100;
+                else pct = 50;
+            }
+
+            const pctVal = Math.min(100, Math.round(pct || 0));
+            if (this.progressFill) this.progressFill.style.width = `${pctVal}%`;
+            if (this.progressPct) this.progressPct.textContent = `${pctVal}%`;
+
+            if (this.stepperList && msg) {
+                // Mark previous active items as done
+                const prevActive = this.stepperList.querySelectorAll('.stepper-step.active');
+                prevActive.forEach(el => {
+                    el.classList.remove('active');
+                    el.classList.add('done');
+                    const icon = el.querySelector('.material-symbols-outlined');
+                    if (icon) {
+                        icon.textContent = 'check_circle';
+                        icon.style.color = '#34d399';
+                    }
+                });
+
+                let iconName = 'progress_activity';
+                let iconColor = 'var(--md-sys-color-primary)';
+                if (stepData.step === 'complete') {
+                    iconName = 'task_alt';
+                    iconColor = '#34d399';
+                } else if (stepData.step === 'critic_eval' || stepData.step === 'iteration_complete') {
+                    iconName = 'analytics';
+                } else if (stepData.step === 'graph_retrieval' || stepData.step === 'graph_retrieval_complete') {
+                    iconName = 'hub';
+                } else if (stepData.step === 'optimization') {
+                    iconName = 'auto_fix_high';
+                } else if (stepData.step === 'fact_guard_audit') {
+                    iconName = 'verified_user';
+                } else if (stepData.step === 'rendering') {
+                    iconName = 'picture_as_pdf';
+                }
+
                 const item = document.createElement('div');
-                item.className = 'stepper-step active';
-                item.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; color: #34d399;">check_circle</span> <span>${Utils.escapeHtml(stepData.msg)}</span>`;
+                item.className = `stepper-step ${stepData.step === 'complete' ? 'done' : 'active'}`;
+                item.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; color: ${iconColor};">${iconName}</span> <span>${Utils.escapeHtml(msg)}</span>`;
                 this.stepperList.appendChild(item);
                 item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }

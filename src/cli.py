@@ -17,6 +17,7 @@ from src.query.search_engine import execute_graphrag_query
 from src.proxy.litellm_runner import start_proxy_server, check_proxy_health
 from src.generators.resume_generator import generate_raw_resume
 from src.generators.pdf_renderer import render_pdf_resume
+from src.agents.orchestrator import AgenticPipelineOrchestrator
 
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
@@ -44,9 +45,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Generate sub-command
     generate_parser = subparsers.add_parser("generate", help="Generate tailored resume text and rule-based PDF from Job Description")
-    generate_parser.add_argument("--company", type=str, default="", help="Target company name (auto-inferred if --jd-url is provided)")
+    generate_parser.add_argument("--company", type=str, default="", help="Target company name (auto-inferred if --url is provided)")
     generate_parser.add_argument("--jd-file", type=str, help="Optional path to Job Description text file")
     generate_parser.add_argument("--jd-url", type=str, help="Optional URL to automatically scrape Job Description from")
+    generate_parser.add_argument("--url", type=str, help="Alias for --jd-url")
+    generate_parser.add_argument("--agentic", action="store_true", default=False, help="Enable autonomous Evaluator-Optimizer multi-subagent loop")
+    generate_parser.add_argument("--min-score", type=float, default=90.0, help="Target ATS score threshold for agentic loop convergence")
+    generate_parser.add_argument("--max-iterations", type=int, default=2, help="Maximum refinement iterations for agentic loop")
 
     # Query sub-command
     query_parser = subparsers.add_parser("query", help="Query the GraphRAG knowledge graph")
@@ -92,13 +97,72 @@ def main() -> None:
 
     elif args.command == "generate":
         company = args.company
+        target_url = args.url or args.jd_url
         jd_text = ""
 
-        if args.jd_url:
+        if args.agentic:
+            print(f"[CLI AGENTIC] Initializing Multi-Subagent Evaluator-Optimizer Engine...")
+            if target_url:
+                print(f"[CLI AGENTIC] Target Job URL: {target_url}")
+            elif args.jd_file:
+                jd_path = Path(args.jd_file)
+                if not jd_path.exists():
+                    print(f"[CLI ERROR] Job Description file not found: {jd_path}")
+                    sys.exit(1)
+                jd_text = jd_path.read_text(encoding="utf-8")
+            else:
+                if not company:
+                    print("[CLI ERROR] --company name or --url is required for agentic generation.")
+                    sys.exit(1)
+                print(f"[CLI] Please paste Job Description for {company} (Press Ctrl+D or Ctrl+Z then Enter to finish):")
+                try:
+                    jd_text = sys.stdin.read()
+                except (KeyboardInterrupt, EOFError):
+                    print("\nCancelled.")
+                    sys.exit(0)
+
+            orchestrator = AgenticPipelineOrchestrator()
+            events = orchestrator.run(
+                jd_text=jd_text,
+                url=target_url,
+                company_name=company,
+                max_iterations=args.max_iterations,
+                min_score=args.min_score,
+            )
+
+            for event in events:
+                if event.step == "ingestion":
+                    print(f"[*] [{event.agent}] {event.status}")
+                elif event.step == "ingestion_complete":
+                    posting = event.payload.get("posting", {})
+                    print(f"[+] [{event.agent}] Company: {posting.get('company')} | Role: {posting.get('role_title')}")
+                elif event.step == "critic_eval":
+                    print(f"[EVAL] [{event.agent}] Baseline ATS Score: {event.payload.get('score')}%")
+                elif event.step == "graph_retrieval":
+                    print(f"[SEARCH] [{event.agent}] {event.status}")
+                elif event.step == "optimization":
+                    print(f"[OPT] [{event.agent}] {event.status}")
+                elif event.step == "iteration_complete":
+                    print(f"[SCORE] [{event.agent}] Iteration {event.payload.get('iteration')} Score: {event.payload.get('score')}% (+{event.payload.get('score_delta')}%)")
+                    for diff in event.payload.get("diffs", []):
+                        print(f"   * [{diff.get('role_title')}] {diff.get('refined_bullet')[:90]}...")
+                elif event.step == "rendering":
+                    print(f"[RENDER] [{event.agent}] {event.status}")
+                elif event.step == "complete":
+                    print("\n" + "=" * 60)
+                    print(f"[SUCCESS] Tailored Resume Successfully Generated!")
+                    print(f"   Company:    {event.payload.get('company')}")
+                    print(f"   Role:       {event.payload.get('role_title')}")
+                    print(f"   Final ATS:  {event.payload.get('final_score')}%")
+                    print(f"   PDF Output: {event.payload.get('pdf_path')}")
+                    print("=" * 60 + "\n")
+            return
+
+        if target_url:
             from src.converters.jd_extractor import extract_jd_from_url
-            print(f"[CLI] Scraping and extracting Job Description from {args.jd_url}...")
+            print(f"[CLI] Scraping and extracting Job Description from {target_url}...")
             try:
-                extracted = extract_jd_from_url(args.jd_url)
+                extracted = extract_jd_from_url(target_url)
                 jd_text = extracted["jd_text"]
                 if not company:
                     company = extracted["company"]
@@ -114,7 +178,7 @@ def main() -> None:
             jd_text = jd_path.read_text(encoding="utf-8")
         else:
             if not company:
-                print("[CLI ERROR] --company name is required when not using --jd-url.")
+                print("[CLI ERROR] --company name is required when not using --url.")
                 sys.exit(1)
             print(f"[CLI] Please paste the Job Description for {company} (Press Ctrl+D or Ctrl+Z then Enter to finish):")
             try:

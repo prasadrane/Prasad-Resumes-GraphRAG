@@ -157,7 +157,14 @@
                             <iframe id="default-pdf-iframe" src="about:blank" frameborder="0" style="width: 100%; height: 750px; border-radius: 12px;"></iframe>
                         </div>
                         <div id="default-edit-container" class="view-container hidden">
-                            <textarea id="default-raw-textarea" rows="28" readonly spellcheck="false" placeholder="Loading master resume content..."></textarea>
+                            <div class="editor-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                                <span style="font-size: 0.9rem; color: var(--md-sys-color-on-surface-variant);">Edit Markdown content below, then click Save & Re-render:</span>
+                                <button id="default-save-rerender-btn" class="m3-button m3-button-filled btn-sm">
+                                    <span class="material-symbols-outlined btn-icon">sync</span>
+                                    <span class="btn-text">Save & Re-render PDF</span>
+                                </button>
+                            </div>
+                            <textarea id="default-raw-textarea" rows="28" spellcheck="false" placeholder="Loading master resume content..."></textarea>
                         </div>
                     </div>
                 </section>
@@ -173,21 +180,36 @@
 
                     <form id="resume-form" class="resume-form">
                         <div class="m3-text-field">
+                            <label for="url-input" class="m3-field-label">Job Posting URL (Greenhouse, Lever, Ashby, etc.)</label>
+                            <div class="m3-input-wrapper">
+                                <span class="material-symbols-outlined field-icon">link</span>
+                                <input type="url" id="url-input" placeholder="https://boards.greenhouse.io/example/jobs/12345" autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="m3-text-field">
                             <label for="company-input" class="m3-field-label">Target Company Name <span class="required">*</span></label>
                             <div class="m3-input-wrapper">
                                 <span class="material-symbols-outlined field-icon">domain</span>
-                                <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, Amazon" required autocomplete="off">
+                                <input type="text" id="company-input" placeholder="e.g. Google, Microsoft, Databricks" required autocomplete="off">
                             </div>
                         </div>
 
                         <div class="m3-text-field">
                             <div class="m3-label-row">
-                                <label for="jd-input" class="m3-field-label">Job Description (JD)</label>
+                                <label for="jd-input" class="m3-field-label">Job Description (JD) Text (Optional if URL provided)</label>
                                 <span id="jd-char-count" class="m3-helper-text">0 / 10,000 chars</span>
                             </div>
                             <div class="m3-input-wrapper textarea-wrapper">
-                                <textarea id="jd-input" rows="10" placeholder="Paste target position requirements, responsibilities, or desired tech stack keywords here..."></textarea>
+                                <textarea id="jd-input" rows="8" placeholder="Paste target position requirements, responsibilities, or desired tech stack keywords here..."></textarea>
                             </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--md-sys-color-on-surface); cursor: pointer;">
+                                <input type="checkbox" id="agentic-mode-toggle" checked style="width: 16px; height: 16px; accent-color: var(--md-sys-color-primary);">
+                                <span style="font-weight: 500;">⚡ Agentic Evaluator-Optimizer Engine (Multi-Subagent Closed Loop)</span>
+                            </label>
                         </div>
 
                         <div style="display: flex; gap: 12px; align-items: center;">

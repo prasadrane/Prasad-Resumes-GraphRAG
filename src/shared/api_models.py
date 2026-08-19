@@ -162,3 +162,12 @@ class LinkedInProfileRequest(BaseModel):
 class ExtractJDURLRequest(BaseModel):
     url: str = Field(..., min_length=10, max_length=2000, description="Job posting URL to extract")
 
+
+class AgenticResumeRequest(BaseModel):
+    company: Optional[str] = Field(default="", description="Target company name (auto-inferred if url provided)")
+    url: Optional[str] = Field(default=None, description="Job posting URL")
+    jd_text: Optional[str] = Field(default="", description="Job description text")
+    target_pages: Optional[int] = Field(default=2, ge=1, le=2, description="Target page budget: 1 or 2")
+    min_score: Optional[float] = Field(default=90.0, ge=50.0, le=100.0, description="Target ATS score threshold")
+    max_iterations: Optional[int] = Field(default=2, ge=1, le=5, description="Maximum agentic refinement iterations")
+

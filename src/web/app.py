@@ -15,12 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.config import ROOT_DIR, OUTPUT_DIR_PATH, MASTER_RESUME_PATH, WEB_STATIC_DIR as STATIC_DIR
-from src.shared.api_models import ResumeGenerationRequest
+from src.shared.api_models import ResumeGenerationRequest, AgenticResumeRequest
 
 from src.generators.ats_matcher import extract_ats_keywords
 from src.generators.resume_generator import generate_raw_resume, parse_resume_markdown, format_tailored_markdown, generate_raw_resume_stepwise
 from src.generators.page_budgeter import budget_resume_for_pages
 from src.generators.pdf_renderer import render_pdf_resume, render_pdf_from_model, _pdf_to_data_uri
+from src.agents.orchestrator import AgenticPipelineOrchestrator
 
 # ── Observability imports ─────────────────────────────────────────────────
 from src.observability import (
@@ -376,6 +377,52 @@ def generate_resume_stream_endpoint(req: ResumeGenerationRequest):
             yield f"event: error\ndata: {json.dumps({'detail': 'Generation failed. Please try again later.'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/stream-agent-tailor")
+def stream_agent_tailor_endpoint(req: AgenticResumeRequest):
+    """Execute autonomous Multi-Subagent Evaluator-Optimizer loop with real-time SSE stream."""
+    import json
+    
+    url_clean = (req.url or "").strip()
+    jd_clean = (req.jd_text or "").strip()
+    company_clean = (req.company or "").strip()
+    
+    if not url_clean and not jd_clean and not company_clean:
+        raise HTTPException(status_code=400, detail="Must provide either a job URL, job description text, or target company.")
+        
+    pages = req.target_pages or 2
+    min_score = req.min_score or 90.0
+    max_iter = req.max_iterations or 2
+
+    def event_stream():
+        try:
+            orchestrator = AgenticPipelineOrchestrator()
+            for event in orchestrator.run(
+                jd_text=jd_clean,
+                url=url_clean or None,
+                company_name=company_clean or None,
+                max_iterations=max_iter,
+                min_score=min_score,
+                target_pages=pages,
+            ):
+                event_dict = event.model_dump()
+                if event.step == "complete" and "pdf_path" in event.payload:
+                    pdf_p = Path(event.payload["pdf_path"])
+                    if pdf_p.exists():
+                        event_dict["payload"]["pdf_url"] = _pdf_to_data_uri(pdf_p)
+                yield f"data: {json.dumps(event_dict)}\n\n"
+        except Exception:
+            logger.exception("Agentic stream failed")
+            yield f"event: error\ndata: {json.dumps({'detail': 'Agentic optimization failed. Please try again.'})}\n\n"
+
+    headers = {
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+        "Content-Type": "text/event-stream; charset=utf-8",
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @app.get("/api/metrics")

@@ -39,10 +39,17 @@ class CoverLetterGenerator:
         candidate_name: str = "Prasad Rane",
         role_title: str = "Senior Software Engineer",
     ) -> CoverLetterData:
-        """Synthesize tailored cover letter content."""
         target_company = company.strip() if company and company.strip() else "Hiring Team"
-        keywords = extract_ats_keywords(jd_text, expand_ontology=False)
-        top_skills = ", ".join(keywords[:4]) if keywords else "cloud architecture, microservices, and distributed systems"
+        raw_keywords = extract_ats_keywords(jd_text, expand_ontology=False)
+        seen = set()
+        unique_skills = []
+        for kw in raw_keywords:
+            clean_kw = kw.strip()
+            if clean_kw.lower() not in seen and len(clean_kw) > 1:
+                seen.add(clean_kw.lower())
+                unique_skills.append(clean_kw)
+
+        top_skills = ", ".join(unique_skills[:4]) if unique_skills else "cloud architecture, microservices, and distributed systems"
 
         # Extract factual context from resume
         context = search_static_resume(f"experience at {target_company} with {top_skills}", mode="local")
