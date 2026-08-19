@@ -194,18 +194,18 @@ def get_default_resume_endpoint(pages: int = Query(2, ge=1, le=2)):
             out_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            txt_target = out_dir / f"raw_resume_{pages}p.txt"
+            txt_target = out_dir / "raw_resume.txt"
             txt_target.write_text(clean_raw_resume, encoding="utf-8")
         except (OSError, PermissionError):
             pass
 
-        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
+        pdf_target = out_dir / "Prasad_Rane_Resume.pdf"
         actual_pdf_path = render_pdf_from_model(parsed, pdf_target, target_pages=pages)
         pdf_data_uri = _pdf_to_data_uri(actual_pdf_path)
 
         return {
             "status": "success",
-            "pdf_url": f"/api/default-resume-pdf?pages={pages}",
+            "pdf_url": pdf_data_uri,
             "pdf_data_uri": pdf_data_uri,
             "txt_url": None,
             "raw_resume": clean_raw_resume,
@@ -236,13 +236,14 @@ def get_default_resume_pdf_endpoint(pages: int = Query(2, ge=1, le=2)):
             out_dir = Path(tempfile.gettempdir()) / "output" / "Default"
             out_dir.mkdir(parents=True, exist_ok=True)
 
-        pdf_target = out_dir / f"Prasad_Rane_Default_Resume_{pages}p.pdf"
+        pdf_target = out_dir / "Prasad_Rane_Resume.pdf"
         actual_pdf_path = render_pdf_from_model(parsed, pdf_target, target_pages=pages)
 
-        return FileResponse(
-            str(actual_pdf_path),
+        pdf_bytes = actual_pdf_path.read_bytes()
+        return Response(
+            content=pdf_bytes,
             media_type="application/pdf",
-            content_disposition_type="inline",
+            headers={"Content-Disposition": 'inline; filename="Prasad_Rane_Resume.pdf"'},
         )
     except Exception:
         logger.exception("Failed to stream default resume PDF")

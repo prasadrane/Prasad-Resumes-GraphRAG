@@ -14,7 +14,9 @@ from src.generators.pdf_styles import (
     PageCountCanvas,
     create_section_header_flowables,
     format_contact_paragraph,
+    format_education_split,
     format_job_heading,
+    format_job_heading_split,
     get_resume_styles,
     markdown_to_reportlab_html,
 )
@@ -68,9 +70,46 @@ class TestFormatJobHeading(unittest.TestCase):
         self.assertIn("<b>Engineer</b>", result)
         self.assertNotIn("|", result)
 
+    def test_full_heading_split(self):
+        job = JobEntry(title="Engineer", company="Co", location="Remote", dates="2020 - Present")
+        left, right = format_job_heading_split(job)
+        self.assertIn("<b>Engineer</b>", left)
+        self.assertIn("<b>Co</b>", left)
+        self.assertIn("<i>Remote</i>", right)
+        self.assertIn("<i>2020 - Present</i>", right)
+
+    def test_title_only_split(self):
+        job = JobEntry(title="Engineer")
+        left, right = format_job_heading_split(job)
+        self.assertIn("<b>Engineer</b>", left)
+        self.assertEqual(right, "")
+
     def test_fallback_to_raw_heading(self):
         job = JobEntry(heading="Raw heading text")
         self.assertEqual(format_job_heading(job), "Raw heading text")
+
+
+class TestFormatEducationSplit(unittest.TestCase):
+
+    def test_full_education_split(self):
+        edu = "**M.S. in Information Systems**, University of Cincinnati, Cincinnati, OH | **GPA: 3.87** (2018 - 2019)"
+        left, right = format_education_split(edu)
+        self.assertIn("<b>M.S. in Information Systems</b>", left)
+        self.assertIn("<b>University of Cincinnati</b>", left)
+        self.assertIn("<b>GPA: 3.87</b>", left)
+        self.assertIn("<i>Cincinnati, OH | 2018 - 2019</i>", right)
+
+    def test_education_without_gpa(self):
+        edu = "**B.E. in Electronics & Telecommunication**, University of Pune, Pune, India (2009 - 2013)"
+        left, right = format_education_split(edu)
+        self.assertIn("<b>B.E. in Electronics & Telecommunication</b>", left)
+        self.assertIn("<b>University of Pune</b>", left)
+        self.assertIn("<i>Pune, India | 2009 - 2013</i>", right)
+
+    def test_empty_education(self):
+        left, right = format_education_split("")
+        self.assertEqual(left, "")
+        self.assertEqual(right, "")
 
 
 class TestFormatContactParagraph(unittest.TestCase):
@@ -101,7 +140,8 @@ class TestStyleFactories(unittest.TestCase):
     def test_get_resume_styles_keys(self):
         styles = get_resume_styles()
         expected = {
-            "name", "contact", "sec_header", "job_heading", "bullet",
+            "name", "contact", "sec_header", "job_heading",
+            "job_heading_left", "job_heading_right", "bullet",
             "summary", "skill", "cert", "edu",
         }
         self.assertEqual(set(styles.keys()), expected)

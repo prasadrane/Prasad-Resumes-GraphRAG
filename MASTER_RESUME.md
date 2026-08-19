@@ -23,12 +23,13 @@ Senior Software Engineer with **10+ years of experience** architecting, operatin
 
 ## 🛠️ Complete Technical Skills Inventory
 
-- **Languages & Backend**: C#, .NET 8/9, .NET Core, ASP.NET Core, Web API, RESTful Microservices, Python (FastAPI), Java, Node.js, CQRS, Dependency Injection
-- **Cloud & Distributed Systems (AWS)**: AWS ECS Fargate, AWS Lambda, DynamoDB, S3, SQS, SNS, Amazon MSK (Kafka), Event-Driven Architecture, IAM, CloudWatch, Terraform, Docker, Kubernetes
-- **Generative AI & LLM Orchestration**: Amazon Bedrock (Claude Sonnet), Prompt Engineering, Prompt Guardrails, Intent-to-API Routing, Structured JSON Outputs, GraphRAG, Claude Code, GitHub Copilot
-- **Data & Security**: SQL Server, DynamoDB (Single-Table Design), PostgreSQL, MySQL, T-SQL, Query Plan Optimization, GraphQL, OAuth2, JWT (PKCE / Client Credentials), RBAC
-- **Observability & SRE**: Dynatrace, OpenTelemetry, Splunk, PagerDuty, CloudWatch, Synthetic Monitoring, Split.io, WinDbg, `dotnet-dump`, `dotnet-counters`
-- **Frontend & Tooling**: Angular (12–18), TypeScript, RxJS, NgRx, GitHub Actions, CircleCI, Jenkins, xUnit, Moq, Playwright, TDD
+- **Languages**: C#, Python, TypeScript, SQL (T-SQL), Java, Node.js
+- **Backend & Architecture**: .NET 8/9, .NET Core, ASP.NET Core, Web API, RESTful Microservices, FastAPI, GraphQL, CQRS, Dependency Injection, OAuth2, JWT (PKCE / Client Credentials), RBAC
+- **Frontend**: Angular (12–18), TypeScript, RxJS, NgRx
+- **Cloud & Infrastructure (AWS)**: AWS ECS Fargate, AWS Lambda, DynamoDB, S3, SQS, SNS, Amazon MSK (Kafka), Event-Driven Architecture, IAM, CloudWatch, Terraform, Docker, Kubernetes
+- **Data & Storage**: SQL Server, DynamoDB (Single-Table Design), PostgreSQL, MySQL, T-SQL, Query Plan Optimization, LanceDB (Vector DB)
+- **Generative AI & LLM Systems**: Amazon Bedrock (Claude Sonnet), Prompt Engineering, Prompt Guardrails, Intent-to-API Routing, Structured JSON Outputs, GraphRAG, Vector Indexing, Pydantic, Claude Code, GitHub Copilot
+- **Observability, Testing & DevOps**: Dynatrace, OpenTelemetry, Splunk, PagerDuty, CloudWatch, Synthetic Monitoring, Split.io, WinDbg, `dotnet-dump`, `dotnet-counters`, xUnit, Moq, Playwright, TDD, GitHub Actions, CircleCI, Jenkins
 
 ---
 

@@ -21,7 +21,7 @@ def test_legacy_pdf_route_still_serves_real_pdfs(app_server):
     assert prep.status_code == 200
 
     resp = httpx.get(
-        f"{app_server}/api/pdf/Default/Prasad_Rane_Default_Resume.pdf",
+        f"{app_server}/api/pdf/Default/Prasad_Rane_Resume.pdf",
         timeout=30.0,
     )
     assert resp.status_code == 200

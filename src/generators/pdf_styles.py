@@ -3,7 +3,7 @@ pdf_styles.py — ReportLab styling, color palettes, ParagraphStyles, and HTML f
 """
 
 import re
-from typing import Dict
+from typing import Dict, Tuple
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -98,6 +98,26 @@ def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dic
             spaceAfter=3 if (compact or ultra_compact) else 4,
             alignment=0,
         ),
+        "job_heading_left": ParagraphStyle(
+            "ResJobHeadingLeft",
+            parent=styles["Normal"],
+            fontName=font_family,
+            fontSize=sec_size,
+            leading=sec_lead,
+            textColor=COLOR_DARK,
+            spaceAfter=0,
+            alignment=0,
+        ),
+        "job_heading_right": ParagraphStyle(
+            "ResJobHeadingRight",
+            parent=styles["Normal"],
+            fontName=font_family,
+            fontSize=body_size,
+            leading=sec_lead,
+            textColor=COLOR_META,
+            spaceAfter=0,
+            alignment=2,
+        ),
         "bullet": ParagraphStyle(
             "ResBullet",
             parent=styles["Normal"],
@@ -169,6 +189,92 @@ def markdown_to_reportlab_html(text: str) -> str:
     # Convert markdown links [text](url) -> <a href="url"><font color="#0f3460">\1</font></a>
     text = re.sub(r"\[(.*?)\]\((.*?)\)", r'<a href="\2"><font color="#0f3460">\1</font></a>', text)
     return text.strip()
+
+def format_job_heading_split(job: JobEntry) -> Tuple[str, str]:
+    """Format job heading into (left_html, right_html) for two-column presentation."""
+    left_parts = []
+    if job.title and job.company:
+        left_parts.append(f'<font color="#0f3460"><b>{job.title}</b></font> | <b>{job.company}</b>')
+    elif job.title or job.company:
+        left_parts.append(f'<font color="#0f3460"><b>{job.title or job.company}</b></font>')
+    else:
+        left_parts.append(job.heading or "")
+
+    right_parts = []
+    if job.location:
+        right_parts.append(f'<i>{job.location}</i>')
+    if job.dates:
+        dates_clean = job.dates.replace("–", " - ").replace("—", " - ")
+        right_parts.append(f'<i>{dates_clean}</i>')
+
+    left_html = " | ".join(left_parts)
+    right_html = f'<font color="#6b7280">{" | ".join(right_parts)}</font>' if right_parts else ""
+    return left_html, right_html
+
+def format_education_split(edu_str: str) -> Tuple[str, str]:
+    """Format education item into (left_html, right_html) for two-column presentation."""
+    if not edu_str:
+        return "", ""
+
+    clean = edu_str.replace("—", " - ").replace("–", " - ")
+
+    # Extract date range in parentheses e.g. (2018 - 2019) or (2009 - 2013)
+    date_match = re.search(r"\(([^)]*\d{4}[^)]*)\)", clean)
+    dates = date_match.group(1).strip() if date_match else ""
+    clean_no_date = re.sub(r"\s*\([^)]*\d{4}[^)]*\)", "", clean).strip()
+
+    # Extract GPA if present e.g. **GPA: 3.87**
+    gpa_match = re.search(r"\bGPA:\s*([0-9\.]+)\b", clean_no_date, flags=re.IGNORECASE)
+    gpa_str = f"GPA: {gpa_match.group(1)}" if gpa_match else ""
+    clean_no_gpa = re.sub(r"\|\s*\*?\*?GPA:[^|]*\*?\*?", "", clean_no_date, flags=re.IGNORECASE).strip()
+
+    # Degree is typically before comma or in bold **Degree**
+    degree = ""
+    deg_match = re.search(r"\*\*(.*?)\*\*", clean_no_gpa)
+    if deg_match:
+        degree = deg_match.group(1).strip().rstrip(",")
+        rest = re.sub(r"\*\*.*?\*\*\s*[,—–-]*\s*", "", clean_no_gpa).strip()
+    elif "," in clean_no_gpa:
+        parts = [p.strip() for p in clean_no_gpa.split(",") if p.strip()]
+        degree = parts[0]
+        rest = ", ".join(parts[1:])
+    else:
+        degree = clean_no_gpa
+        rest = ""
+
+    # Parse university and location from rest e.g. "University of Cincinnati, Cincinnati, OH"
+    sub_parts = [s.strip() for s in rest.split(",") if s.strip()]
+    if len(sub_parts) >= 3:
+        school = sub_parts[0]
+        location = f"{sub_parts[1]}, {sub_parts[2]}"
+    elif len(sub_parts) == 2:
+        school = sub_parts[0]
+        location = sub_parts[1]
+    elif len(sub_parts) == 1:
+        school = sub_parts[0]
+        location = ""
+    else:
+        school = ""
+        location = ""
+
+    left_parts = []
+    if degree:
+        left_parts.append(f'<font color="#0f3460"><b>{degree}</b></font>')
+    if school:
+        left_parts.append(f"<b>{school}</b>")
+    if gpa_str:
+        left_parts.append(f'<font color="#374151"><b>{gpa_str}</b></font>')
+
+    left_html = " | ".join(left_parts) if left_parts else markdown_to_reportlab_html(edu_str)
+
+    right_parts = []
+    if location:
+        right_parts.append(location)
+    if dates:
+        right_parts.append(dates)
+
+    right_html = f'<font color="#6b7280"><i>{" | ".join(right_parts)}</i></font>' if right_parts else ""
+    return left_html, right_html
 
 def format_job_heading(job: JobEntry) -> str:
     """Format single line Job Heading: Job Title | Company Name | Location | Dates"""

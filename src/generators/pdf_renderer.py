@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether, Table, TableStyle
 
 from .constants import (
     MARGIN_LEFT_RIGHT,
@@ -22,13 +23,15 @@ from .constants import (
     SECTION_SKILLS,
     SECTION_SUMMARY,
 )
-from .models import ResumeData
+from .models import JobEntry, ResumeData
 from .page_budgeter import budget_resume_for_pages
 from .pdf_styles import (
     PageCountCanvas,
     create_section_header_flowables,
     format_contact_paragraph,
+    format_education_split,
     format_job_heading,
+    format_job_heading_split,
     get_resume_styles,
     markdown_to_reportlab_html,
 )
@@ -73,38 +76,78 @@ def _build_skills_story(parsed: ResumeData, styles: dict) -> List[Any]:
         story.append(Paragraph(f"&bull; {skill_html}", styles["skill"]))
     return story
 
-def _build_experience_story(parsed: ResumeData, styles: dict) -> List[Any]:
+def _build_job_heading_flowable(
+    job: JobEntry,
+    styles: dict,
+    is_first: bool = False,
+    space_before: float = 6.0,
+    col_widths: Optional[List[float]] = None,
+) -> Any:
+    """Build two-column left/right job heading table flowable with inter-company spacing and zero left indent."""
+    left_html, right_html = format_job_heading_split(job)
+    if not right_html:
+        p_style = ParagraphStyle(
+            "JobHeadSingle",
+            parent=styles["job_heading"],
+            leftIndent=0,
+            firstLineIndent=0,
+            spaceBefore=0 if is_first else space_before,
+        )
+        return Paragraph(format_job_heading(job), p_style)
+
+    left_p = Paragraph(left_html, styles["job_heading_left"])
+    right_p = Paragraph(right_html, styles["job_heading_right"])
+
+    # Total usable printable width is 540pt (8.5*72 - 2*36)
+    widths = col_widths or [385, 155]
+    table = Table([[left_p, right_p]], colWidths=widths, hAlign='LEFT')
+    table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    table.spaceBefore = 0 if is_first else space_before
+    table.spaceAfter = styles["job_heading"].spaceAfter
+    return table
+
+
+def _build_experience_story(parsed: ResumeData, styles: dict, space_before: float = 6.0) -> List[Any]:
     """Build flowables for Experience section with heading orphan prevention."""
     if not parsed.jobs:
         return []
     story = create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"])
-    for job in parsed.jobs:
-        heading_p = Paragraph(format_job_heading(job), styles["job_heading"])
+    for idx, job in enumerate(parsed.jobs):
+        is_first = (idx == 0)
+        heading_flowable = _build_job_heading_flowable(job, styles, is_first=is_first, space_before=space_before, col_widths=[385, 155])
         if job.bullets:
             first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(job.bullets[0])}", styles["bullet"])
-            story.append(KeepTogether([heading_p, first_b]))
+            story.append(KeepTogether([heading_flowable, first_b]))
             for bullet in job.bullets[1:]:
                 bullet_html = markdown_to_reportlab_html(bullet)
                 story.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
         else:
-            story.append(heading_p)
+            story.append(heading_flowable)
     return story
 
-def _build_projects_story(parsed: ResumeData, styles: dict) -> List[Any]:
+
+def _build_projects_story(parsed: ResumeData, styles: dict, space_before: float = 6.0) -> List[Any]:
     """Build flowables for Projects section with heading orphan prevention."""
     if not parsed.projects:
         return []
     story = create_section_header_flowables(SECTION_PROJECTS, styles["sec_header"])
-    for proj in parsed.projects:
-        heading_p = Paragraph(format_job_heading(proj), styles["job_heading"])
+    for idx, proj in enumerate(parsed.projects):
+        is_first = (idx == 0)
+        heading_flowable = _build_job_heading_flowable(proj, styles, is_first=is_first, space_before=space_before, col_widths=[445, 95])
         if proj.bullets:
             first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(proj.bullets[0])}", styles["bullet"])
-            story.append(KeepTogether([heading_p, first_b]))
+            story.append(KeepTogether([heading_flowable, first_b]))
             for bullet in proj.bullets[1:]:
                 bullet_html = markdown_to_reportlab_html(bullet)
                 story.append(Paragraph(f"&bull; {bullet_html}", styles["bullet"]))
         else:
-            story.append(heading_p)
+            story.append(heading_flowable)
     return story
 
 def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
@@ -118,12 +161,28 @@ def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
     return story
 
 def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
-    """Build flowables for Education section."""
+    """Build flowables for Education section with two-column left/right alignment and zero left indent."""
     if not parsed.education:
         return []
     story = create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"])
-    for edu in parsed.education:
-        story.append(Paragraph(markdown_to_reportlab_html(edu), styles["edu"]))
+    for idx, edu in enumerate(parsed.education):
+        left_html, right_html = format_education_split(edu)
+        if not right_html:
+            story.append(Paragraph(markdown_to_reportlab_html(edu), styles["edu"]))
+        else:
+            left_p = Paragraph(left_html, styles["job_heading_left"])
+            right_p = Paragraph(right_html, styles["job_heading_right"])
+            table = Table([[left_p, right_p]], colWidths=[385, 155], hAlign='LEFT')
+            table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            table.spaceBefore = 0 if idx == 0 else 2.5
+            table.spaceAfter = styles["edu"].spaceAfter
+            story.append(table)
     return story
 
 def render_pdf_from_model(
@@ -157,8 +216,9 @@ def render_pdf_from_model(
         story.extend(_build_header_story(budgeted, styles_dict))
         story.extend(_build_summary_story(budgeted, styles_dict))
         story.extend(_build_skills_story(budgeted, styles_dict))
-        story.extend(_build_experience_story(budgeted, styles_dict))
-        story.extend(_build_projects_story(budgeted, styles_dict))
+        space_before = 5.0 if target_pages == 1 else 7.5
+        story.extend(_build_experience_story(budgeted, styles_dict, space_before=space_before))
+        story.extend(_build_projects_story(budgeted, styles_dict, space_before=space_before))
         story.extend(_build_certifications_story(budgeted, styles_dict))
         story.extend(_build_education_story(budgeted, styles_dict))
 

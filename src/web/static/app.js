@@ -352,12 +352,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Failed to load default resume');
                 const data = await res.json();
 
-                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_url);
+                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_data_uri || data.pdf_url);
                 if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
                 if (this.rawTextarea && data.raw_resume) this.rawTextarea.value = data.raw_resume;
                 if (this.downloadLink && pdfUrl) {
                     this.downloadLink.href = pdfUrl;
-                    this.downloadLink.download = `Prasad_Rane_Resume_${this.currentPages}p.pdf`;
+                    this.downloadLink.download = 'Prasad_Rane_Resume.pdf';
+                    this.downloadLink.setAttribute('download', 'Prasad_Rane_Resume.pdf');
                 }
                 if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
 
@@ -493,8 +494,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 const stepData = JSON.parse(match[1]);
                                 StepperController.update(stepData);
 
-                                if (stepData.step === 'complete' && stepData.data) {
-                                    PreviewDrawerController.open(stepData.data);
+                                const payload = stepData.data || stepData.detail;
+                                if (stepData.step === 'complete' && payload) {
+                                    PreviewDrawerController.open(payload);
                                     if (jd) this.checkATSScore();
                                 }
                             } catch (parseErr) {
@@ -631,7 +633,7 @@ document.addEventListener('DOMContentLoaded', () => {
         open(data) {
             this.currentData = data;
             if (this.section) this.section.classList.remove('hidden');
-            const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_url);
+            const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_data_uri || data.pdf_url);
             if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
             if (this.rawTextarea && data.raw_resume) {
                 this.rawTextarea.value = data.raw_resume;
@@ -725,8 +727,16 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleExport(format) {
             const raw = this.rawTextarea ? this.rawTextarea.value : '';
             if (format === 'pdf') {
-                if (this.currentData && this.currentData.pdf_url) {
-                    window.open(this.currentData.pdf_url, '_blank');
+                if (this.currentData) {
+                    const pdfUrl = Utils.dataUriToBlobUrl(this.currentData.pdf_data_uri || this.currentData.pdf_url);
+                    if (pdfUrl) {
+                        const a = document.createElement('a');
+                        a.href = pdfUrl;
+                        a.download = 'Prasad_Rane_Resume.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
                 }
                 return;
             }
@@ -763,8 +773,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error('Failed to save edit');
                 const data = await res.json();
                 this.currentData = data;
-                if (this.pdfIframe && data.pdf_url) this.pdfIframe.src = data.pdf_url;
-                if (this.openLink && data.pdf_url) this.openLink.href = data.pdf_url;
+                const pdfUrl = Utils.dataUriToBlobUrl(data.pdf_data_uri || data.pdf_url);
+                if (this.pdfIframe && pdfUrl) this.pdfIframe.src = pdfUrl;
+                if (this.openLink && pdfUrl) this.openLink.href = pdfUrl;
                 this.switchMode('pdf');
             } catch (err) {
                 alert(`Error saving edit: ${err.message}`);
