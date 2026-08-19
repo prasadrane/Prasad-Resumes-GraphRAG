@@ -52,10 +52,6 @@
                         <span class="material-symbols-outlined nav-icon">quiz</span>
                         <span class="nav-label">Interview Prep</span>
                     </button>
-                    <button id="nav-linkedin-btn" class="nav-item" role="tab" aria-selected="false" data-tab="linkedin" title="LinkedIn Optimizer" data-tooltip="LinkedIn">
-                        <span class="material-symbols-outlined nav-icon">share</span>
-                        <span class="nav-label">LinkedIn</span>
-                    </button>
                 </div>
 
                 <!-- Group 3: EXPLORE -->
@@ -64,6 +60,10 @@
                     <button id="nav-chat-btn" class="nav-item" role="tab" aria-selected="false" data-tab="chat" title="Ask Me (GraphRAG Q&A)" data-tooltip="Ask Me">
                         <span class="material-symbols-outlined nav-icon">chat</span>
                         <span class="nav-label">Ask Me</span>
+                    </button>
+                    <button id="nav-graph-btn" class="nav-item" role="tab" aria-selected="false" data-tab="graph" title="Knowledge Graph Explorer" data-tooltip="Graph">
+                        <span class="material-symbols-outlined nav-icon">hub</span>
+                        <span class="nav-label">Graph</span>
                     </button>
                 </div>
             </div>
@@ -100,8 +100,11 @@
                 <div id="fts-dropdown" class="fts-dropdown hidden"></div>
             </div>
 
-            <!-- Header Right: System Status -->
+            <!-- Header Right: Sound Toggle & System Status -->
             <div class="header-right">
+                <button id="sound-toggle-btn" class="m3-icon-button" aria-label="Toggle Audio Sound Effects" title="Sound Effects">
+                    <span class="material-symbols-outlined">volume_up</span>
+                </button>
                 <div class="m3-status-badge" id="system-status">
                     <span class="status-dot green"></span> Engine Active
                 </div>
@@ -154,7 +157,7 @@
 
                     <div class="preview-body default-preview-body" style="margin-top: 1rem;">
                         <div id="default-pdf-container" class="view-container">
-                            <iframe id="default-pdf-iframe" src="about:blank" frameborder="0" style="width: 100%; height: 750px; border-radius: 12px;"></iframe>
+                            <iframe id="default-pdf-iframe" src="about:blank" frameborder="0"></iframe>
                         </div>
                         <div id="default-edit-container" class="view-container hidden">
                             <div class="editor-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
@@ -243,34 +246,89 @@
                     <div id="form-alert" class="m3-alert hidden"></div>
                 </section>
 
-                <!-- Generation Progress Stepper -->
+                <!-- Generation Progress Stepper & Interactive Visual Pipeline -->
                 <section id="generation-progress" class="m3-card hidden slide-up" style="margin-top: 1.5rem;">
                     <div class="progress-header">
-                        <h3><span class="material-symbols-outlined">rocket_launch</span> Generating Resume</h3>
+                        <h3><span class="material-symbols-outlined">rocket_launch</span> Agent Pipeline Progress</h3>
                         <span id="progress-pct" class="progress-pct">0%</span>
                     </div>
                     <div class="m3-linear-progress" id="progress-bar">
                         <div class="progress-fill" id="progress-fill"></div>
                     </div>
-                    <div class="stepper-container" id="stepper-container">
-                        <!-- Steps populated by JS -->
+
+                    <!-- Visual Flowchart Stages -->
+                    <div id="pipeline-flowchart" class="pipeline-flowchart">
+                        <div class="flowchart-node pending" data-stage="ingest">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">1. Ingest</span>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined flowchart-arrow">arrow_forward</span>
+                        <div class="flowchart-node pending" data-stage="extract">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">2. Extract</span>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined flowchart-arrow">arrow_forward</span>
+                        <div class="flowchart-node pending" data-stage="retrieve">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">3. GraphRAG</span>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined flowchart-arrow">arrow_forward</span>
+                        <div class="flowchart-node pending" data-stage="optimize">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">4. Optimize</span>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined flowchart-arrow">arrow_forward</span>
+                        <div class="flowchart-node pending" data-stage="audit">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">5. Fact Guard</span>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined flowchart-arrow">arrow_forward</span>
+                        <div class="flowchart-node pending" data-stage="render">
+                            <div class="node-icon-row">
+                                <span class="material-symbols-outlined node-status-icon">radio_button_unchecked</span>
+                                <span class="node-label">6. Render</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stepper-container" id="stepper-container"></div>
+
+                    <!-- Live Expandable Agent Thought Terminal -->
+                    <div id="agent-thought-terminal" class="agent-thought-terminal">
+                        <div class="terminal-header">
+                            <span><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">terminal</span> Agent Thought Stream (Live Subagent Telemetry)</span>
+                            <button id="toggle-thought-terminal-btn" class="m3-icon-button btn-icon-only" style="width: 24px; height: 24px;" title="Toggle Terminal">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">expand_less</span>
+                            </button>
+                        </div>
+                        <div id="agent-thought-body" class="terminal-body"></div>
                     </div>
 
                     <!-- Live Subagent Cost & Latency Telemetry Dashboard -->
-                    <div id="subagent-telemetry-bar" class="subagent-telemetry-bar" style="display: flex; gap: 1.25rem; flex-wrap: wrap; margin-top: 1rem; padding: 0.75rem 1rem; background: rgba(56, 189, 248, 0.08); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);">
-                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <div id="subagent-telemetry-bar" class="subagent-telemetry-bar">
+                        <div class="telemetry-item">
                             <span class="material-symbols-outlined" style="font-size: 16px; color: #38bdf8;">bolt</span>
                             <span><strong>Zero-Cost Agents:</strong> <span id="telemetry-zero-cost">0</span></span>
                         </div>
-                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                        <div class="telemetry-item">
                             <span class="material-symbols-outlined" style="font-size: 16px; color: #a78bfa;">token</span>
                             <span><strong>Tokens:</strong> <span id="telemetry-tokens">0</span></span>
                         </div>
-                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                        <div class="telemetry-item">
                             <span class="material-symbols-outlined" style="font-size: 16px; color: #34d399;">payments</span>
                             <span><strong>Est. Cost:</strong> <span id="telemetry-cost">$0.0000</span></span>
                         </div>
-                        <div class="telemetry-item" style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                        <div class="telemetry-item">
                             <span class="material-symbols-outlined" style="font-size: 16px; color: #fbbf24;">schedule</span>
                             <span><strong>Latency:</strong> <span id="telemetry-latency">0ms</span></span>
                         </div>
@@ -348,7 +406,7 @@
                                 <span><strong>Bullet Impact Scorer (Google X-Y-Z):</strong> <span id="impact-score-desc">Strong metrics & action verbs detected</span></span>
                                 <span id="impact-badge" class="impact-badge high"><span class="material-symbols-outlined" style="font-size: 14px;">bolt</span> High Impact</span>
                             </div>
-                            <div class="editor-toolbar">
+                            <div class="editor-toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                                 <span>Edit Markdown content below, then click Save & Re-render PDF:</span>
                                 <button id="save-rerender-btn" class="m3-button m3-button-filled btn-sm">
                                     <span class="material-symbols-outlined btn-icon">sync</span>
@@ -451,63 +509,63 @@
                         </button>
                     </form>
 
-                    <div id="prep-questions-container">
-                        <!-- Questions and STAR flashcards populated by JS -->
-                    </div>
+                    <div id="prep-questions-container"></div>
                 </section>
             </div>
 
-            <!-- View 5: LinkedIn Optimizer -->
-            <div id="linkedin-view" class="tab-view hidden fade-in">
-                <section class="m3-card">
+            <!-- View: Knowledge Graph Explorer -->
+            <div id="graph-view" class="tab-view hidden fade-in">
+                <section class="m3-card graph-panel">
                     <div class="panel-header">
-                        <h2><span class="material-symbols-outlined header-symbol">share</span> LinkedIn Profile & Headline Optimizer</h2>
-                        <p>Synthesize recruiter-optimized 220-character headlines, "About" career narratives, and keyword-rich experience bullet points.</p>
+                        <h2><span class="material-symbols-outlined header-symbol">hub</span> Knowledge Graph Explorer</h2>
+                        <p>Visually navigate Prasad's career — employers, skills, technologies, and the stories that connect them.</p>
+                        <div class="graph-freshness" id="graph-freshness"></div>
                     </div>
 
-                    <form id="linkedin-form" class="resume-form" style="margin-bottom: 24px;">
-                        <div class="m3-text-field">
-                            <label for="linkedin-role-input" class="m3-field-label">Target Role / Focus Area</label>
-                            <div class="m3-input-wrapper">
-                                <span class="material-symbols-outlined field-icon">badge</span>
-                                <input type="text" id="linkedin-role-input" value="Senior Software Engineer / Tech Lead (Cloud & Distributed Systems)" autocomplete="off">
-                            </div>
+                    <div class="graph-toolbar">
+                        <div class="graph-search-wrapper">
+                            <span class="material-symbols-outlined">search</span>
+                            <input id="graph-search" type="text" placeholder="Search entities…" autocomplete="off">
                         </div>
-                        <button type="submit" id="generate-linkedin-btn" class="m3-button m3-button-filled">
-                            <span class="material-symbols-outlined btn-icon">auto_awesome</span>
-                            <span>Optimize LinkedIn Assets</span>
+                        <div class="graph-type-filters" id="graph-type-filters">
+                            <button class="graph-chip active" data-type="ALL">All</button>
+                            <button class="graph-chip" data-type="ORGANIZATION">Organizations</button>
+                            <button class="graph-chip" data-type="EVENT">Events</button>
+                            <button class="graph-chip" data-type="GEO">Locations</button>
+                            <button class="graph-chip" data-type="PERSON">People</button>
+                        </div>
+                        <button id="graph-collapse-btn" class="m3-icon-button" title="Collapse all communities">
+                            <span class="material-symbols-outlined">compress</span>
                         </button>
-                    </form>
-
-                    <div class="linkedin-container">
-                        <!-- Headline Card -->
-                        <div class="linkedin-card">
-                            <div class="linkedin-header-row">
-                                <h3>Searchable Headline <span style="font-size: 0.8rem; font-weight: normal; color: var(--md-sys-color-on-surface-variant);">(Max 220 Chars)</span></h3>
-                                <button id="copy-headline-btn" class="copy-btn-inline">
-                                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
-                                    <span>Copy Headline</span>
-                                </button>
-                            </div>
-                            <p id="linkedin-headline-val" style="font-size: 1.05rem; font-weight: 600; color: var(--md-sys-color-primary);">
-                                Senior Software Engineer / Tech Lead | AWS ECS Fargate, Kafka, .NET Core, Python | Enterprise Cloud Modernization & GenAI Microservices
-                            </p>
-                        </div>
-
-                        <!-- About Narrative Card -->
-                        <div class="linkedin-card">
-                            <div class="linkedin-header-row">
-                                <h3>"About" Career Summary</h3>
-                                <button id="copy-about-btn" class="copy-btn-inline">
-                                    <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
-                                    <span>Copy Summary</span>
-                                </button>
-                            </div>
-                            <div id="linkedin-about-val" style="white-space: pre-wrap; line-height: 1.6; color: var(--md-sys-color-on-surface);">
-                                Over a decade of experience architecting and delivering high-throughput cloud platforms, distributed microservices, and enterprise streaming architectures.
-                            </div>
-                        </div>
                     </div>
+
+                    <div id="graph-canvas" class="graph-canvas">
+                        <div id="graph-loading" class="graph-state">
+                            <div class="m3-spinner"></div>
+                            <p>Loading graph…</p>
+                        </div>
+                        <div id="graph-error" class="graph-state hidden"></div>
+                    </div>
+
+                    <aside id="graph-details" class="graph-details hidden">
+                        <button id="graph-details-close" class="m3-icon-button" aria-label="Close">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                        <h3 id="graph-details-title"></h3>
+                        <div class="graph-details-meta">
+                            <span id="graph-details-type" class="m3-chip"></span>
+                            <span id="graph-details-community" class="m3-chip"></span>
+                        </div>
+                        <p id="graph-details-description"></p>
+                        <dl class="graph-details-stats">
+                            <dt>Connections</dt><dd id="graph-details-degree"></dd>
+                            <dt>Mentions</dt><dd id="graph-details-frequency"></dd>
+                        </dl>
+                        <button id="graph-details-ask" class="m3-button m3-button-tonal">
+                            <span class="material-symbols-outlined">chat</span>
+                            <span>Ask Me about this</span>
+                        </button>
+                    </aside>
                 </section>
             </div>
 
@@ -613,9 +671,9 @@
                     <span class="material-symbols-outlined">quiz</span>
                     <span>Interview Prep</span>
                 </button>
-                <button class="more-sheet-item" data-tab="linkedin">
-                    <span class="material-symbols-outlined">share</span>
-                    <span>LinkedIn</span>
+                <button class="more-sheet-item" data-tab="graph">
+                    <span class="material-symbols-outlined">hub</span>
+                    <span>Graph</span>
                 </button>
                 <button class="more-sheet-item" id="mobile-diag-btn">
                     <span class="material-symbols-outlined">analytics</span>
@@ -632,7 +690,7 @@
             <button id="close-diag-btn" class="m3-icon-button"><span class="material-symbols-outlined">close</span></button>
         </div>
         <p style="font-size: 0.8rem; color: var(--md-sys-color-on-surface-variant); margin-bottom: 16px;">
-            Real-time telemetry, latency percentiles, and provider health.
+            Real-time telemetry, latency percentiles, and live log stream.
         </p>
 
         <h4>Span Latencies (ms)</h4>
@@ -655,13 +713,33 @@
             </div>
         </div>
 
-        <button id="refresh-diag-btn" class="m3-button m3-button-outlined btn-sm" style="width: 100%; margin-top: 20px;">
+        <!-- In-Drawer Live Console Log Stream -->
+        <div class="diag-log-container">
+            <div class="diag-log-controls">
+                <span style="font-size: 0.8rem; font-weight: 600;">Live Console Logs</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <select id="diag-log-filter" class="diag-log-select">
+                        <option value="DEBUG">DEBUG</option>
+                        <option value="INFO" selected>INFO</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                    </select>
+                    <button id="diag-clear-logs-btn" class="m3-icon-button btn-icon-only" style="width: 24px; height: 24px;" title="Clear Logs">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">delete_sweep</span>
+                    </button>
+                </div>
+            </div>
+            <div id="diag-log-stream" class="diag-log-stream"></div>
+        </div>
+
+        <button id="refresh-diag-btn" class="m3-button m3-button-outlined btn-sm" style="width: 100%; margin-top: 16px;">
             <span class="material-symbols-outlined btn-icon">refresh</span>
             <span>Refresh Diagnostics</span>
         </button>
     </div>
 
+    <!-- Load Markdown Renderer & Modular ES6 Main Script -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js"></script>
+    <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>
