@@ -154,11 +154,6 @@ class InterviewPrepRequest(BaseModel):
     jd_text: str = Field(..., min_length=10, description="Target job description text")
 
 
-class LinkedInProfileRequest(BaseModel):
-    target_role: Optional[str] = Field(default="Senior Software Engineer / Tech Lead", description="Target role or headline focus")
-    candidate_name: Optional[str] = Field(default="Prasad Rane", description="Candidate name")
-
-
 class ExtractJDURLRequest(BaseModel):
     url: str = Field(..., min_length=10, max_length=2000, description="Job posting URL to extract")
 

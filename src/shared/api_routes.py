@@ -31,10 +31,10 @@ from src.shared.api_models import (
     DiffResumeRequest,
     ExtractJDURLRequest,
     InterviewPrepRequest,
-    LinkedInProfileRequest,
     QueryRequest,
     SaveEditRequest,
 )
+from src.shared.graph_controller import get_explorer_payload, GraphNotBuiltError
 
 logger = logging.getLogger(__name__)
 
@@ -339,26 +339,20 @@ def interview_prep_endpoint(req: InterviewPrepRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate interview prep: {exc}")
 
 
-@shared_router.post("/api/linkedin-profile")
-def linkedin_profile_endpoint(req: LinkedInProfileRequest):
-    """Generate recruiter-optimized LinkedIn headline, about section, and skill tags."""
+@shared_router.get("/api/graph/explore")
+def graph_explore_endpoint():
+    """Return Cytoscape-ready payload for the Knowledge Graph Explorer tab."""
     try:
-        from src.generators.linkedin_optimizer import LinkedInOptimizer
-        optimizer = LinkedInOptimizer()
-        result = optimizer.optimize(
-            target_role=req.target_role or "Senior Software Engineer / Tech Lead",
-            candidate_name=req.candidate_name or "Prasad Rane",
+        return get_explorer_payload()
+    except GraphNotBuiltError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "GRAPH_NOT_BUILT",
+                "hint": "Run `graphrag index --root .` to build the GraphRAG index.",
+                "message": str(exc),
+            },
         )
-        return {
-            "status": "success",
-            "headline": result.headline,
-            "about": result.about_section,
-            "experience_bullets": result.experience_bullets,
-            "core_skills": result.core_skills,
-        }
-    except Exception as exc:
-        logger.exception("LinkedIn profile generation failed")
-        raise HTTPException(status_code=500, detail=f"Failed to generate LinkedIn profile: {exc}")
 
 
 @shared_router.post("/api/diff-resume")
