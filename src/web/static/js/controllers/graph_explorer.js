@@ -106,7 +106,18 @@ export const GraphExplorerController = {
         }
         this._showLoading();
         try {
-            const data = await ApiClient.getJson('/api/graph/explore');
+            // Use fetch directly so we can inspect status + body on error.
+            // ApiClient.getJson swallows the response body when !ok.
+            const res = await fetch('/api/graph/explore');
+            if (!res.ok) {
+                let detail = null;
+                try { detail = await res.json(); } catch (_) { /* not JSON */ }
+                const err = new Error(`HTTP ${res.status}: ${res.statusText}`);
+                err.status = res.status;
+                err.detail = detail?.detail ?? detail;
+                throw err;
+            }
+            const data = await res.json();
             this.payload = data;
             this._render();
         } catch (err) {
@@ -125,21 +136,30 @@ export const GraphExplorerController = {
         if (!this.errorEl) return;
         this.errorEl.classList.remove('hidden');
 
-        // Handle FastAPI's HTTPException shape: { detail: { code, hint, message } } or { detail: string }
-        const status = err?.status || err?.response?.status;
-        const detail = err?.detail || err?.response?.detail;
+        const status = err?.status;
+        const detail = err?.detail;
         const code = typeof detail === 'object' ? detail?.code : null;
+        const hint = typeof detail === 'object' ? detail?.hint : null;
 
         if (status === 503 || code === 'GRAPH_NOT_BUILT') {
             this.errorEl.innerHTML = `
                 <span class="material-symbols-outlined" style="font-size:48px;">database_off</span>
                 <p><strong>GraphRAG index not built.</strong></p>
-                <p style="font-size:0.85rem;">Run <code>graphrag index --root .</code> locally to enable.</p>
+                <p style="font-size:0.85rem;">${hint || 'Run <code>graphrag index --root .</code> locally to enable.'}</p>
+            `;
+        } else if (status === 404) {
+            this.errorEl.innerHTML = `
+                <span class="material-symbols-outlined" style="font-size:48px;">route</span>
+                <p><strong>Endpoint not found.</strong></p>
+                <p style="font-size:0.85rem;">The graph API route isn't registered. Try restarting the server.</p>
             `;
         } else {
+            const msg = status ? `HTTP ${status}` : 'Network error';
+            const detailText = (typeof detail === 'string' ? detail : detail?.message) || err?.message || '';
             this.errorEl.innerHTML = `
                 <span class="material-symbols-outlined" style="font-size:48px;">error</span>
                 <p><strong>Failed to load graph data.</strong></p>
+                <p style="font-size:0.85rem; color: var(--md-sys-color-error);">${msg}${detailText ? ': ' + detailText : ''}</p>
                 <button class="m3-button m3-button-tonal" id="graph-retry-btn">Retry</button>
             `;
             const retry = this.errorEl.querySelector('#graph-retry-btn');

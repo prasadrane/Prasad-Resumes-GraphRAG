@@ -11,15 +11,37 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from src.config import OUTPUT_DIR_PATH
+from src.config import OUTPUT_DIR_PATH, ROOT_DIR
 
 logger = logging.getLogger(__name__)
 
 
-ENTITIES_PATH = OUTPUT_DIR_PATH / "entities.parquet"
-RELS_PATH = OUTPUT_DIR_PATH / "relationships.parquet"
-COMMUNITIES_PATH = OUTPUT_DIR_PATH / "communities.parquet"
-REPORTS_PATH = OUTPUT_DIR_PATH / "community_reports.parquet"
+# Resolve parquet locations. vercel.json sets OUTPUT_DIR=/tmp/output which
+# `vercel dev` applies locally, but the actual parquets live at ROOT_DIR/output.
+# Try the configured OUTPUT_DIR first, then fall back to ROOT_DIR/output.
+def _resolve_parquet_paths() -> tuple:
+    candidates = [OUTPUT_DIR_PATH]
+    default_output = ROOT_DIR / "output"
+    if default_output.resolve() != OUTPUT_DIR_PATH.resolve():
+        candidates.append(default_output)
+    for base in candidates:
+        if (base / "entities.parquet").exists():
+            return (
+                base / "entities.parquet",
+                base / "relationships.parquet",
+                base / "communities.parquet",
+                base / "community_reports.parquet",
+            )
+    # Default to configured OUTPUT_DIR_PATH (will surface GraphNotBuiltError)
+    return (
+        OUTPUT_DIR_PATH / "entities.parquet",
+        OUTPUT_DIR_PATH / "relationships.parquet",
+        OUTPUT_DIR_PATH / "communities.parquet",
+        OUTPUT_DIR_PATH / "community_reports.parquet",
+    )
+
+
+ENTITIES_PATH, RELS_PATH, COMMUNITIES_PATH, REPORTS_PATH = _resolve_parquet_paths()
 
 _PARQUET_PATHS = (ENTITIES_PATH, RELS_PATH, COMMUNITIES_PATH)
 
@@ -128,6 +150,11 @@ def _build_payload(
         raw_id = str(row.get("id") or row.get("human_readable_id"))
         parent = entity_to_community.get(raw_id)
         ent_type = str(row.get("type") or "").strip() or "ENTITY"
+        # x/y may be NaN (no pre-computed layout) — coerce to 0 for JSON safety
+        x_val = row.get("x", 0)
+        y_val = row.get("y", 0)
+        x = 0.0 if (x_val is None or pd.isna(x_val)) else float(x_val)
+        y = 0.0 if (y_val is None or pd.isna(y_val)) else float(y_val)
         entity_nodes.append({
             "id": f"e:{raw_id}",
             "kind": "entity",
@@ -137,24 +164,34 @@ def _build_payload(
             "degree": int(row.get("degree", 0) or 0),
             "frequency": int(row.get("frequency", 0) or 0),
             "parent": parent,
-            "x": float(row.get("x", 0) or 0),
-            "y": float(row.get("y", 0) or 0),
+            "x": x,
+            "y": y,
         })
 
-    # 3. Build edges from relationships
+    # 3. Build edges from relationships (relationships use entity TITLES as source/target)
+    title_to_id = {str(row.get("title")): f"e:{row.get('id')}" for _, row in entities.iterrows()
+                   if row.get("title") is not None and row.get("id") is not None}
     edges: List[Dict[str, Any]] = []
+    skipped_edges = 0
     for _, row in rels.iterrows():
-        src = row.get("source")
-        tgt = row.get("target")
+        src_title = row.get("source")
+        tgt_title = row.get("target")
+        if src_title is None or tgt_title is None:
+            continue
+        src = title_to_id.get(str(src_title))
+        tgt = title_to_id.get(str(tgt_title))
         if src is None or tgt is None:
+            skipped_edges += 1
             continue
         edges.append({
             "id": f"r:{row.get('id', len(edges))}",
-            "source": f"e:{src}",
-            "target": f"e:{tgt}",
+            "source": src,
+            "target": tgt,
             "label": str(row.get("description") or "")[:80],
             "weight": float(row.get("weight", 0.5) or 0.5),
         })
+    if skipped_edges:
+        logger.warning("graph_controller: %d edges skipped (source/target not found in entities)", skipped_edges)
 
     # 4. Parent orphaned entities (no community) to a synthetic 'Unassigned' bucket
     orphan_parentless = [n for n in entity_nodes if n["parent"] is None]
