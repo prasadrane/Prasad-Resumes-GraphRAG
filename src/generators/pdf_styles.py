@@ -44,17 +44,17 @@ def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dic
         body_size, body_lead, bullet_space = 8.8, 11.8, 1.8
         sec_size, sec_lead, sec_space = 9.8, 12.0, 3.5
         name_size, name_lead, name_space = 19.5, 22.5, 4.0
-        contact_size, contact_lead, contact_space = 8.6, 11.2, 5.5
+        contact_size, contact_lead, contact_space = 9.1, 11.7, 5.5
     elif compact:
         body_size, body_lead, bullet_space = 9.0, 12.2, 2.2
         sec_size, sec_lead, sec_space = 10.0, 12.5, 4.0
         name_size, name_lead, name_space = 20.0, 23.0, 4.0
-        contact_size, contact_lead, contact_space = 8.8, 11.5, 6.0
+        contact_size, contact_lead, contact_space = 9.3, 12.0, 6.0
     else:
         body_size, body_lead, bullet_space = 9.2, 12.5, 2.8
         sec_size, sec_lead, sec_space = 10.2, 12.8, 4.5
         name_size, name_lead, name_space = 21.0, 24.0, 5.0
-        contact_size, contact_lead, contact_space = 9.0, 12.0, 8.0
+        contact_size, contact_lead, contact_space = 9.5, 12.5, 8.0
 
     return {
         "name": ParagraphStyle(
@@ -108,6 +108,16 @@ def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dic
             spaceAfter=0,
             alignment=0,
         ),
+        "project_heading_left": ParagraphStyle(
+            "ResProjectHeadingLeft",
+            parent=styles["Normal"],
+            fontName=font_family,
+            fontSize=9.4 if not (compact or ultra_compact) else 9.0,
+            leading=12.2 if not (compact or ultra_compact) else 11.8,
+            textColor=COLOR_DARK,
+            spaceAfter=0,
+            alignment=0,
+        ),
         "job_heading_right": ParagraphStyle(
             "ResJobHeadingRight",
             parent=styles["Normal"],
@@ -145,10 +155,10 @@ def get_resume_styles(compact: bool = False, ultra_compact: bool = False) -> Dic
             parent=styles["Normal"],
             fontName=font_family,
             fontSize=body_size,
-            leading=body_lead,
+            leading=body_lead - 0.2 if not (compact or ultra_compact) else body_lead,
             textColor=COLOR_BODY,
             leftIndent=0,
-            spaceAfter=2.5 if (compact or ultra_compact) else 4,
+            spaceAfter=2.0 if (compact or ultra_compact) else 2.2,
             alignment=0,
         ),
         "cert": ParagraphStyle(
@@ -261,7 +271,7 @@ def format_education_split(edu_str: str) -> Tuple[str, str]:
     if degree:
         left_parts.append(f'<font color="#0f3460"><b>{degree}</b></font>')
     if school:
-        left_parts.append(f"<b>{school}</b>")
+        left_parts.append(f"{school}")
     if gpa_str:
         left_parts.append(f'<font color="#374151"><b>{gpa_str}</b></font>')
 

@@ -133,8 +133,8 @@ def budget_resume_for_pages(
 
     if target_pages == 1:
         # 1-Page Constraints:
-        # Role 1 (Rocket Mortgage): 7 bullets, Role 2 (LCS): 2 bullets, Role 3 (EXFO): 1 bullet, Role 4 (Tanish): 1 bullet
-        role_bullet_limits = [7, 2, 1, 1]
+        # Role 1 (Rocket Mortgage): 7 bullets, Role 2 (LCS): 3 bullets, Role 3 (EXFO): 1 bullet, Role 4 (Tanish): 1 bullet
+        role_bullet_limits = [7, 3, 1, 1]
 
         budgeted_jobs: List[JobEntry] = []
         for idx, job in enumerate(budgeted.jobs):
@@ -169,16 +169,19 @@ def budget_resume_for_pages(
         if len(budgeted.certifications) > 2:
             budgeted.certifications = budgeted.certifications[:2]
 
+        # In 1-page mode, omit summary to prioritize core achievements and 7-bullet experience
+        budgeted.summary = ""
+
         # In 1-page mode, derive compact skills from full skills
         budgeted.skills = compact_skills_for_1page(budgeted.skills)
 
     else:
         # 2-Page Constraints:
-        # Role 1 (Rocket Mortgage): Up to 9 bullets
+        # Role 1 (Rocket Mortgage): Up to 15 bullets
         # Role 2 (LCS): Up to 5 bullets
         # Role 3 (EXFO): Up to 2 bullets
         # Role 4 (Tanish): Up to 2 bullets
-        role_bullet_limits = [9, 5, 2, 2]
+        role_bullet_limits = [15, 5, 2, 2]
 
         budgeted_jobs: List[JobEntry] = []
         for idx, job in enumerate(budgeted.jobs):

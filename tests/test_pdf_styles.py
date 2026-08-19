@@ -95,15 +95,17 @@ class TestFormatEducationSplit(unittest.TestCase):
         edu = "**M.S. in Information Systems**, University of Cincinnati, Cincinnati, OH | **GPA: 3.87** (2018 - 2019)"
         left, right = format_education_split(edu)
         self.assertIn("<b>M.S. in Information Systems</b>", left)
-        self.assertIn("<b>University of Cincinnati</b>", left)
+        self.assertIn("University of Cincinnati", left)
+        self.assertNotIn("<b>University of Cincinnati</b>", left)
         self.assertIn("<b>GPA: 3.87</b>", left)
         self.assertIn("<i>Cincinnati, OH | 2018 - 2019</i>", right)
 
     def test_education_without_gpa(self):
-        edu = "**B.E. in Electronics & Telecommunication**, University of Pune, Pune, India (2009 - 2013)"
+        edu = "**B.E. in Electronics & Telecommunication**, Savitribai Phule Pune University, Pune, India (2009 - 2013)"
         left, right = format_education_split(edu)
         self.assertIn("<b>B.E. in Electronics & Telecommunication</b>", left)
-        self.assertIn("<b>University of Pune</b>", left)
+        self.assertIn("Savitribai Phule Pune University", left)
+        self.assertNotIn("<b>Savitribai Phule Pune University</b>", left)
         self.assertIn("<i>Pune, India | 2009 - 2013</i>", right)
 
     def test_empty_education(self):
@@ -141,7 +143,7 @@ class TestStyleFactories(unittest.TestCase):
         styles = get_resume_styles()
         expected = {
             "name", "contact", "sec_header", "job_heading",
-            "job_heading_left", "job_heading_right", "bullet",
+            "job_heading_left", "job_heading_right", "project_heading_left", "bullet",
             "summary", "skill", "cert", "edu",
         }
         self.assertEqual(set(styles.keys()), expected)

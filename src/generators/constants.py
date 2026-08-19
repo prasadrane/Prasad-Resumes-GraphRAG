@@ -51,7 +51,16 @@ COMMON_ATS_KEYWORDS: List[str] = [
     "Licensing", "Payments", "Subscriptions", "Agile", "Scrum", "TDD"
 ]
 
-# PDF Page Layout
+# PDF Page Layout Margins
+MARGIN_1PAGE_LEFT = 0.35 * inch   # 25.2 pt (0.35 in)
+MARGIN_1PAGE_RIGHT = 0.45 * inch  # 32.4 pt (0.45 in)
+MARGIN_1PAGE_TOP_BOTTOM = 22.0    # ~0.305 in
+
+MARGIN_2PAGE_LEFT = 0.45 * inch   # 32.4 pt (0.45 in)
+MARGIN_2PAGE_RIGHT = 0.50 * inch  # 36.0 pt (0.50 in)
+MARGIN_2PAGE_TOP_BOTTOM = 0.40 * inch  # 28.8 pt (0.40 in)
+
+# Legacy / Default Margins
 MARGIN_LEFT_RIGHT = 0.50 * inch  # 36.0 pt
 MARGIN_TOP_BOTTOM = 0.40 * inch   # 28.8 pt
 MAX_PAGES = 2

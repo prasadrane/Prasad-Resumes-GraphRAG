@@ -13,6 +13,12 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, KeepTogether, Table, TableStyle
 
 from .constants import (
+    MARGIN_1PAGE_LEFT,
+    MARGIN_1PAGE_RIGHT,
+    MARGIN_1PAGE_TOP_BOTTOM,
+    MARGIN_2PAGE_LEFT,
+    MARGIN_2PAGE_RIGHT,
+    MARGIN_2PAGE_TOP_BOTTOM,
     MARGIN_LEFT_RIGHT,
     MARGIN_TOP_BOTTOM,
     MAX_PAGES,
@@ -82,23 +88,25 @@ def _build_job_heading_flowable(
     is_first: bool = False,
     space_before: float = 6.0,
     col_widths: Optional[List[float]] = None,
+    style_left: Optional[ParagraphStyle] = None,
+    style_right: Optional[ParagraphStyle] = None,
 ) -> Any:
     """Build two-column left/right job heading table flowable with inter-company spacing and zero left indent."""
     left_html, right_html = format_job_heading_split(job)
     if not right_html:
         p_style = ParagraphStyle(
             "JobHeadSingle",
-            parent=styles["job_heading"],
+            parent=style_left or styles["job_heading"],
             leftIndent=0,
             firstLineIndent=0,
             spaceBefore=0 if is_first else space_before,
         )
         return Paragraph(format_job_heading(job), p_style)
 
-    left_p = Paragraph(left_html, styles["job_heading_left"])
-    right_p = Paragraph(right_html, styles["job_heading_right"])
+    left_p = Paragraph(left_html, style_left or styles["job_heading_left"])
+    right_p = Paragraph(right_html, style_right or styles["job_heading_right"])
 
-    # Total usable printable width is 540pt (8.5*72 - 2*36)
+    # Total usable printable width
     widths = col_widths or [385, 155]
     table = Table([[left_p, right_p]], colWidths=widths, hAlign='LEFT')
     table.setStyle(TableStyle([
@@ -113,14 +121,16 @@ def _build_job_heading_flowable(
     return table
 
 
-def _build_experience_story(parsed: ResumeData, styles: dict, space_before: float = 6.0) -> List[Any]:
+def _build_experience_story(parsed: ResumeData, styles: dict, space_before: float = 6.0, printable_width: float = 540.0) -> List[Any]:
     """Build flowables for Experience section with heading orphan prevention."""
     if not parsed.jobs:
         return []
     story = create_section_header_flowables(SECTION_EXPERIENCE, styles["sec_header"])
+    right_w = 160.0
+    left_w = printable_width - right_w
     for idx, job in enumerate(parsed.jobs):
         is_first = (idx == 0)
-        heading_flowable = _build_job_heading_flowable(job, styles, is_first=is_first, space_before=space_before, col_widths=[385, 155])
+        heading_flowable = _build_job_heading_flowable(job, styles, is_first=is_first, space_before=space_before, col_widths=[left_w, right_w])
         if job.bullets:
             first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(job.bullets[0])}", styles["bullet"])
             story.append(KeepTogether([heading_flowable, first_b]))
@@ -132,14 +142,19 @@ def _build_experience_story(parsed: ResumeData, styles: dict, space_before: floa
     return story
 
 
-def _build_projects_story(parsed: ResumeData, styles: dict, space_before: float = 6.0) -> List[Any]:
+def _build_projects_story(parsed: ResumeData, styles: dict, space_before: float = 6.0, printable_width: float = 540.0) -> List[Any]:
     """Build flowables for Projects section with heading orphan prevention."""
     if not parsed.projects:
         return []
     story = create_section_header_flowables(SECTION_PROJECTS, styles["sec_header"])
+    right_w = 75.0
+    left_w = printable_width - right_w
+    proj_left_style = styles.get("project_heading_left", styles["job_heading_left"])
     for idx, proj in enumerate(parsed.projects):
         is_first = (idx == 0)
-        heading_flowable = _build_job_heading_flowable(proj, styles, is_first=is_first, space_before=space_before, col_widths=[445, 95])
+        heading_flowable = _build_job_heading_flowable(
+            proj, styles, is_first=is_first, space_before=space_before, col_widths=[left_w, right_w], style_left=proj_left_style
+        )
         if proj.bullets:
             first_b = Paragraph(f"&bull; {markdown_to_reportlab_html(proj.bullets[0])}", styles["bullet"])
             story.append(KeepTogether([heading_flowable, first_b]))
@@ -160,11 +175,13 @@ def _build_certifications_story(parsed: ResumeData, styles: dict) -> List[Any]:
         story.append(Paragraph(cert_html, styles["cert"]))
     return story
 
-def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
+def _build_education_story(parsed: ResumeData, styles: dict, printable_width: float = 540.0) -> List[Any]:
     """Build flowables for Education section with two-column left/right alignment and zero left indent."""
     if not parsed.education:
         return []
     story = create_section_header_flowables(SECTION_EDUCATION, styles["sec_header"])
+    right_w = 160.0
+    left_w = printable_width - right_w
     for idx, edu in enumerate(parsed.education):
         left_html, right_html = format_education_split(edu)
         if not right_html:
@@ -172,7 +189,7 @@ def _build_education_story(parsed: ResumeData, styles: dict) -> List[Any]:
         else:
             left_p = Paragraph(left_html, styles["job_heading_left"])
             right_p = Paragraph(right_html, styles["job_heading_right"])
-            table = Table([[left_p, right_p]], colWidths=[385, 155], hAlign='LEFT')
+            table = Table([[left_p, right_p]], colWidths=[left_w, right_w], hAlign='LEFT')
             table.setStyle(TableStyle([
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -203,24 +220,34 @@ def render_pdf_from_model(
     budgeted = budget_resume_for_pages(parsed, target_pages=target_pages, keywords=keywords)
 
     def _build_with_styles(styles_dict) -> int:
-        tb_margin = 22.0 if target_pages == 1 else MARGIN_TOP_BOTTOM
+        if target_pages == 1:
+            left_m = MARGIN_1PAGE_LEFT
+            right_m = MARGIN_1PAGE_RIGHT
+            tb_m = MARGIN_1PAGE_TOP_BOTTOM
+        else:
+            left_m = MARGIN_2PAGE_LEFT
+            right_m = MARGIN_2PAGE_RIGHT
+            tb_m = MARGIN_2PAGE_TOP_BOTTOM
+
+        printable_w = 612.0 - left_m - right_m
+
         doc = SimpleDocTemplate(
             str(output_pdf_path),
             pagesize=letter,
-            leftMargin=MARGIN_LEFT_RIGHT,
-            rightMargin=MARGIN_LEFT_RIGHT,
-            topMargin=tb_margin,
-            bottomMargin=tb_margin,
+            leftMargin=left_m,
+            rightMargin=right_m,
+            topMargin=tb_m,
+            bottomMargin=tb_m,
         )
         story = []
         story.extend(_build_header_story(budgeted, styles_dict))
         story.extend(_build_summary_story(budgeted, styles_dict))
         story.extend(_build_skills_story(budgeted, styles_dict))
         space_before = 5.0 if target_pages == 1 else 7.5
-        story.extend(_build_experience_story(budgeted, styles_dict, space_before=space_before))
-        story.extend(_build_projects_story(budgeted, styles_dict, space_before=space_before))
+        story.extend(_build_experience_story(budgeted, styles_dict, space_before=space_before, printable_width=printable_w))
+        story.extend(_build_projects_story(budgeted, styles_dict, space_before=space_before, printable_width=printable_w))
         story.extend(_build_certifications_story(budgeted, styles_dict))
-        story.extend(_build_education_story(budgeted, styles_dict))
+        story.extend(_build_education_story(budgeted, styles_dict, printable_width=printable_w))
 
         AdaptivePageCanvas.last_page_count = 0
         doc.build(story, canvasmaker=AdaptivePageCanvas)
