@@ -1,3 +1,5 @@
+# Keep in sync with [project] dependencies in pyproject.toml —
+# Vercel reads pyproject.toml when it exists; this file serves local pip installs.
 fastapi>=0.115.0
 pydantic>=2.9.0
 reportlab>=4.2.0
