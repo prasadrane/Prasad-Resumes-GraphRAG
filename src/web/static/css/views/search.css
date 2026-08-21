@@ -1,0 +1,44 @@
+/* views/search.css — SQLite FTS5 Global Search Dropdown */
+.fts-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    margin-top: 6px;
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-medium);
+    box-shadow: var(--md-sys-elevation-3);
+    z-index: 250;
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.fts-item {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    cursor: pointer;
+    transition: background 150ms ease;
+}
+
+.fts-item:last-child {
+    border-bottom: none;
+}
+
+.fts-item:hover {
+    background: var(--md-sys-color-surface-container-highest);
+}
+
+.fts-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 2px;
+}
+
+.fts-snippet {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: 1.4;
+}

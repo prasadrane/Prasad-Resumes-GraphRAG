@@ -1,16 +1,21 @@
 /**
- * graph_explorer.js — Knowledge Graph Explorer Controller.
- * Fetches Cytoscape-ready JSON from /api/graph/explore and renders
- * an interactive graph of Prasad's career entities & communities.
+ * graph_explorer.js — Knowledge Graph Explorer Controller (v3, Obsidian-style).
+ * Fetches Cytoscape-ready JSON from /api/graph/explore and renders the full
+ * entity graph as a force-directed constellation.
  *
  * Layout strategy:
- *   - Default view: community meta-nodes (large outlined ellipses)
- *   - Click community → bloom member entities (fade-in + force re-layout)
- *   - Click entity → highlight neighborhood, populate details panel
- *   - Search box → filter by label substring
- *   - Type chips → filter by entity_type (ORG / EVENT / GEO / PERSON)
- *   - Collapse button → return to community meta-view
- *   - "Ask Me about this" → seeds chat tab with entity label
+ *   - ALL entities are visible from first paint, placed by deterministic
+ *     phyllotaxis clusters per community and relaxed with a tiny force pass
+ *     (repulsion + edge springs + centroid gravity) for an organic look.
+ *   - Communities render as translucent rounded panels (compound parents)
+ *     titled with their real GraphRAG report names.
+ *   - Click community panel → focus mode: fit-to-cluster + fade the rest.
+ *     Click again / background / Reset view → back to overview.
+ *   - Click entity → highlight neighborhood, populate details panel.
+ *   - Search box / type chips fade non-matches (spatial stability).
+ *   - Hover tooltip, zoom/fit controls, first-run hint pill.
+ *   - Entity labels appear past a zoom threshold (clean zoomed-out view).
+ *   - "Ask Me about this" → seeds chat tab with entity label.
  */
 
 import { Logger } from '../core/logger.js';
@@ -22,6 +27,13 @@ export const GraphExplorerController = {
     cytoscapeLib: null,
     payload: null,
 
+    // Interaction state driving the fade emphasis model
+    activeType: 'ALL',
+    searchQuery: '',
+    focused: null,
+    hintDismissed: false,
+    layoutDone: false,
+
     // DOM refs
     canvas: null,
     loadingEl: null,
@@ -29,6 +41,8 @@ export const GraphExplorerController = {
     freshnessEl: null,
     searchInput: null,
     detailsPanel: null,
+    tooltipEl: null,
+    hintEl: null,
 
     init() {
         this.canvas = document.getElementById('graph-canvas');
@@ -37,6 +51,8 @@ export const GraphExplorerController = {
         this.freshnessEl = document.getElementById('graph-freshness');
         this.searchInput = document.getElementById('graph-search');
         this.detailsPanel = document.getElementById('graph-details');
+        this.tooltipEl = document.getElementById('graph-tooltip');
+        this.hintEl = document.getElementById('graph-hint');
 
         if (!this.canvas) {
             // Graph tab not present (e.g., some custom builds); skip silently.
@@ -52,7 +68,7 @@ export const GraphExplorerController = {
                 this.load().then(() => {
                     if (this.cy) {
                         this.cy.resize();
-                        this.cy.fit(undefined, 30);
+                        this.cy.fit(undefined, 40);
                     }
                 });
             }
@@ -77,10 +93,10 @@ export const GraphExplorerController = {
             });
         });
 
-        // Collapse all
-        const collapseBtn = document.getElementById('graph-collapse-btn');
-        if (collapseBtn) {
-            collapseBtn.addEventListener('click', () => this._collapseAll());
+        // Reset view
+        const resetBtn = document.getElementById('graph-collapse-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this._resetView());
         }
 
         // Details panel close
@@ -89,6 +105,7 @@ export const GraphExplorerController = {
             closeBtn.addEventListener('click', () => {
                 this._hideDetails();
                 this._resetHighlight();
+                this._applyState();
             });
         }
 
@@ -97,6 +114,25 @@ export const GraphExplorerController = {
         if (askBtn) {
             askBtn.addEventListener('click', () => this._seedChat());
         }
+
+        // Zoom / fit controls
+        const zoomIn = document.getElementById('graph-zoom-in');
+        const zoomOut = document.getElementById('graph-zoom-out');
+        const zoomFit = document.getElementById('graph-zoom-fit');
+        if (zoomIn) zoomIn.addEventListener('click', () => this._zoomBy(1.35));
+        if (zoomOut) zoomOut.addEventListener('click', () => this._zoomBy(1 / 1.35));
+        if (zoomFit) zoomFit.addEventListener('click', () => {
+            if (this.cy) this.cy.animate({ fit: { padding: 40 }, duration: 300 });
+        });
+    },
+
+    _zoomBy(factor) {
+        if (!this.cy) return;
+        const center = { x: this.cy.width() / 2, y: this.cy.height() / 2 };
+        this.cy.animate({
+            zoom: { level: this.cy.zoom() * factor, renderedPosition: center },
+            duration: 200,
+        });
     },
 
     async load() {
@@ -172,7 +208,6 @@ export const GraphExplorerController = {
 
     _render() {
         if (!this.payload) return;
-        if (this.loadingEl) this.loadingEl.classList.add('hidden');
         if (this.errorEl) this.errorEl.classList.add('hidden');
 
         // Freshness badge
@@ -194,204 +229,416 @@ export const GraphExplorerController = {
             });
     },
 
+    // ── Layout helpers ────────────────────────────────────────────────
+
+    /**
+     * Deterministic phyllotaxis (sunflower) slots for communities, ordered
+     * largest-first so the biggest community sits at the center. Used as the
+     * force-layout seed so every load settles into the same constellation.
+     */
+    _communitySlots(orderedIds) {
+        const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+        const scale = 240;
+        const slots = {};
+        orderedIds.forEach((id, i) => {
+            const r = scale * Math.sqrt(i + 0.5);
+            const theta = i * GOLDEN_ANGLE;
+            slots[id] = { x: r * Math.cos(theta), y: r * Math.sin(theta) };
+        });
+        return slots;
+    },
+
+    /**
+     * Position entities in a mini phyllotaxis cluster around their community
+     * slot, then relax with a tiny deterministic force pass (intra-cluster
+     * repulsion + edge springs + centroid gravity) so connected entities sit
+     * together — an organic, Obsidian-like blob without a physics engine.
+     */
+    _assignPositions(nodes) {
+        const childrenByParent = {};
+        for (const n of nodes) {
+            if (n.data.kind === 'entity' && n.data.parent) {
+                (childrenByParent[n.data.parent] ||= []).push(n.data.id);
+            }
+        }
+
+        const ordered = nodes
+            .filter(n => n.data.kind === 'community')
+            .sort((a, b) => (childrenByParent[b.data.id]?.length || 0) - (childrenByParent[a.data.id]?.length || 0))
+            .map(n => n.data.id);
+        const slots = this._communitySlots(ordered);
+
+        const pos = {};
+        for (const [pid, childIds] of Object.entries(childrenByParent)) {
+            const slot = slots[pid] || { x: 0, y: 0 };
+            childIds.forEach((cid, j) => {
+                const r = 24 * Math.sqrt(j + 0.5);
+                const theta = j * Math.PI * (3 - Math.sqrt(5));
+                pos[cid] = {
+                    x: slot.x + r * Math.cos(theta),
+                    y: slot.y + r * Math.sin(theta),
+                };
+            });
+        }
+
+        // Intra-cluster entity edges act as springs
+        const parentOf = {};
+        for (const [pid, kids] of Object.entries(childrenByParent)) {
+            for (const k of kids) parentOf[k] = pid;
+        }
+        const springs = this.payload.elements.edges.filter(e =>
+            pos[e.data.source] && pos[e.data.target] &&
+            parentOf[e.data.source] && parentOf[e.data.source] === parentOf[e.data.target]);
+
+        const ITER = 90, CAP = 6;
+        for (let iter = 0; iter < ITER; iter++) {
+            const disp = {};
+            const add = (id, dx, dy) => {
+                (disp[id] ||= { x: 0, y: 0 }).x += dx;
+                disp[id].y += dy;
+            };
+            // Pairwise repulsion within each cluster (short-range)
+            for (const kids of Object.values(childrenByParent)) {
+                for (let i = 0; i < kids.length; i++) {
+                    for (let j = i + 1; j < kids.length; j++) {
+                        const a = kids[i], b = kids[j];
+                        let dx = pos[a].x - pos[b].x, dy = pos[a].y - pos[b].y;
+                        const d2 = dx * dx + dy * dy;
+                        if (d2 > 160 * 160) continue;
+                        const f = 900 / (d2 || 1);
+                        add(a, dx * f, dy * f);
+                        add(b, -dx * f, -dy * f);
+                    }
+                }
+            }
+            // Springs pull connected entities toward the ideal length
+            for (const e of springs) {
+                const a = e.data.source, b = e.data.target;
+                let dx = pos[a].x - pos[b].x, dy = pos[a].y - pos[b].y;
+                const d = Math.sqrt(dx * dx + dy * dy) || 1;
+                const f = (d - 60) * 0.02 / d;
+                add(a, -dx * f, -dy * f);
+                add(b, dx * f, dy * f);
+            }
+            // Weak gravity toward the cluster slot keeps blobs centered
+            for (const [pid, kids] of Object.entries(childrenByParent)) {
+                const s = slots[pid] || { x: 0, y: 0 };
+                for (const k of kids) {
+                    add(k, (s.x - pos[k].x) * 0.05, (s.y - pos[k].y) * 0.05);
+                }
+            }
+            for (const [id, d] of Object.entries(disp)) {
+                pos[id].x += Math.max(-CAP, Math.min(CAP, d.x));
+                pos[id].y += Math.max(-CAP, Math.min(CAP, d.y));
+            }
+        }
+        return pos;
+    },
+
     _initCytoscape(cytoscape) {
         const cs = getComputedStyle(document.documentElement);
-        const primary = cs.getPropertyValue('--md-sys-color-primary').trim() || '#6750a4';
-        const secondary = cs.getPropertyValue('--md-sys-color-secondary').trim() || '#625b71';
-        const tertiary = cs.getPropertyValue('--md-sys-color-tertiary').trim() || '#7d5260';
-        const error = cs.getPropertyValue('--md-sys-color-error').trim() || '#b3261e';
-        const outline = cs.getPropertyValue('--md-sys-color-outline-variant').trim() || '#79747e';
-        const onSurface = cs.getPropertyValue('--md-sys-color-on-surface').trim() || '#1c1b1f';
+        const primary = cs.getPropertyValue('--md-sys-color-primary').trim() || '#a8c7fa';
+        const surface = cs.getPropertyValue('--md-sys-color-surface').trim() || '#0f172a';
+        const outline = cs.getPropertyValue('--md-sys-color-outline').trim() || '#475569';
+        const onSurface = cs.getPropertyValue('--md-sys-color-on-surface').trim() || '#f8fafc';
 
         const TYPE_COLORS = {
-            ORGANIZATION: secondary,
-            EVENT: tertiary,
-            GEO: error,
-            PERSON: primary,
+            PERSON: cs.getPropertyValue('--graph-color-person').trim() || primary,
+            ORGANIZATION: cs.getPropertyValue('--graph-color-org').trim() || '#c9a7f5',
+            EVENT: cs.getPropertyValue('--graph-color-event').trim() || '#fbbf24',
+            GEO: cs.getPropertyValue('--graph-color-geo').trim() || '#4fd1a5',
         };
+        this.typeColors = TYPE_COLORS;
 
-        // Pre-compute color per entity node
-        const nodes = this.payload.elements.nodes.map(n => {
-            if (n.data.kind === 'entity') {
-                return {
-                    ...n,
-                    data: {
-                        ...n.data,
-                        colorByType: TYPE_COLORS[n.data.entity_type] || primary,
-                    },
-                };
-            }
-            return n;
+        // Decorate entities with type color; communities with child stats
+        let nodes = this.payload.elements.nodes.map(n => ({
+            ...n,
+            data: { ...n.data, colorByType: TYPE_COLORS[n.data.entity_type] || primary },
+        }));
+
+        const childCount = {};
+        const typeTally = {};
+        for (const n of nodes) {
+            if (n.data.kind !== 'entity' || !n.data.parent) continue;
+            childCount[n.data.parent] = (childCount[n.data.parent] || 0) + 1;
+            const tally = (typeTally[n.data.parent] ||= {});
+            tally[n.data.entity_type] = (tally[n.data.entity_type] || 0) + 1;
+        }
+        nodes = nodes.map(n => {
+            if (n.data.kind !== 'community') return n;
+            const count = childCount[n.data.id] || 0;
+            const tally = typeTally[n.data.id] || {};
+            const dominant = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0];
+            return {
+                ...n,
+                data: {
+                    ...n.data,
+                    child_count: count,
+                    colorByDominant: (dominant && TYPE_COLORS[dominant]) || primary,
+                },
+            };
         });
 
-        // Position community meta-nodes at centroid of their member entity positions
-        // (entities all have x,y = 0 for now, but this future-proofs for when GraphRAG emits real coords)
-        const communityCentroids = this._computeCommunityCentroids(nodes);
-        const positionedNodes = nodes.map(n => {
-            if (n.data.kind === 'community' && communityCentroids[n.data.id]) {
-                return { ...n, position: communityCentroids[n.data.id] };
-            }
-            if (n.data.kind === 'entity' && (n.data.x || n.data.y)) {
-                return { ...n, position: { x: n.data.x, y: n.data.y } };
-            }
-            return n;
-        });
+        // Seed entity cluster positions; compound parents auto-center
+        const positions = this._assignPositions(nodes);
+        const positionedNodes = nodes.map(n =>
+            positions[n.data.id] ? { ...n, position: positions[n.data.id] } : n
+        );
 
         this.cy = cytoscape({
             container: this.canvas,
             elements: { nodes: positionedNodes, edges: this.payload.elements.edges },
             style: [
+                // Community cluster panels (compound parents)
                 { selector: 'node[kind="community"]', style: {
-                    'background-color': primary,
-                    'background-opacity': 0.15,
-                    'border-width': 2,
-                    'border-color': primary,
+                    'shape': 'round-rectangle',
+                    'background-color': 'data(colorByDominant)',
+                    'background-opacity': 0.09,
+                    'border-width': 1.5,
+                    'border-color': 'data(colorByDominant)',
+                    'border-opacity': 0.55,
+                    'padding': '16px',
                     'label': 'data(label)',
-                    'text-valign': 'center',
+                    'text-valign': 'top',
                     'text-halign': 'center',
-                    'color': onSurface,
-                    'font-size': '11px',
-                    'font-weight': 'bold',
+                    'text-margin-y': '-4px',
+                    'color': 'data(colorByDominant)',
+                    'font-size': '13px',
+                    'font-weight': 600,
                     'text-wrap': 'wrap',
-                    'text-max-width': '100px',
-                    'width': 'mapData(member_count, 1, 100, 50, 140)',
-                    'height': 'mapData(member_count, 1, 100, 50, 140)',
-                    'shape': 'ellipse',
+                    'text-max-width': '240px',
+                    'transition-property': 'background-opacity, border-opacity',
+                    'transition-duration': '150ms',
                 }},
+                { selector: 'node[kind="community"].hovered', style: {
+                    'background-opacity': 0.16,
+                    'border-opacity': 0.9,
+                }},
+                // Entities
                 { selector: 'node[kind="entity"]', style: {
                     'background-color': 'data(colorByType)',
+                    'border-width': 1,
+                    'border-color': surface,
                     'label': 'data(label)',
-                    'width': 'mapData(degree, 1, 50, 15, 40)',
-                    'height': 'mapData(degree, 1, 50, 15, 40)',
+                    'width': 'mapData(degree, 1, 80, 10, 28)',
+                    'height': 'mapData(degree, 1, 80, 10, 28)',
                     'font-size': '9px',
                     'color': onSurface,
                     'text-valign': 'bottom',
-                    'text-margin-y': 4,
+                    'text-margin-y': 2,
                     'text-wrap': 'ellipsis',
                     'text-max-width': '80px',
+                    'text-background-color': surface,
+                    'text-background-opacity': 0.6,
+                    'text-background-padding': '1px',
+                }},
+                // Labels collapse to clean dots while zoomed out
+                { selector: 'node[kind="entity"].zfar', style: {
+                    'label': '',
                 }},
                 { selector: 'edge', style: {
-                    'width': 'mapData(weight, 0, 1, 1, 3)',
+                    'width': 'mapData(weight, 0, 1, 0.8, 2.2)',
                     'line-color': outline,
                     'target-arrow-shape': 'none',
                     'curve-style': 'bezier',
-                    'opacity': 0.5,
+                    'opacity': 0.35,
                 }},
-                { selector: '.faded', style: { 'opacity': 0.12 }},
+                { selector: '.faded', style: { 'opacity': 0.08 }},
                 { selector: '.selected', style: {
-                    'border-width': 3,
-                    'border-color': primary,
-                }},
-                { selector: 'node:selected', style: {
-                    'border-width': 4,
-                    'border-color': primary,
+                    'border-width': 2.5,
+                    'border-color': onSurface,
                 }},
             ],
-            layout: { name: 'preset' },
+            // Positions are pre-relaxed deterministically (see
+            // _assignPositions); preset just adopts them.
+            layout: { name: 'preset', fit: false },
             wheelSensitivity: 0.3,
-            minZoom: 0.2,
-            maxZoom: 3,
+            minZoom: 0.15,
+            maxZoom: 4,
         });
 
-        // Initial state: hide all entity nodes and edges (they bloom on community click)
-        this.cy.elements('node[kind="entity"]').style('display', 'none');
-        this.cy.elements('edge').style('display', 'none');
+        // Preset layout runs synchronously during construction, so reveal +
+        // fit right away; the layoutstop fallback covers async edge cases.
+        const firstLayoutDone = () => {
+            if (this.layoutDone) return;
+            this.layoutDone = true;
+            if (this.loadingEl) this.loadingEl.classList.add('hidden');
+            this.cy.fit(undefined, 40);
+            this._updateLabelVis();
+            this._showHint();
+        };
+        firstLayoutDone();
+        this.cy.one('layoutstop', firstLayoutDone);
 
-        // ── Bloom: click community → expand children ──────────────────
+        // ── Focus: click community panel → zoom to cluster, fade rest ──
         this.cy.on('tap', 'node[kind="community"]', (evt) => {
-            const node = evt.target;
-            const children = node.children();
-            if (children.empty()) return;  // no children to bloom
-            if (node.hasClass('expanded')) {
-                // Collapse
-                children.style('display', 'none');
-                this.cy.edges().forEach(e => {
-                    const srcParent = e.source().parent();
-                    const tgtParent = e.target().parent();
-                    if (srcParent.same(node) || tgtParent.same(node)) {
-                        e.style('display', 'none');
-                    }
-                });
-                node.removeClass('expanded');
-            } else {
-                // Expand
-                children.style('display', 'element');
-                node.addClass('expanded');
-                // Show edges between visible entities
-                this.cy.edges().forEach(e => {
-                    if (e.source().style('display') !== 'none' &&
-                        e.target().style('display') !== 'none') {
-                        e.style('display', 'element');
-                    }
-                });
-                // Re-layout the children around the community centroid
-                children.layout({
-                    name: 'circle',
-                    animate: true,
-                    animationDuration: 300,
-                    fit: false,
-                    boundingBox: {
-                        x1: node.position().x - 150,
-                        y1: node.position().y - 150,
-                        x2: node.position().x + 150,
-                        y2: node.position().y + 150,
-                    },
-                }).run();
-            }
+            this._toggleFocus(evt.target);
         });
 
         // ── Select: click entity → highlight neighborhood ─────────────
         this.cy.on('tap', 'node[kind="entity"]', (evt) => {
-            const node = evt.target;
-            this._selectEntity(node);
+            this._selectEntity(evt.target);
         });
 
-        // Click background → reset
+        // Click background → clear focus/selection
         this.cy.on('tap', (evt) => {
             if (evt.target === this.cy) {
+                this.focused = null;
                 this._resetHighlight();
+                this._applyState();
                 this._hideDetails();
             }
         });
 
-        Logger.info('GRAPH', `Cytoscape rendered: ${positionedNodes.length} nodes, ${this.payload.elements.edges.length} edges`);
+        // ── Tooltip + hover emphasis ──────────────────────────────────
+        this.cy.on('mouseover', 'node', (evt) => {
+            evt.target.addClass('hovered');
+            this._showTooltip(evt.target);
+        });
+        this.cy.on('mousemove', 'node', (evt) => this._moveTooltip(evt));
+        this.cy.on('mouseout', 'node', (evt) => {
+            evt.target.removeClass('hovered');
+            this._hideTooltip();
+        });
+
+        // Any interaction dismisses the hint pill
+        this.cy.on('tap drag zoom', () => this._dismissHint());
+
+        // Zoom-dependent entity labels
+        this.cy.on('zoom', () => requestAnimationFrame(() => this._updateLabelVis()));
+
+        Logger.info('GRAPH', `Cytoscape rendered: ${positionedNodes.length} nodes, ${this.payload.elements.edges.length} edges (relaxed constellation)`);
     },
 
-    _computeCommunityCentroids(nodes) {
-        const sums = {};
-        const counts = {};
-        for (const n of nodes) {
-            if (n.data.kind === 'entity' && n.data.parent) {
-                const pid = n.data.parent;
-                if (!sums[pid]) { sums[pid] = { x: 0, y: 0 }; counts[pid] = 0; }
-                sums[pid].x += (n.data.x || 0);
-                sums[pid].y += (n.data.y || 0);
-                counts[pid]++;
-            }
+    // ── Hint / tooltip / label chrome ─────────────────────────────────
+
+    _updateLabelVis() {
+        if (!this.cy) return;
+        this.cy.nodes('node[kind="entity"]').toggleClass('zfar', this.cy.zoom() < 0.9);
+    },
+
+    _showHint() {
+        if (this.hintEl && !this.hintDismissed) this.hintEl.classList.remove('hidden');
+    },
+
+    _dismissHint() {
+        if (this.hintDismissed) return;
+        this.hintDismissed = true;
+        if (this.hintEl) this.hintEl.classList.add('hidden');
+    },
+
+    _showTooltip(node) {
+        if (!this.tooltipEl) return;
+        const d = node.data();
+        let html;
+        if (d.kind === 'community') {
+            html = `
+                <span class="tt-label">${this._escapeHtml(d.label)}</span>
+                <span class="tt-meta">
+                    <span class="tt-dot" style="background:${d.colorByDominant}"></span>
+                    Community · ${d.child_count} ${d.child_count === 1 ? 'entity' : 'entities'} · click to focus
+                </span>`;
+        } else {
+            const color = d.colorByType || '#888';
+            html = `
+                <span class="tt-label">${this._escapeHtml(d.label)}</span>
+                <span class="tt-meta">
+                    <span class="tt-dot" style="background:${color}"></span>
+                    ${this._escapeHtml(d.entity_type || 'ENTITY')} · ${d.degree || 0} connections
+                </span>`;
         }
-        const centroids = {};
-        for (const pid of Object.keys(sums)) {
-            // If all entities are at (0,0), spread communities in a circle so they're visible
-            const avgX = sums[pid].x / counts[pid];
-            const avgY = sums[pid].y / counts[pid];
-            centroids[pid] = { x: avgX, y: avgY };
-        }
-        // If all centroids are (0,0), use a force layout to position communities
-        const allZero = Object.values(centroids).every(c => c.x === 0 && c.y === 0);
-        if (allZero) {
-            // Use a deterministic radial layout for communities
-            const ids = Object.keys(centroids);
-            const radius = Math.max(200, ids.length * 20);
-            ids.forEach((id, i) => {
-                const angle = (i / ids.length) * 2 * Math.PI;
-                centroids[id] = {
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius,
-                };
+        this.tooltipEl.innerHTML = html;
+        this.tooltipEl.classList.remove('hidden');
+    },
+
+    _moveTooltip(evt) {
+        if (!this.tooltipEl) return;
+        const rp = evt.renderedPosition;
+        const pad = 14;
+        const maxX = this.cy.width() - this.tooltipEl.offsetWidth - 8;
+        const maxY = this.cy.height() - this.tooltipEl.offsetHeight - 8;
+        const x = Math.min(Math.max(rp.x + pad, 8), Math.max(maxX, 8));
+        const y = Math.min(Math.max(rp.y + pad, 8), Math.max(maxY, 8));
+        this.tooltipEl.style.transform = `translate(${x}px, ${y}px)`;
+    },
+
+    _hideTooltip() {
+        if (this.tooltipEl) this.tooltipEl.classList.add('hidden');
+    },
+
+    _escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        }[c]));
+    },
+
+    // ── Emphasis model (fade-based) ───────────────────────────────────
+
+    /** Recompute faded set from focus + search + type-filter state. */
+    _applyState() {
+        if (!this.cy) return;
+        const cy = this.cy;
+        cy.elements().removeClass('faded');
+
+        // Type filter fades non-matching entities (and empty panels)
+        if (this.activeType !== 'ALL') {
+            cy.nodes('node[kind="entity"]').forEach(n => {
+                if (n.data('entity_type') !== this.activeType) n.addClass('faded');
+            });
+            cy.nodes('node[kind="community"]').forEach(c => {
+                if (c.children().filter(k => !k.hasClass('faded')).empty()) c.addClass('faded');
             });
         }
-        return centroids;
+
+        // Search fades everything outside matches + neighborhood
+        const q = this.searchQuery;
+        if (q) {
+            const matches = cy.nodes('node[kind="entity"]').filter(n =>
+                (n.data('label') || '').toLowerCase().includes(q));
+            const keep = matches.union(matches.neighborhood());
+            cy.elements().forEach(el => {
+                if (!keep.contains(el) && !el.same(keep)) el.addClass('faded');
+            });
+            cy.nodes('node[kind="community"]').forEach(c => {
+                if (c.descendants().filter(k => !k.hasClass('faded')).empty()) c.addClass('faded');
+            });
+        }
+
+        // Focus fades everything outside the focused cluster
+        if (this.focused) {
+            const inside = this.focused.union(this.focused.descendants());
+            cy.elements().forEach(el => {
+                if (!inside.contains(el)) el.addClass('faded');
+            });
+            inside.connectedEdges().forEach(e => {
+                if (inside.contains(e.source()) && inside.contains(e.target())) e.removeClass('faded');
+            });
+        }
+
+        // Edges with a faded endpoint fade too
+        cy.edges().forEach(e => {
+            if (e.source().hasClass('faded') || e.target().hasClass('faded')) e.addClass('faded');
+        });
     },
+
+    _toggleFocus(node) {
+        if (this.focused && this.focused.same(node)) {
+            this.focused = null;
+            this._applyState();
+            this.cy.animate({ fit: { padding: 40 }, duration: 450, easing: 'ease-in-out-cubic' });
+            return;
+        }
+        this.focused = node;
+        this._applyState();
+        const inside = node.union(node.descendants());
+        this.cy.animate({
+            fit: { eles: inside, padding: 60 },
+            duration: 450,
+            easing: 'ease-in-out-cubic',
+        });
+    },
+
+    // ── Selection & details ───────────────────────────────────────────
 
     _selectEntity(node) {
         const neighborhood = node.closedNeighborhood();
@@ -399,8 +646,6 @@ export const GraphExplorerController = {
         neighborhood.removeClass('faded');
         this.cy.elements('.selected').removeClass('selected');
         node.addClass('selected');
-        // Ensure edges in neighborhood are visible
-        neighborhood.filter('edge').style('display', 'element').removeClass('faded');
         this._showDetails(node.data());
     },
 
@@ -414,7 +659,16 @@ export const GraphExplorerController = {
         if (!this.detailsPanel) return;
         this.detailsPanel.classList.remove('hidden');
         document.getElementById('graph-details-title').textContent = data.label || '';
-        document.getElementById('graph-details-type').textContent = data.entity_type || '';
+        const typeEl = document.getElementById('graph-details-type');
+        typeEl.textContent = data.entity_type || '';
+        const color = this.typeColors?.[data.entity_type];
+        if (color) {
+            typeEl.style.background = `${color}26`;
+            typeEl.style.color = color;
+        } else {
+            typeEl.style.background = '';
+            typeEl.style.color = '';
+        }
         // Find community label
         const communityNode = this.cy.getElementById(data.parent);
         document.getElementById('graph-details-community').textContent =
@@ -431,65 +685,33 @@ export const GraphExplorerController = {
         if (this.detailsPanel) this.detailsPanel.classList.add('hidden');
     },
 
+    // ── Search / filter / reset ───────────────────────────────────────
+
     _onSearch(query) {
         if (!this.cy) return;
         const q = query.trim().toLowerCase();
-        if (!q) {
-            this._resetHighlight();
-            return;
-        }
-        // Match entities whose label contains the query
-        const matches = this.cy.nodes(`node[kind="entity"]`).filter(n =>
-            (n.data('label') || '').toLowerCase().includes(q)
-        );
-        this.cy.elements().addClass('faded');
-        matches.removeClass('faded');
-        matches.neighborhood().removeClass('faded');
-        // Make sure matches are visible (expand their parent communities)
-        matches.forEach(n => {
-            const parent = n.parent();
-            if (parent.length && !parent.hasClass('expanded')) {
-                parent.children().style('display', 'element');
-                parent.addClass('expanded');
-            }
-        });
-        // Show edges between visible entities
-        this.cy.edges().filter(e =>
-            e.source().style('display') !== 'none' &&
-            e.target().style('display') !== 'none'
-        ).style('display', 'element');
+        this.searchQuery = q;
+        this.focused = null;
+        this._resetHighlight();
+        this._applyState();
     },
 
     _filterByType(type) {
         if (!this.cy) return;
-        const entities = this.cy.nodes('node[kind="entity"]');
-        if (type === 'ALL') {
-            // Show all entities whose parent community is expanded
-            this.cy.nodes('node[kind="community"].expanded')
-                .children().style('display', 'element');
-            this.cy.edges().filter(e =>
-                e.source().style('display') !== 'none' &&
-                e.target().style('display') !== 'none'
-            ).style('display', 'element');
-            return;
-        }
-        entities.style('display', 'none');
-        entities.filter(n => n.data('entity_type') === type).style('display', 'element');
-        // Update edge visibility
-        this.cy.edges().style('display', 'none');
-        this.cy.edges().filter(e =>
-            e.source().style('display') !== 'none' &&
-            e.target().style('display') !== 'none'
-        ).style('display', 'element');
+        this.activeType = type;
+        this.focused = null;
+        this._resetHighlight();
+        this._applyState();
     },
 
-    _collapseAll() {
+    _resetView() {
         if (!this.cy) return;
-        this.cy.nodes('node[kind="community"]').removeClass('expanded');
-        this.cy.nodes('node[kind="entity"]').style('display', 'none');
-        this.cy.edges().style('display', 'none');
+        this.focused = null;
+        this.activeType = 'ALL';
+        this.searchQuery = '';
         this._resetHighlight();
         this._hideDetails();
+        this.cy.animate({ fit: { padding: 40 }, duration: 300 });
         // Reset toolbar state
         if (this.searchInput) this.searchInput.value = '';
         const chips = document.querySelectorAll('#graph-type-filters .graph-chip');

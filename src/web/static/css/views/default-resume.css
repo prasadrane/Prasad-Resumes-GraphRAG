@@ -1,0 +1,70 @@
+/* views/default-resume.css — Default Master Resume View */
+.doc-tab-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.doc-tabs-left {
+    display: flex;
+    gap: 4px;
+}
+
+.doc-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.doc-tab-btn:hover {
+    background: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface);
+}
+
+.doc-tab-btn.active {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-primary);
+    font-weight: 600;
+}
+
+.doc-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.default-preview-body iframe {
+    width: 100%;
+    height: 750px;
+    border-radius: 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: #1e293b;
+}
+
+.default-preview-body textarea {
+    width: 100%;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 1rem;
+    outline: none;
+    resize: vertical;
+}

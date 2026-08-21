@@ -131,9 +131,10 @@ class TestWebUI(unittest.TestCase):
     def test_generate_stream_returns_sse(self):
         """Test POST /api/generate-stream returns correct content type."""
         from tests.conftest import VALID_JD_TEXT
-        response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": VALID_JD_TEXT})
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("text/event-stream", response.headers.get("content-type", ""))
+        with patch("src.generators.resume_generator._call_llm_safe", return_value="Mocked LLM content"):
+            response = self.client.post("/api/generate-stream", json={"company": "TestCompany", "jd_text": VALID_JD_TEXT})
+            self.assertEqual(response.status_code, 200)
+            self.assertIn("text/event-stream", response.headers.get("content-type", ""))
 
     def test_generate_stream_all_steps_emitted(self):
         """Test POST /api/generate-stream emits all expected progress steps in SSE format."""
@@ -174,7 +175,14 @@ class TestWebUI(unittest.TestCase):
 
     def test_chat_stream_returns_sse(self):
         """Test POST /api/chat-stream returns event stream."""
-        with patch("src.gateway.call_serverless_llm", return_value="Mock LLM Answer"):
+        async def fake_stream(query, mode, history):
+            yield 'data: {"token": "Prasad used AWS Lambda.", "done": false}\n'
+            yield 'data: {"token": "", "done": true, "response": "Prasad used AWS Lambda.", "sources": []}\n'
+        mock_engine = MagicMock()
+        mock_engine.chat_stream = fake_stream
+        with patch("src.shared.api_routes.get_engine", return_value=mock_engine), \
+             patch("src.shared.api_routes.get_conversation_store") as mock_store:
+            mock_store.return_value.has_session.return_value = False
             response = self.client.post("/api/chat-stream", json={"query": "What AWS services did Prasad use?", "mode": "local"})
             self.assertEqual(response.status_code, 200)
             self.assertIn("text/event-stream", response.headers.get("content-type", ""))

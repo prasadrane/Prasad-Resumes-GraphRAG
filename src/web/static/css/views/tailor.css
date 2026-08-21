@@ -1,0 +1,71 @@
+/* views/tailor.css — ATS Resume Tailor & Gauge Inspector */
+.ats-score-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-medium);
+}
+
+.ats-gauge-wrapper {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    flex-shrink: 0;
+}
+
+.ats-gauge-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.ats-gauge-bg {
+    fill: none;
+    stroke: var(--md-sys-color-surface-container-highest);
+    stroke-width: 8;
+}
+
+.ats-gauge-progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 800ms cubic-bezier(0.2, 0.0, 0.0, 1.0);
+}
+
+.ats-gauge-progress.high { stroke: #34d399; }
+.ats-gauge-progress.med { stroke: #fbbf24; }
+.ats-gauge-progress.low { stroke: #ef4444; }
+
+.ats-gauge-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--font-mono);
+}
+
+.ats-details {
+    flex: 1;
+}
+
+.ats-details h4 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+}
+
+.keyword-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}

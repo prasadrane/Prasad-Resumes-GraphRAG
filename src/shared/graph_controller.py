@@ -5,6 +5,7 @@ Used by GET /api/graph/explore to drive the Knowledge Graph Explorer UI tab.
 """
 import ast
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -127,17 +128,23 @@ def _build_payload(
         for eid in entity_ids:
             entity_to_community[eid] = cid
 
+        # communities.parquet titles are placeholders ("Community N"); the
+        # community reports carry the real names.
         summary = ""
+        report_title = ""
         if not reports.empty:
             match = reports[reports["community"] == row["community"]]
             if not match.empty:
+                report_title = str(match.iloc[0].get("title") or "").strip()
                 full = str(match.iloc[0].get("full_content", "") or "")
                 summary = full[:300].strip()
+                if not report_title and full:
+                    report_title = full.splitlines()[0].strip().lstrip("#").strip()
 
         community_rows.append({
             "id": cid,
             "kind": "community",
-            "label": str(row.get("title") or f"Community {row['community']}"),
+            "label": report_title or str(row.get("title") or f"Community {row['community']}"),
             "level": int(row.get("level", 0) or 0),
             "rank": float(row.get("size", 0) or 0),
             "member_count": len(entity_ids),
@@ -167,6 +174,19 @@ def _build_payload(
             "x": x,
             "y": y,
         })
+
+    # 2b. Communities without a report keep placeholder titles; derive a
+    # readable name from their highest-degree members instead.
+    members_by_parent: Dict[str, List[Dict[str, Any]]] = {}
+    for n in entity_nodes:
+        members_by_parent.setdefault(n["parent"], []).append(n)
+    for row in community_rows:
+        if not re.match(r"^Community \d+$", row["label"]):
+            continue
+        tops = sorted(members_by_parent.get(row["id"], []),
+                      key=lambda m: m["degree"], reverse=True)[:2]
+        if tops:
+            row["label"] = " · ".join(t["label"].title() for t in tops)
 
     # 3. Build edges from relationships (relationships use entity TITLES as source/target)
     title_to_id = {str(row.get("title")): f"e:{row.get('id')}" for _, row in entities.iterrows()

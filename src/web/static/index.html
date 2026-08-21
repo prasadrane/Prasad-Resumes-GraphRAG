@@ -534,8 +534,8 @@
                             <button class="graph-chip" data-type="GEO">Locations</button>
                             <button class="graph-chip" data-type="PERSON">People</button>
                         </div>
-                        <button id="graph-collapse-btn" class="m3-icon-button" title="Collapse all communities">
-                            <span class="material-symbols-outlined">compress</span>
+                        <button id="graph-collapse-btn" class="m3-icon-button" title="Reset view">
+                            <span class="material-symbols-outlined">restart_alt</span>
                         </button>
                     </div>
 
@@ -545,6 +545,21 @@
                             <p>Loading graph…</p>
                         </div>
                         <div id="graph-error" class="graph-state hidden"></div>
+                        <div id="graph-tooltip" class="graph-tooltip hidden" role="tooltip"></div>
+                        <div id="graph-hint" class="graph-hint hidden">
+                            Click a community to focus · click an entity for details · scroll to zoom
+                        </div>
+                        <div class="graph-zoom-controls">
+                            <button id="graph-zoom-in" class="graph-zoom-btn" title="Zoom in" aria-label="Zoom in">
+                                <span class="material-symbols-outlined">add</span>
+                            </button>
+                            <button id="graph-zoom-out" class="graph-zoom-btn" title="Zoom out" aria-label="Zoom out">
+                                <span class="material-symbols-outlined">remove</span>
+                            </button>
+                            <button id="graph-zoom-fit" class="graph-zoom-btn" title="Fit to view" aria-label="Fit to view">
+                                <span class="material-symbols-outlined">fit_screen</span>
+                            </button>
+                        </div>
                     </div>
 
                     <aside id="graph-details" class="graph-details hidden">

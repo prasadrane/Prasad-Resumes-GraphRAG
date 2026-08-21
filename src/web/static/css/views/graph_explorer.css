@@ -31,7 +31,7 @@
   color: var(--md-sys-color-on-surface-variant);
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--md-sys-color-surface-variant);
+  background: var(--md-sys-color-surface-container);
 }
 
 .graph-toolbar {
@@ -62,7 +62,7 @@
   padding: 8px 12px 8px 34px;
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 8px;
-  background: var(--md-sys-color-surface);
+  background: var(--md-sys-color-surface-container-low);
   color: var(--md-sys-color-on-surface);
   font-size: 0.9rem;
 }
@@ -78,7 +78,11 @@
   gap: 6px;
 }
 
+/* Type chips double as the color legend: dot matches node color */
 .graph-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--md-sys-color-outline-variant);
@@ -89,8 +93,22 @@
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
+.graph-chip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.graph-chip[data-type="ALL"]::before { display: none; }
+.graph-chip[data-type="ORGANIZATION"]::before { background: var(--graph-color-org); }
+.graph-chip[data-type="EVENT"]::before { background: var(--graph-color-event); }
+.graph-chip[data-type="GEO"]::before { background: var(--graph-color-geo); }
+.graph-chip[data-type="PERSON"]::before { background: var(--graph-color-person); }
+
 .graph-chip:hover {
-  background: var(--md-sys-color-surface-variant);
+  background: var(--md-sys-color-surface-container);
 }
 
 .graph-chip.active {
@@ -99,13 +117,21 @@
   border-color: transparent;
 }
 
+.graph-chip.active::before {
+  box-shadow: 0 0 0 2px var(--md-sys-color-on-primary);
+}
+
+/* Canvas: dotted constellation backdrop for depth */
 .graph-canvas {
   position: relative;
   flex: 1 1 auto;
   min-height: 400px;
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
-  background: var(--md-sys-color-surface);
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--md-sys-color-outline-variant) 35%, transparent) 1px, transparent 1.5px)
+      0 0 / 24px 24px,
+    var(--md-sys-color-surface-container-lowest);
   overflow: hidden;
 }
 
@@ -124,12 +150,107 @@
 
 .graph-state.hidden { display: none; }
 
+/* Hover tooltip over nodes */
+.graph-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 280px;
+  padding: 7px 11px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  box-shadow: var(--md-sys-elevation-2);
+  pointer-events: none;
+  z-index: 8;
+  opacity: 1;
+  transition: opacity 0.12s ease;
+}
+
+.graph-tooltip.hidden { opacity: 0; }
+
+.graph-tooltip .tt-label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.graph-tooltip .tt-meta {
+  color: var(--md-sys-color-on-surface-variant);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.graph-tooltip .tt-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* First-run hint pill */
+.graph-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--md-sys-color-surface-container-high) 85%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  z-index: 6;
+  opacity: 1;
+  transition: opacity 0.4s ease;
+  white-space: nowrap;
+}
+
+.graph-hint.hidden { opacity: 0; }
+
+/* Zoom / fit control cluster */
+.graph-zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 6;
+}
+
+.graph-zoom-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 10px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.graph-zoom-btn:hover { background: var(--md-sys-color-surface-container-highest); }
+.graph-zoom-btn:active { transform: scale(0.94); }
+
+.graph-zoom-btn .material-symbols-outlined { font-size: 18px; }
+
 .graph-details {
   position: relative;
   padding: 16px 20px;
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 12px;
-  background: var(--md-sys-color-surface-variant);
+  background: var(--md-sys-color-surface-container-low);
   max-height: 220px;
   overflow-y: auto;
 }
@@ -195,6 +316,7 @@
 @media (max-width: 899px) {
   .graph-panel { height: auto; min-height: calc(100vh - 140px); }
   .graph-details { max-height: 280px; }
+  .graph-hint { white-space: normal; text-align: center; max-width: 80%; }
 }
 
 @media (max-width: 599px) {

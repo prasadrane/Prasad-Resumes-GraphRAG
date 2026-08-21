@@ -1,0 +1,130 @@
+/* components/diagnostics.css — Slide-out Observability & Diagnostics Drawer */
+.diag-drawer {
+    position: fixed;
+    top: 0;
+    right: -420px;
+    width: 400px;
+    height: 100vh;
+    background: var(--md-sys-color-surface-container-low);
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+    box-shadow: var(--md-sys-elevation-3);
+    z-index: 300;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: right var(--md-sys-motion-duration-medium) var(--md-sys-motion-easing-emphasized);
+    overflow-y: auto;
+}
+
+.diag-drawer.open {
+    right: 0;
+}
+
+.diag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.diag-header h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.diag-metric-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 12px 0 20px 0;
+}
+
+.diag-stat-card {
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.diag-stat-card .val {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--md-sys-color-primary);
+    font-family: var(--font-mono);
+}
+
+.diag-stat-card .lbl {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-top: 2px;
+}
+
+/* In-Drawer Live Log Stream */
+.diag-log-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 12px;
+}
+
+.diag-log-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.diag-log-select {
+    background: var(--md-sys-color-surface-container);
+    color: var(--md-sys-color-on-surface);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    outline: none;
+}
+
+.diag-log-stream {
+    flex: 1;
+    min-height: 200px;
+    max-height: 320px;
+    background: #090d16;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 6px;
+    padding: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    line-height: 1.5;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.diag-log-line {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    word-break: break-word;
+}
+
+.diag-log-line.error { color: #fca5a5; }
+.diag-log-line.warn { color: #fcd34d; }
+.diag-log-line.debug { color: #94a3b8; }
+.diag-log-line.info { color: #e2e8f0; }
+
+.diag-time {
+    color: #64748b;
+    font-size: 0.68rem;
+    flex-shrink: 0;
+}
+
+.diag-badge {
+    font-weight: bold;
+    font-size: 0.68rem;
+    flex-shrink: 0;
+}

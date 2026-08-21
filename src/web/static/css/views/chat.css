@@ -1,0 +1,105 @@
+/* views/chat.css — GraphRAG Conversational Chatbot View */
+.chatbot-panel {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    min-height: 550px;
+}
+
+.m3-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sample-questions {
+    margin-bottom: 12px;
+}
+
+.sample-label {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: 6px;
+    display: block;
+}
+
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem;
+    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: var(--md-sys-shape-medium);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    margin-bottom: 1rem;
+}
+
+.message {
+    display: flex;
+    max-width: 85%;
+}
+
+.message.user {
+    align-self: flex-end;
+}
+
+.message.assistant {
+    align-self: flex-start;
+}
+
+.message-bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.message.user .message-bubble {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    border-bottom-right-radius: 2px;
+}
+
+.message.assistant .message-bubble {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+    border-bottom-left-radius: 2px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.message.assistant .message-bubble ul {
+    margin-left: 1.25rem;
+    margin-top: 4px;
+}
+
+.m3-chat-input-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-full);
+    padding: 4px 6px 4px 16px;
+}
+
+.m3-chat-input-bar input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--md-sys-color-on-surface);
+    font-size: 0.92rem;
+}
+
+.voice-btn.listening {
+    color: var(--md-sys-color-error);
+    animation: pulseRadar 1s infinite;
+}

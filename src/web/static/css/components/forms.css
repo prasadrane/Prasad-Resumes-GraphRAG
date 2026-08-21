@@ -1,0 +1,100 @@
+/* components/forms.css — Material Design 3 Text Fields, Inputs, Alerts */
+.m3-text-field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+}
+
+.m3-field-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface-variant);
+    margin-bottom: 6px;
+}
+
+.m3-field-label .required {
+    color: var(--md-sys-color-error);
+}
+
+.m3-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.m3-helper-text {
+    font-size: 0.78rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.m3-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.m3-input-wrapper .field-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 20px;
+    color: var(--md-sys-color-on-surface-variant);
+    pointer-events: none;
+}
+
+.m3-input-wrapper input[type="text"],
+.m3-input-wrapper input[type="url"] {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px 0 40px;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-small);
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    outline: none;
+    transition: all 150ms ease;
+}
+
+.m3-input-wrapper input:focus,
+.m3-input-wrapper textarea:focus {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: 0 0 0 2px rgba(168, 199, 250, 0.2);
+}
+
+.textarea-wrapper textarea {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-small);
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    outline: none;
+    resize: vertical;
+    transition: all 150ms ease;
+}
+
+/* Alerts */
+.m3-alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    margin-top: 1rem;
+}
+
+.m3-alert.error {
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+    border: 1px solid rgba(255, 180, 171, 0.3);
+}
+
+.m3-alert.success {
+    background: var(--md-sys-color-success-container);
+    color: #6ee7b7;
+    border: 1px solid rgba(110, 231, 183, 0.3);
+}

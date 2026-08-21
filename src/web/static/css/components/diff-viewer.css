@@ -1,0 +1,136 @@
+/* components/diff-viewer.css — Visual Diff Inspector, Impact Scorer & Export Dropdown */
+.m3-preview-drawer {
+    background: var(--md-sys-color-surface-container-low);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-large);
+    padding: 1.5rem;
+    box-shadow: var(--md-sys-elevation-2);
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    margin-bottom: 1rem;
+}
+
+.preview-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-title .preview-icon {
+    color: var(--md-sys-color-primary);
+}
+
+.preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.preview-body iframe {
+    width: 100%;
+    height: 750px;
+    border: none;
+    border-radius: 8px;
+    background: #1e293b;
+}
+
+.preview-body textarea {
+    width: 100%;
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 1rem;
+    outline: none;
+    resize: vertical;
+}
+
+/* Bullet Impact Scorer */
+.impact-scorer-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(168, 199, 250, 0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(168, 199, 250, 0.2);
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+}
+
+.impact-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.impact-badge.high {
+    background: rgba(52, 211, 153, 0.2);
+    color: #34d399;
+}
+
+.impact-badge.med {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+/* Export Dropdown */
+.export-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 8px;
+    box-shadow: var(--md-sys-elevation-3);
+    z-index: 150;
+    min-width: 180px;
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.export-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background 150ms ease;
+}
+
+.export-item:hover {
+    background: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-primary);
+}
+
+.export-item .material-symbols-outlined {
+    font-size: 18px;
+}

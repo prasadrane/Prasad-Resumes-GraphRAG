@@ -1,0 +1,54 @@
+/* views/interview-prep.css — STAR Interview Prep Flashcards */
+.star-prep-card {
+    background: var(--md-sys-color-surface-container);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-medium);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    transition: all 150ms ease;
+}
+
+.star-prep-card:hover {
+    border-color: var(--md-sys-color-primary);
+}
+
+.star-question-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+    margin-bottom: 1rem;
+}
+
+.star-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.star-box {
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+}
+
+.star-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
+.star-label.s { color: #38bdf8; }
+.star-label.t { color: #a78bfa; }
+.star-label.a { color: #34d399; }
+.star-label.r { color: #fbbf24; }
+
+@media (max-width: 600px) {
+    .star-grid {
+        grid-template-columns: 1fr;
+    }
+}

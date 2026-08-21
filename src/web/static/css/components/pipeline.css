@@ -1,0 +1,211 @@
+/* components/pipeline.css — Flowchart Visualizer, Agent Thought Terminal & Telemetry Counters */
+.pipeline-flowchart {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--md-sys-color-surface-container);
+    border-radius: var(--md-sys-shape-medium);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    overflow-x: auto;
+}
+
+.flowchart-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    min-width: 110px;
+    text-align: center;
+    font-size: 0.8rem;
+    transition: all 200ms ease;
+}
+
+.flowchart-node .node-icon-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.flowchart-node .node-label {
+    font-weight: 500;
+    color: var(--md-sys-color-on-surface);
+}
+
+.flowchart-node.pending {
+    opacity: 0.6;
+}
+
+.flowchart-node.active {
+    opacity: 1;
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    animation: glowBorder 2s infinite;
+}
+
+.flowchart-node.active .node-status-icon {
+    animation: spinActivity 1s linear infinite;
+    color: var(--md-sys-color-primary);
+}
+
+.flowchart-node.done {
+    opacity: 1;
+    border-color: rgba(52, 211, 153, 0.4);
+    background: rgba(6, 78, 59, 0.3);
+}
+
+.flowchart-node.done .node-status-icon {
+    color: #34d399;
+}
+
+.flowchart-node.error {
+    border-color: var(--md-sys-color-error);
+    background: var(--md-sys-color-error-container);
+}
+
+.flowchart-arrow {
+    color: var(--md-sys-color-outline);
+    font-size: 18px;
+}
+
+/* Stepper Progress Bar */
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.m3-linear-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--md-sys-color-surface-container-high);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--md-sys-color-primary);
+    transition: width 250ms ease, background-color 200ms ease;
+}
+
+.stepper-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.stepper-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.stepper-step.active {
+    color: var(--md-sys-color-on-surface);
+    font-weight: 500;
+}
+
+.stepper-step.done {
+    color: #94a3b8;
+}
+
+/* Agent Thought Stream Terminal */
+.agent-thought-terminal {
+    margin-top: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: #090d16;
+    overflow: hidden;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: #172033;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--md-sys-color-on-surface);
+}
+
+.terminal-body {
+    padding: 10px 12px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.terminal-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.terminal-line .timestamp {
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.terminal-line .badge {
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.terminal-line .badge.critic { background: #7c3aed; color: #fff; }
+.terminal-line .badge.optimizer { background: #0284c7; color: #fff; }
+.terminal-line .badge.fact_guard { background: #059669; color: #fff; }
+.terminal-line .badge.orchestrator { background: #4f46e5; color: #fff; }
+.terminal-line .badge.error { background: #dc2626; color: #fff; }
+
+.terminal-line .text {
+    color: #e2e8f0;
+}
+
+.terminal-line.success .text {
+    color: #34d399;
+    font-weight: bold;
+}
+
+/* Telemetry Dashboard Bar */
+.subagent-telemetry-bar {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(56, 189, 248, 0.08);
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.telemetry-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+}

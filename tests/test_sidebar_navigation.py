@@ -17,10 +17,14 @@ class TestSidebarNavigation(unittest.TestCase):
         cls.client = TestClient(app)
         cls.html_path = ROOT_DIR / "src" / "web" / "static" / "index.html"
         cls.css_path = ROOT_DIR / "src" / "web" / "static" / "styles.css"
-        cls.js_path = ROOT_DIR / "src" / "web" / "static" / "app.js"
+        cls.js_path = ROOT_DIR / "src" / "web" / "static" / "js" / "controllers" / "navigation.js"
         
         cls.html_content = cls.html_path.read_text(encoding="utf-8")
+        # styles.css is an @import index; concatenate the modular partials
+        # so structural assertions see the real rules.
         cls.css_content = cls.css_path.read_text(encoding="utf-8")
+        for partial in sorted((ROOT_DIR / "src" / "web" / "static" / "css").rglob("*.css")):
+            cls.css_content += partial.read_text(encoding="utf-8")
         cls.js_content = cls.js_path.read_text(encoding="utf-8")
 
     def test_sidebar_rail_structure(self):
@@ -38,13 +42,13 @@ class TestSidebarNavigation(unittest.TestCase):
         self.assertIn('id="nav-tailor-btn"', self.html_content)
         self.assertIn('id="nav-cover-btn"', self.html_content)
         self.assertIn('id="nav-prep-btn"', self.html_content)
-        self.assertIn('id="nav-linkedin-btn"', self.html_content)
+        self.assertIn('id="nav-graph-btn"', self.html_content)
         self.assertIn('id="nav-chat-btn"', self.html_content)
         self.assertIn('id="open-diag-btn"', self.html_content)
         self.assertIn('id="nav-settings-btn"', self.html_content)
 
         # Material Symbols
-        for symbol in ["article", "auto_awesome", "mail", "quiz", "share", "chat", "analytics", "settings"]:
+        for symbol in ["article", "auto_awesome", "mail", "quiz", "hub", "chat", "analytics", "settings"]:
             self.assertIn(symbol, self.html_content)
 
     def test_slim_header_and_search(self):
@@ -75,11 +79,9 @@ class TestSidebarNavigation(unittest.TestCase):
         self.assertIn(".app-header", self.css_content)
         self.assertIn(".app-main", self.css_content)
 
-        # Active state left border accent (3px)
-        self.assertTrue(
-            bool(re.search(r"border-left:\s*3px\s+solid", self.css_content)),
-            "Expected 'border-left: 3px solid' active state styling in styles.css"
-        )
+        # Active nav state uses the primary-container pill
+        self.assertIn(".nav-item.active", self.css_content)
+        self.assertIn("var(--md-sys-color-primary-container)", self.css_content)
 
         # Glassmorphism backdrop filter
         self.assertIn("backdrop-filter", self.css_content)
@@ -91,8 +93,8 @@ class TestSidebarNavigation(unittest.TestCase):
 
         # Responsive media queries
         self.assertTrue(
-            bool(re.search(r"@media\s*\([^\)]*max-width:\s*(?:1023px|1024px)", self.css_content)),
-            "Expected tablet responsive breakpoint in styles.css"
+            bool(re.search(r"@media\s*\([^\)]*max-width:\s*(?:899px|900px|1023px|1024px)", self.css_content)),
+            "Expected tablet responsive breakpoint in modular CSS"
         )
         self.assertTrue(
             bool(re.search(r"@media\s*\([^\)]*max-width:\s*(?:767px|768px)", self.css_content)),
@@ -101,11 +103,12 @@ class TestSidebarNavigation(unittest.TestCase):
 
     def test_view_transition_styles(self):
         """Verify view transition keyframes and classes exist in CSS."""
-        self.assertIn("@keyframes viewIn", self.css_content)
-        self.assertIn("@keyframes viewOut", self.css_content)
+        self.assertIn(".fade-in", self.css_content)
+        self.assertIn("@keyframes fadeIn", self.css_content)
+        self.assertIn("@keyframes slideUp", self.css_content)
 
     def test_js_navigation_support(self):
-        """Verify app.js handles sidebar, mobile navigation, and view switching."""
+        """Verify navigation.js handles sidebar, mobile navigation, and view switching."""
         self.assertIn("switchTab", self.js_content)
         self.assertIn("mobile-menu-btn", self.js_content)
         self.assertIn("sidebar-scrim", self.js_content)
