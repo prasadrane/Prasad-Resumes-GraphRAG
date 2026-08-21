@@ -1,0 +1,10 @@
+[project]
+name = "prasad-resumes-graphrag"
+version = "0.1.0"
+description = "GraphRAG knowledge graph engine and ATS resume generator"
+requires-python = ">=3.12"
+
+[tool.vercel]
+# Canonical FastAPI app — Vercel's Python framework preset loads this as the
+# serverless function handler (replaces the legacy api/index.py + routes setup).
+entrypoint = "src.web.app:app"
