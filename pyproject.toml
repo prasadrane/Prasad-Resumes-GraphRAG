@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [tool.vercel]
-# Canonical FastAPI app — Vercel's Python framework preset loads this as the
-# serverless function handler (replaces the legacy api/index.py + routes setup).
-entrypoint = "src.web.app:app"
+# Diagnostic wrapper around the canonical FastAPI app (src/web/app.py) —
+# logs cold-start progress and surfaces any import-time failure as a visible
+# HTTP 500 instead of a silent FUNCTION_INVOCATION_FAILED.
+entrypoint = "vercel_entry:app"
