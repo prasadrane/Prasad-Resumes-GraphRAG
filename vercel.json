@@ -2,7 +2,6 @@
   "version": 2,
   "functions": {
     "api/index.py": {
-      "runtime": "@vercel/python@4.3.0",
       "maxDuration": 60,
       "includeFiles": "input/**,config/**,src/web/static/**,output/**"
     }
@@ -15,7 +14,7 @@
   ],
   "build": {
     "env": {
-      "PYTHON_VERSION": "3.11"
+      "PYTHON_VERSION": "3.12"
     }
   },
   "env": {
