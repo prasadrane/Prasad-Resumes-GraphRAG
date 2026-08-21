@@ -1,0 +1,19 @@
+[project]
+name = "prasad-resumes-graphrag"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.9.0",
+    "reportlab>=4.2.0",
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.2",
+    "uvicorn>=0.29.0",
+    "aiohttp>=3.11.0",
+    "pandas>=2.2.0",
+    "beautifulsoup4>=4.12.0",
+    "requests>=2.31.0",
+]
+
+[tool.vercel]
+entrypoint = "api.index:app"

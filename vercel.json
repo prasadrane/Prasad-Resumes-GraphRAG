@@ -1,17 +1,11 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
       "includeFiles": "input/**,config/**,src/web/static/**,output/**"
     }
   },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
-  ],
   "build": {
     "env": {
       "PYTHON_VERSION": "3.12"
