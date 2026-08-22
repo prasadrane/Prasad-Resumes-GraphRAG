@@ -24,6 +24,8 @@ from src.query.graphrag_engine import get_engine, reset_engine
 from src.query.conversation_store import get_conversation_store, reset_conversation_store
 from src.security.sanitizer import InputSanitizer
 from src.shared.api_models import (
+    EvaluatorFeasibilityRequest,
+    EvaluatorTailorRequest,
     AgenticResumeRequest,
     ApplyDiffsRequest,
     ATSSimulationRequest,
@@ -34,7 +36,11 @@ from src.shared.api_models import (
     QueryRequest,
     SaveEditRequest,
 )
-from src.shared.graph_controller import get_explorer_payload, GraphNotBuiltError
+from src.shared.graph_controller import (
+    get_explorer_payload,
+    get_fallback_explorer_payload,
+    GraphNotBuiltError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -344,15 +350,9 @@ def graph_explore_endpoint():
     """Return Cytoscape-ready payload for the Knowledge Graph Explorer tab."""
     try:
         return get_explorer_payload()
-    except GraphNotBuiltError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "code": "GRAPH_NOT_BUILT",
-                "hint": "Run `graphrag index --root .` to build the GraphRAG index.",
-                "message": str(exc),
-            },
-        )
+    except GraphNotBuiltError:
+        logger.info("GraphRAG parquets not built yet, returning rich interactive fallback graph payload.")
+        return get_fallback_explorer_payload()
 
 
 @shared_router.post("/api/diff-resume")
@@ -449,3 +449,70 @@ def telemetry_stats_endpoint():
 
 
 
+
+
+# ?? Evaluator Agent In-The-Loop Endpoints ?????????????????????????????????
+
+@shared_router.post("/api/evaluator/feasibility")
+def evaluator_feasibility_endpoint(req: EvaluatorFeasibilityRequest):
+    """Run pre-generation feasibility assessment against target JD."""
+    jd_text = req.jd_text or ""
+    company = req.company or "Target Company"
+    if req.url:
+        try:
+            extracted = extract_jd_from_url(req.url)
+            jd_text = extracted.get("jd_text", "")
+            if not req.company:
+                company = extracted.get("company", company)
+        except Exception as err:
+            raise HTTPException(status_code=400, detail=f"Failed to scrape JD from URL: {err}")
+
+    if not jd_text.strip():
+        raise HTTPException(status_code=400, detail="Job Description cannot be empty.")
+
+    from src.evaluator import EvaluatorOrchestrator
+    orchestrator = EvaluatorOrchestrator()
+    report = orchestrator.feasibility_checker.check_feasibility(jd_text, company)
+    return report.model_dump()
+
+
+@shared_router.post("/api/evaluator/tailor")
+def evaluator_tailor_endpoint(req: EvaluatorTailorRequest):
+    """Run full evaluator agentic tailoring pipeline (pre-check, draft, 4D audit, auto-refine)."""
+    jd_text = req.jd_text or ""
+    company = req.company or "Target Company"
+    if req.url:
+        try:
+            extracted = extract_jd_from_url(req.url)
+            jd_text = extracted.get("jd_text", "")
+            if not req.company:
+                company = extracted.get("company", company)
+        except Exception as err:
+            raise HTTPException(status_code=400, detail=f"Failed to scrape JD from URL: {err}")
+
+    if not jd_text.strip():
+        raise HTTPException(status_code=400, detail="Job Description cannot be empty.")
+
+    from src.evaluator import EvaluatorOrchestrator
+    orchestrator = EvaluatorOrchestrator()
+    result = orchestrator.run_agentic_pipeline(
+        company_name=company,
+        jd_text=jd_text,
+        max_turns=req.max_turns,
+        auto_refine=req.auto_refine,
+        generate_cover_letter=req.generate_cover_letter,
+    )
+
+    feasibility_data = result["feasibility"].model_dump() if result.get("feasibility") else None
+    blueprint_data = result["blueprint"].model_dump() if result.get("blueprint") else None
+    scorecard_data = result["scorecard"].model_dump() if result.get("scorecard") else None
+
+    return {
+        "status": result.get("status", "COMPLETED"),
+        "feasibility": feasibility_data,
+        "blueprint": blueprint_data,
+        "scorecard": scorecard_data,
+        "resume_text": result.get("resume_text", ""),
+        "cover_letter_text": result.get("cover_letter_text", ""),
+        "output_dir": result.get("output_dir"),
+    }

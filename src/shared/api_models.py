@@ -174,3 +174,18 @@ class ApplyDiffsRequest(BaseModel):
     company: Optional[str] = Field(default="Tailored", description="Company name")
 
 
+
+
+class EvaluatorFeasibilityRequest(BaseModel):
+    company: Optional[str] = ""
+    jd_text: Optional[str] = ""
+    url: Optional[str] = None
+
+
+class EvaluatorTailorRequest(BaseModel):
+    company: str
+    jd_text: Optional[str] = ""
+    url: Optional[str] = None
+    max_turns: int = 2
+    auto_refine: bool = True
+    generate_cover_letter: bool = True
