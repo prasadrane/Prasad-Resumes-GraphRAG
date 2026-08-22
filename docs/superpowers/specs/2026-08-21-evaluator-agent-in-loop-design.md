@@ -173,14 +173,20 @@ class EvaluationScorecard(BaseModel):
 
 ## 5. CLI & Web API Integration
 
-### CLI Commands:
-`powershell
-# Pre-generation feasibility assessment only:
-python src/cli.py evaluate --jd-file input/target_jd.txt
+### Unified Parent CLI Command:
+The entire pipeline is wrapped in a single, intuitive parent command that abstracts all inner details:
+```powershell
+# All-In-One Unified Agent Command (handles URL or local file, pre-eval, tailoring, audit loop, cover letter & PDF builds):
+python src/cli.py tailor --company "Stripe" --jd input/target_jd.txt
+# Or with a live job URL:
+python src/cli.py tailor --company "Stripe" --jd "https://jobs.stripe.com/senior-backend-engineer"
 
-# End-to-end generation with autonomous evaluator refinement loop:
-python src/cli.py generate --company 'Acme Corp' --jd-file input/target_jd.txt --with-cover-letter --auto-refine
-`
+# Optional fine-tuning flags (default is full auto):
+# --check-only      : Run only pre-generation feasibility & gap report without generating files
+# --interactive     : Pause at evaluation checkpoints for terminal review
+# --max-turns <N>   : Set maximum refinement turns (default: 2)
+# --no-cover-letter : Generate resume only
+```
 
 ### Web API Endpoints:
 - POST /api/evaluator/feasibility: Evaluates JD and returns FeasibilityReport.
