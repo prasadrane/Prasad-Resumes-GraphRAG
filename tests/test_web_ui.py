@@ -196,5 +196,18 @@ class TestWebUI(unittest.TestCase):
         response = self.client.post("/api/chat-stream", json={"query": "", "mode": "local"})
         self.assertIn(response.status_code, [400, 422])
 
+    def test_health_endpoint_healthy(self):
+        """Test GET /api/health returns 200 and structured checks."""
+        response = self.client.get("/api/health")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("status", data)
+        self.assertIn(data["status"], ["ok", "degraded"])
+        self.assertIn("checks", data)
+        self.assertEqual(data["checks"]["api"]["status"], "ok")
+        self.assertEqual(data["checks"]["database"]["status"], "ok")
+
+
 if __name__ == "__main__":
     unittest.main()
+

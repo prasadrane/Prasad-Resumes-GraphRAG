@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 
+from src.config import OUTPUT_DIR_PATH
+
+
 class ConversationStore:
     """Thread-safe-ish SQLite store for per-session conversation histories."""
 
@@ -46,9 +49,8 @@ class ConversationStore:
         if db_path:
             self.db_path = Path(db_path)
         else:
-            # Default to output dir — same place GraphRAG artefacts live.
-            root = Path(os.environ.get("ROOT_DIR", "."))
-            self.db_path = root / "output" / "conversations.db"
+            # Default to configured output dir (honors OUTPUT_DIR=/tmp/output in serverless)
+            self.db_path = OUTPUT_DIR_PATH / "conversations.db"
         self._ensure_dir()
         self._init_db()
 

@@ -119,11 +119,18 @@ class TestGetConversationStoreSingleton(unittest.TestCase):
         reset_conversation_store()
         s2 = get_conversation_store(db_path=path)
         self.assertIsNot(s1, s2)
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
+    def test_default_db_path_honors_output_dir(self):
+        """Test default db path uses OUTPUT_DIR_PATH from src.config."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            from unittest.mock import patch
+            from pathlib import Path
+            mock_output_path = Path(tmpdir) / "custom_output"
+            with patch("src.query.conversation_store.OUTPUT_DIR_PATH", mock_output_path):
+                store = ConversationStore()
+                self.assertEqual(store.db_path, mock_output_path / "conversations.db")
+                self.assertTrue(store.db_path.parent.exists())
 
 
 if __name__ == "__main__":
     unittest.main()
+

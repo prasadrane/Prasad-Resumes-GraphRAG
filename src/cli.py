@@ -17,6 +17,7 @@ from src.query.search_engine import execute_graphrag_query
 from src.proxy.litellm_runner import start_proxy_server, check_proxy_health
 from src.generators.resume_generator import generate_raw_resume
 from src.generators.pdf_renderer import render_pdf_resume
+from src.generators.cover_letter_generator import CoverLetterGenerator
 from src.agents.orchestrator import AgenticPipelineOrchestrator
 
 def build_parser() -> argparse.ArgumentParser:
@@ -52,6 +53,15 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--agentic", action="store_true", default=False, help="Enable autonomous Evaluator-Optimizer multi-subagent loop")
     generate_parser.add_argument("--min-score", type=float, default=90.0, help="Target ATS score threshold for agentic loop convergence")
     generate_parser.add_argument("--max-iterations", type=int, default=2, help="Maximum refinement iterations for agentic loop")
+
+    # Cover Letter sub-command
+    cover_parser = subparsers.add_parser("cover-letter", help="Generate a tailored cover letter from Job Description")
+    cover_parser.add_argument("--company", type=str, default="", help="Target company name")
+    cover_parser.add_argument("--role", type=str, default="Senior Software Engineer", help="Target role title (default: Senior Software Engineer)")
+    cover_parser.add_argument("--jd-file", type=str, help="Path to Job Description text file")
+    cover_parser.add_argument("--jd-url", type=str, help="URL to scrape Job Description from")
+    cover_parser.add_argument("--url", type=str, help="Alias for --jd-url")
+    cover_parser.add_argument("--output", type=str, help="Output file path (default: stdout)")
 
     # Query sub-command
     query_parser = subparsers.add_parser("query", help="Query the GraphRAG knowledge graph")
@@ -208,15 +218,87 @@ def main() -> None:
             from src.generators.ats_scorer import calculate_ats_score
             report = calculate_ats_score(raw_resume_path.read_text(encoding="utf-8"), jd_text)
             print("\n" + "=" * 60)
-            print(f"📊 ATS Match Score: {report.overall_score}%")
+            print(f"[SCORE] ATS Match Score: {report.overall_score}%")
             print(f"   - Skills Coverage:       {report.section_scores.skills}%")
             print(f"   - Experience Coverage:   {report.section_scores.experience}%")
             print(f"   - Metric Quantification: {report.section_scores.quantification}%")
             if report.suggestions:
-                print("💡 Actionable Suggestions:")
+                print("Suggestions:")
                 for s in report.suggestions:
                     print(f"   • {s}")
             print("=" * 60 + "\n")
+
+    elif args.command == "cover-letter":
+        company = args.company
+        target_url = args.url or args.jd_url
+        jd_text = ""
+
+        if target_url:
+            from src.converters.jd_extractor import extract_jd_from_url
+            print(f"[CLI] Scraping Job Description from {target_url}...")
+            try:
+                extracted = extract_jd_from_url(target_url)
+                jd_text = extracted["jd_text"]
+                if not company:
+                    company = extracted["company"]
+                print(f"[CLI] Extracted role: '{extracted['title']}' at '{company}'")
+            except Exception as e:
+                print(f"[CLI ERROR] Failed to fetch Job Description from URL: {e}")
+                sys.exit(1)
+        elif args.jd_file:
+            jd_path = Path(args.jd_file)
+            if not jd_path.exists():
+                print(f"[CLI ERROR] Job Description file not found: {jd_path}")
+                sys.exit(1)
+            jd_text = jd_path.read_text(encoding="utf-8")
+        else:
+            if not company:
+                print("[CLI ERROR] --company or --jd-url is required.")
+                sys.exit(1)
+            print(f"[CLI] Please paste the Job Description for {company} (Ctrl+D / Ctrl+Z then Enter to finish):")
+            try:
+                jd_text = sys.stdin.read()
+            except (KeyboardInterrupt, EOFError):
+                print("\nCancelled.")
+                sys.exit(0)
+
+        if not company:
+            company = "Target Company"
+
+        if not jd_text.strip():
+            print("[CLI ERROR] Job Description cannot be empty.")
+            sys.exit(1)
+
+        print(f"[CLI] Generating tailored cover letter for {company}...")
+        generator = CoverLetterGenerator()
+        data = generator.generate(company=company, jd_text=jd_text, role_title=args.role)
+        md = generator.render_markdown(data)
+
+        # Determine output directory (date-stamped, same as resume)
+        if args.output:
+            out_path = Path(args.output)
+            if out_path.suffix.lower() == ".pdf":
+                pdf_path = out_path
+                md_path = out_path.with_suffix(".txt")
+            else:
+                md_path = out_path
+                pdf_path = out_path.with_suffix(".pdf")
+            out_dir = out_path.parent
+        else:
+            from src.generators.resume_generator import get_output_dir
+            out_dir = get_output_dir(company)
+            md_path = out_dir / "cover_letter.txt"
+            pdf_path = out_dir / "cover_letter.pdf"
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write text
+        md_path.write_text(md, encoding="utf-8")
+        print(f"[CLI SUCCESS] Cover letter (text) saved to: {md_path}")
+
+        # Render PDF
+        generator.render_pdf(data, pdf_path)
+        print(f"[CLI SUCCESS] Cover letter (PDF) saved to: {pdf_path}")
 
     elif args.command == "query":
         if not check_proxy_health(port=8002):

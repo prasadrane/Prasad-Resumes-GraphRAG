@@ -3,7 +3,6 @@ venv/
 .venv/
 cache/
 logs/
-output/
 .git/
 .github/
 tests/

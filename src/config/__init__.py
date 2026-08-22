@@ -21,7 +21,8 @@ load_dotenv(ROOT_DIR / ".env")
 
 INPUT_DIR = ROOT_DIR / "input"
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", "output")
-OUTPUT_DIR_PATH = ROOT_DIR / OUTPUT_DIR
+_out_path = Path(OUTPUT_DIR)
+OUTPUT_DIR_PATH = _out_path if _out_path.is_absolute() else (ROOT_DIR / OUTPUT_DIR)
 CACHE_DIR_PATH = ROOT_DIR / "cache"
 def _find_master_resume() -> Path:
     candidates = [

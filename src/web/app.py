@@ -108,26 +108,37 @@ async def health_check():
         checks["llm_gateway"] = {"status": "down", "error": str(err)}
         overall = "degraded"
 
-    # -- GraphRAG Engine -- verify artifacts exist (cheap filesystem check)
+    # -- GraphRAG Engine -- verify artifacts exist (or static reader fallback is available)
     try:
-        lancedb_path = ROOT_DIR / "output" / "lancedb"
-        parquet_dir = ROOT_DIR / "output"
-        required_files = [
-            lancedb_path,
-            parquet_dir / "entities.parquet",
-            parquet_dir / "relationships.parquet",
-            parquet_dir / "community_reports.parquet",
-            parquet_dir / "text_units.parquet",
-        ]
-        missing = [str(f) for f in required_files if not f.exists()]
-        if missing:
-            checks["graphrag"] = {
-                "status": "degraded",
-                "missing": missing,
-            }
-            overall = "degraded"
-        else:
-            checks["graphrag"] = {"status": "ok"}
+        from src.config import OUTPUT_DIR_PATH
+        candidate_dirs = [OUTPUT_DIR_PATH, ROOT_DIR / "output"]
+        parquet_found = False
+        for p_dir in candidate_dirs:
+            required_files = [
+                p_dir / "entities.parquet",
+                p_dir / "relationships.parquet",
+                p_dir / "community_reports.parquet",
+                p_dir / "text_units.parquet",
+            ]
+            if all(f.exists() for f in required_files):
+                parquet_found = True
+                checks["graphrag"] = {"status": "ok", "mode": "parquet_index"}
+                break
+
+        if not parquet_found:
+            if MASTER_RESUME_PATH.exists():
+                checks["graphrag"] = {
+                    "status": "ok",
+                    "mode": "static_fallback",
+                    "source": str(MASTER_RESUME_PATH.name),
+                }
+            else:
+                checks["graphrag"] = {
+                    "status": "degraded",
+                    "missing": [str(ROOT_DIR / "output" / "entities.parquet")],
+                }
+                if overall == "ok":
+                    overall = "degraded"
     except Exception as err:
         checks["graphrag"] = {"status": "down", "error": str(err)}
         overall = "degraded"
@@ -142,11 +153,11 @@ async def health_check():
         }
     except Exception as err:
         checks["database"] = {"status": "down", "error": str(err)}
-        overall = "degraded"
+        overall = "down"
 
-    # Final verdict
-    status = "ok" if overall == "ok" else overall
-    code = 200 if overall == "ok" else 503
+    # Final verdict: 503 only when core services (API / database) are down
+    status = overall
+    code = 503 if overall == "down" else 200
 
     result = {
         "status": status,

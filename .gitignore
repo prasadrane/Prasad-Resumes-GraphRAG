@@ -8,11 +8,16 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# GraphRAG inputs (Local-only, untracked for privacy)
-input/
+# GraphRAG inputs
+input/*
+!input/MASTER_RESUME.txt
 
 # GraphRAG outputs & runtime logs/cache
-output/
+output/*
+!output/*.parquet
+!output/lancedb/
+!output/graph_entities.json
+!output/.gitkeep
 cache/
 logs/
 update_output/
