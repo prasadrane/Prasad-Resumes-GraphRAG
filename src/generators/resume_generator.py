@@ -217,3 +217,28 @@ def generate_raw_resume_stepwise(company_name: str, jd_text: str, base_output_di
             "pdf_path": str(pdf_path)
         }
     )
+
+
+def generate_tailored_resume(
+    company_name: str,
+    jd_text: str,
+    base_output_dir: Optional[Path] = None,
+    target_pages: int = 2,
+) -> dict:
+    """High-level helper returning dict with raw_resume string, paths, and output_dir."""
+    out_dir = get_output_dir(company_name, base_output_dir=base_output_dir)
+    raw_path = generate_raw_resume(company_name, jd_text, base_output_dir=base_output_dir, target_pages=target_pages)
+    pdf_path = out_dir / "Prasad_Rane_Resume.pdf"
+    keywords = extract_ats_keywords(jd_text)
+    try:
+        render_pdf_resume(raw_path, pdf_path, target_pages=target_pages, keywords=keywords)
+    except Exception as err:
+        log.warning("PDF rendering encountered error: %s", err)
+
+    raw_text = raw_path.read_text(encoding="utf-8") if raw_path.exists() else ""
+    return {
+        "raw_resume_path": str(raw_path),
+        "raw_resume": raw_text,
+        "pdf_path": str(pdf_path) if pdf_path.exists() else None,
+        "output_dir": str(out_dir),
+    }
