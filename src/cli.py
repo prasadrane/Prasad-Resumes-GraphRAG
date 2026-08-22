@@ -19,11 +19,21 @@ from src.generators.resume_generator import generate_raw_resume
 from src.generators.pdf_renderer import render_pdf_resume
 from src.generators.cover_letter_generator import CoverLetterGenerator
 from src.agents.orchestrator import AgenticPipelineOrchestrator
+from src.evaluator import EvaluatorOrchestrator
 
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
     parser = argparse.ArgumentParser(description="Prasad Resumes GraphRAG CLI Engine")
     subparsers = parser.add_subparsers(dest="command", help="Sub-command help")
+
+    # Tailor (All-in-One Evaluator Agent) sub-command
+    tailor_parser = subparsers.add_parser("tailor", help="All-in-one Evaluator-in-the-loop ATS resume & cover letter generation")
+    tailor_parser.add_argument("--company", type=str, default="", help="Target company name (auto-detected if URL is provided)")
+    tailor_parser.add_argument("--jd", type=str, required=True, help="Path to Job Description file or live URL")
+    tailor_parser.add_argument("--check-only", action="store_true", help="Run only pre-generation feasibility & gap report without generating files")
+    tailor_parser.add_argument("--interactive", action="store_true", help="Pause for interactive confirmation before tailoring")
+    tailor_parser.add_argument("--no-cover-letter", action="store_true", help="Skip cover letter generation")
+    tailor_parser.add_argument("--max-turns", type=int, default=2, help="Maximum auto-refinement turns (default: 2)")
 
     # Convert sub-command
     convert_parser = subparsers.add_parser("convert", help="Convert source documents to GraphRAG input text format")
@@ -82,7 +92,99 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.command == "convert":
+    if args.command == "tailor":
+        company = args.company
+        jd_input = args.jd.strip()
+        jd_text = ""
+
+        # Step 1: Ingest JD from URL or File
+        if jd_input.startswith("http://") or jd_input.startswith("https://"):
+            from src.converters.jd_extractor import extract_jd_from_url
+            print(f"[EVALUATOR AGENT] Scraping Job Description from URL: {jd_input}...")
+            try:
+                extracted = extract_jd_from_url(jd_input)
+                jd_text = extracted["jd_text"]
+                if not company:
+                    company = extracted.get("company", "Target Company")
+                print(f"[EVALUATOR AGENT] Ingested role: '{extracted.get('title', 'Role')}' at '{company}'")
+            except Exception as e:
+                print(f"[CLI ERROR] Failed to fetch Job Description from URL: {e}")
+                sys.exit(1)
+        else:
+            jd_path = Path(jd_input)
+            if jd_path.exists() and jd_path.is_file():
+                jd_text = jd_path.read_text(encoding="utf-8")
+                print(f"[EVALUATOR AGENT] Loaded Job Description from file: {jd_path}")
+            else:
+                jd_text = jd_input
+
+        if not company:
+            company = "Target Company"
+
+        if not jd_text.strip():
+            print("[CLI ERROR] Job Description cannot be empty.")
+            sys.exit(1)
+
+        orchestrator = EvaluatorOrchestrator()
+
+        # Step 2: Pre-generation Feasibility Assessment
+        feasibility = orchestrator.feasibility_checker.check_feasibility(jd_text, company)
+        print("\n" + "=" * 65)
+        print(f"?? PRE-GENERATION FEASIBILITY REPORT ? {company.upper()}")
+        print("=" * 65)
+        print(f"?? Baseline ATS Match:      {feasibility.baseline_match_pct}%")
+        print(f"?? Candidate Verdict:       {feasibility.verdict}")
+        print(f"?? Evaluator Rationale:     {feasibility.rationale}")
+        print(f"? Matched Skills:          {', '.join(feasibility.matched_skills[:8]) if feasibility.matched_skills else 'None'}")
+        if feasibility.fillable_gaps:
+            print(f"?? Fillable Gaps (Bridged): {', '.join([g.skill for g in feasibility.fillable_gaps])}")
+        if feasibility.unfillable_gaps:
+            print(f"??  Unfillable Gaps (Missing): {', '.join(feasibility.unfillable_gaps[:6])}")
+        print("=" * 65 + "\n")
+
+        if args.check_only:
+            print("[CLI] Pre-generation feasibility check complete (--check-only).")
+            return
+
+        if feasibility.verdict == "DO_NOT_APPLY" and args.interactive:
+            choice = input("??  Evaluator advises high risk of mismatch. Do you still wish to proceed? [y/N]: ").strip().lower()
+            if choice not in ["y", "yes"]:
+                print("[CLI] Generation aborted per candidate decision.")
+                return
+
+        # Step 3: Run Full Agentic Pipeline (Draft -> Post-Audit -> Refinement Loop)
+        print(f"[EVALUATOR AGENT] Executing agentic tailoring pipeline for {company} (max_turns={args.max_turns})...")
+        result = orchestrator.run_agentic_pipeline(
+            company_name=company,
+            jd_text=jd_text,
+            max_turns=args.max_turns,
+            auto_refine=not args.interactive,
+            generate_cover_letter=not args.no_cover_letter,
+        )
+
+        scorecard = result.get("scorecard")
+        output_dir = result.get("output_dir")
+
+        if scorecard:
+            print("\n" + "=" * 65)
+            print(f"?? FINAL EVALUATOR SCORECARD (Turn {scorecard.iteration})")
+            print("=" * 65)
+            print(f"?? Overall ATS Score:       {scorecard.ats_score}%")
+            print(f"???  Story Grounding (Truth): {scorecard.story_grounding_score}%")
+            print(f"?? Format Compliance:       {'PASSED' if scorecard.format_compliance else 'FAILED'}")
+            print(f"??  Cover Letter Score:     {scorecard.cover_letter_score}%")
+            print(f"?? Final Verdict:           {scorecard.verdict}")
+            print(f"?? Summary:                 {scorecard.critique_summary}")
+            if scorecard.actionable_refinements:
+                print("?? Key Refinements Applied:")
+                for ref in scorecard.actionable_refinements:
+                    print(f"   ? {ref}")
+            print("=" * 65 + "\n")
+
+        if output_dir:
+            print(f"[CLI SUCCESS] Artifacts saved to: {output_dir}")
+
+    elif args.command == "convert":
         source_path = Path(args.source)
         target_path = ROOT_DIR / "input"
         print(f"[CLI] Converting documents from {source_path} to {target_path}...")
