@@ -8,15 +8,12 @@ __pycache__/
 *$py.class
 .pytest_cache/
 
-# GraphRAG inputs
+# GraphRAG inputs (track master resume only)
 input/*
 !input/MASTER_RESUME.txt
 
 # GraphRAG outputs & runtime logs/cache
 output/*
-!output/*.parquet
-!output/lancedb/
-!output/graph_entities.json
 !output/.gitkeep
 cache/
 logs/

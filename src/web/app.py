@@ -108,37 +108,23 @@ async def health_check():
         checks["llm_gateway"] = {"status": "down", "error": str(err)}
         overall = "degraded"
 
-    # -- GraphRAG Engine -- verify artifacts exist (or static reader fallback is available)
+    # -- GraphRAG / Knowledge Base --
     try:
         from src.config import OUTPUT_DIR_PATH
-        candidate_dirs = [OUTPUT_DIR_PATH, ROOT_DIR / "output"]
-        parquet_found = False
-        for p_dir in candidate_dirs:
-            required_files = [
-                p_dir / "entities.parquet",
-                p_dir / "relationships.parquet",
-                p_dir / "community_reports.parquet",
-                p_dir / "text_units.parquet",
-            ]
-            if all(f.exists() for f in required_files):
-                parquet_found = True
-                checks["graphrag"] = {"status": "ok", "mode": "parquet_index"}
-                break
-
-        if not parquet_found:
-            if MASTER_RESUME_PATH.exists():
-                checks["graphrag"] = {
-                    "status": "ok",
-                    "mode": "static_fallback",
-                    "source": str(MASTER_RESUME_PATH.name),
-                }
-            else:
-                checks["graphrag"] = {
-                    "status": "degraded",
-                    "missing": [str(ROOT_DIR / "output" / "entities.parquet")],
-                }
-                if overall == "ok":
-                    overall = "degraded"
+        if (OUTPUT_DIR_PATH / "entities.parquet").exists() or (ROOT_DIR / "output" / "entities.parquet").exists():
+            checks["graphrag"] = {"status": "ok", "mode": "parquet_index"}
+        elif MASTER_RESUME_PATH.exists():
+            checks["graphrag"] = {
+                "status": "ok",
+                "mode": "static_fallback",
+                "source": MASTER_RESUME_PATH.name,
+            }
+        else:
+            checks["graphrag"] = {
+                "status": "degraded",
+                "missing": ["entities.parquet", "MASTER_RESUME.txt"],
+            }
+            overall = "degraded"
     except Exception as err:
         checks["graphrag"] = {"status": "down", "error": str(err)}
         overall = "degraded"
@@ -451,9 +437,8 @@ def metrics_endpoint():
 # ── Shared API router inclusion ───────────────────────────────────────────
 from src.shared.api_routes import shared_router
 
-_existing_paths = {getattr(r, "path", None) for r in app.routes}
-if "/api/query" not in _existing_paths:
-    app.include_router(shared_router)
+app.include_router(shared_router)
+
 
 
 
