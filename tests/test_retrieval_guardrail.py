@@ -292,6 +292,11 @@ class TestRetrievalGuardrailSelfHealing(unittest.TestCase):
         self.assertEqual(len(trace), 3)
         self.assertFalse(trace[-1].quality_report.is_sufficient)
 
+    def test_expand_query_terms_proactive(self):
+        expanded = self.guardrail.expand_query_terms("What is Prasad's experience with K8s?")
+        self.assertIn("kubernetes", expanded.lower())
+        self.assertTrue(expanded.startswith("What is Prasad's experience with K8s?"))
+
 
 if __name__ == "__main__":
     unittest.main()

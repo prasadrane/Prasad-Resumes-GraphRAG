@@ -131,6 +131,56 @@ def search_static_resume(query: str, mode: str = "local") -> str:
                 "- **Serverless & NoSQL Data**: Built high-throughput serverless endpoints using **AWS Lambda** and optimized single-table **DynamoDB** designs with composite keys."
             )
 
+    # 2.5 Database & Storage Query
+    if any(k in q_lower for k in ["database", "databases", "sql server", "dynamodb", "postgresql", "mysql", "lancedb"]):
+        if is_global:
+            return (
+                "### **[Global Summary] Database & Storage Architecture**\n\n"
+                "- **Multi-Model Storage Strategy**: Expertise spanning relational database optimization (SQL Server, MySQL, PostgreSQL) and high-scale NoSQL single-table architectures (DynamoDB, Redis, LanceDB).\n\n"
+                "- **Optimization Impact**: Slashing enterprise reporting execution times from 45s to <3s on SQL Server and architecting zero-divergence shadow migrations to AWS DynamoDB."
+            )
+        else:
+            return (
+                "### **[Local Context] Prasad Rane's Database & Storage Technologies**\n\n"
+                "- **Amazon DynamoDB**: Single-table NoSQL design (`productConfigId` + `loanType`) with shadow-mode validation for zero-divergence decommissioning of legacy MySQL schemas.\n\n"
+                "- **Microsoft SQL Server**: Execution plan optimization, composite indexes, set-based temporary tables, and stored procedure refactoring slashing latency from 45s to <3s.\n\n"
+                "- **PostgreSQL & MySQL**: Production schema design, transaction management, and ORM integrations (Entity Framework Core, Dapper).\n\n"
+                "- **Vector & Cache Stores**: LanceDB vector database for GraphRAG retrieval embeddings, Redis for low-latency microservice caching."
+            )
+
+    # 2.6 Security, Authentication & Authorization Query
+    if any(k in q_lower for k in ["authentication", "authorization", "auth", "oauth", "oauth2", "jwt", "sso", "rbac", "security"]):
+        if is_global:
+            return (
+                "### **[Global Summary] Enterprise Security & Identity Management**\n\n"
+                "- **Identity Modernization**: Led organization-wide migration from legacy session-based auth to standardized OAuth2/JWT token architectures across 7 engineering teams.\n\n"
+                "- **Compliance & Audit**: Resolved 3 high-priority security audit findings, reduced authentication failures by 60%, and enforced IAM least-privilege policies across cloud microservices."
+            )
+        else:
+            return (
+                "### **[Local Context] Prasad Rane's Security & Identity Stack**\n\n"
+                "- **OAuth2 & JWT**: Architected end-to-end migration from legacy session authentication to OAuth2/JWT across 7 dependent engineering teams, cutting auth failures by 60%.\n\n"
+                "- **IAM & Least Privilege**: Implemented fine-grained AWS IAM roles and policies for ECS Fargate tasks, Lambda execution roles, and Kafka/MSK access control.\n\n"
+                "- **RBAC & Data Isolation**: Designed multi-tenant role-based access control and tenant data isolation in SaaS applications."
+            )
+
+    # 2.7 Performance Troubleshooting & Profiling Query
+    if any(k in q_lower for k in ["troubleshooting", "troubleshoot", "performance", "windbg", "dotnet-dump", "profiling", "stall", "stalls", "memory leak", "leak"]):
+        if is_global:
+            return (
+                "### **[Global Summary] Performance Troubleshooting & Diagnostic Engineering**\n\n"
+                "- **Low-Level Diagnostics**: Deep expertise utilizing `WinDbg`, `dotnet-dump`, and CLR memory dump profiling to diagnose complex distributed deadlocks and unmanaged resource leaks.\n\n"
+                "- **High-Availability Impact**: Resolved 10-15s transaction stalls in 50k+ daily transaction services via `SemaphoreSlim` concurrency throttling for 99.99% availability, and eliminated field-reported memory leaks across optical hardware."
+            )
+        else:
+            return (
+                "### **[Local Context] Prasad Rane's Performance Troubleshooting Toolkit**\n\n"
+                "- **WinDbg & dotnet-dump**: Captured and analyzed production memory dumps and thread stacks to diagnose intermittent 10–15s transaction stalls under 50,000+ daily transaction loads.\n\n"
+                "- **Concurrency Optimization**: Architected `SemaphoreSlim` throttling to eliminate thread pool starvation and achieve 99.99% system availability.\n\n"
+                "- **Memory Leak Profiling**: Profiling task lifecycles and unmanaged handles with `CancellationTokenSource` task aborts on field-deployed optical test instruments.\n\n"
+                "- **Database Profiling**: SQL Server Profiler and execution plan analysis to eliminate costly table scans."
+            )
+
     # 3. Python, C#, .NET & Microservices Stack Query
     if any(k in q_lower for k in ["python", "microservices", "c#", ".net", "angular", "fastapi", "stack", "technology", "technologies"]):
         if is_global:
@@ -171,18 +221,32 @@ def search_static_resume(query: str, mode: str = "local") -> str:
     # 5. Fallback keyword search over MASTER_RESUME sections
     entities = read_precomputed_entities()
     relevant_bullets = []
-    keywords = [w for w in re.findall(r"\w+", q_lower) if len(w) > 3 and w not in ["what", "which", "does", "have", "used", "with", "from"]]
+    _STOP_WORDS = {"what", "which", "does", "have", "used", "with", "from", "tell", "about", "describe", "explain", "summarize", "prasad", "prasad's", "your", "career", "experience", "role"}
+    raw_tokens = re.findall(r"[a-z0-9#%]+", q_lower)
+    keywords = [w for w in raw_tokens if (len(w) >= 2 and w not in _STOP_WORDS) or w in ["ai", "ml", "c#", "ms", "be"]]
     
     if entities and keywords:
         for ent in entities:
             title = ent.get("title", "")
             content = ent.get("content", "")
+            # Check if section title matches query keyword
+            if any(kw in title.lower() for kw in keywords):
+                for line in content.split("\n"):
+                    line_str = line.strip()
+                    if line_str and len(line_str) > 10:
+                        clean_line = re.sub(r"^[\s\*\-•#]+", "", line_str)
+                        relevant_bullets.append(f"- {clean_line}")
+                        if len(relevant_bullets) >= 6:
+                            break
+
             for line in content.split("\n"):
                 line_str = line.strip()
-                if any(kw in line_str.lower() for kw in keywords) and len(line_str) > 20:
-                    clean_line = re.sub(r"^[\s\*\-•]+", "", line_str)
-                    relevant_bullets.append(f"- {clean_line}")
-                    if len(relevant_bullets) >= 5:
+                if any(kw in line_str.lower() for kw in keywords) and len(line_str) > 15:
+                    clean_line = re.sub(r"^[\s\*\-•#]+", "", line_str)
+                    bullet = f"- {clean_line}"
+                    if bullet not in relevant_bullets:
+                        relevant_bullets.append(bullet)
+                    if len(relevant_bullets) >= 6:
                         break
 
     if relevant_bullets:

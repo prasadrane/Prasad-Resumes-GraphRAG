@@ -246,3 +246,62 @@ def _build_payload(
             "edges": [{"data": e} for e in edges],
         },
     }
+
+
+def get_fallback_explorer_payload() -> Dict[str, Any]:
+    """Generate a rich, interactive fallback graph payload when GraphRAG parquets are not yet indexed."""
+    communities = [
+        {"id": "c:1", "kind": "community", "label": "Enterprise Modernization & FinTech", "level": 0, "rank": 4.0, "member_count": 4, "summary": "Cloud modernization, FinTech underwriting platforms, and microservices architecture."},
+        {"id": "c:2", "kind": "community", "label": "Cloud Infrastructure & GenAI", "level": 0, "rank": 5.0, "member_count": 5, "summary": "AWS ECS Fargate, Amazon Bedrock (Claude Sonnet), Apache Kafka/MSK, and Terraform IaC."},
+        {"id": "c:3", "kind": "community", "label": "SaaS & High-Scale Data", "level": 0, "rank": 4.0, "member_count": 4, "summary": "SQL Server query plan optimization, .NET Core 8/9, and single-table DynamoDB designs."},
+        {"id": "c:4", "kind": "community", "label": "Systems Diagnostics & DevEx", "level": 0, "rank": 3.0, "member_count": 3, "summary": "WinDbg/dotnet-dump memory profiling, Docker Compose local DevEx, and low-level thread optimization."},
+        {"id": "c:5", "kind": "community", "label": "Education & Credentials", "level": 0, "rank": 2.0, "member_count": 2, "summary": "University of Cincinnati MS IT and AWS Certified Cloud Practitioner."},
+    ]
+
+    entities = [
+        {"id": "e:1", "kind": "entity", "entity_type": "ORGANIZATION", "label": "Rocket Mortgage", "description": "Enterprise mortgage lending platform (Jan 2023 – Jul 2025)", "degree": 5, "frequency": 12, "parent": "c:1", "x": 0.0, "y": 0.0},
+        {"id": "e:2", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "AWS ECS Fargate", "description": "Serverless container orchestration cutting costs by 40% with 99.95% uptime", "degree": 4, "frequency": 9, "parent": "c:2", "x": 0.0, "y": 0.0},
+        {"id": "e:3", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "Amazon Bedrock (GenAI)", "description": "Claude Sonnet AI loan lookup chatbot delivering 70% time reduction", "degree": 3, "frequency": 8, "parent": "c:2", "x": 0.0, "y": 0.0},
+        {"id": "e:4", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "Apache Kafka / MSK", "description": "Enterprise event streaming and governance standard adopted across 5 teams", "degree": 3, "frequency": 7, "parent": "c:2", "x": 0.0, "y": 0.0},
+        {"id": "e:5", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "Amazon DynamoDB", "description": "Single-table NoSQL design for sub-15 min self-service product configuration", "degree": 3, "frequency": 6, "parent": "c:2", "x": 0.0, "y": 0.0},
+        {"id": "e:6", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "Terraform IaC", "description": "Infrastructure as Code for automated multi-environment cloud provisioning", "degree": 2, "frequency": 5, "parent": "c:2", "x": 0.0, "y": 0.0},
+        {"id": "e:7", "kind": "entity", "entity_type": "ORGANIZATION", "label": "London Computer Systems", "description": "Property management SaaS platform engineering (Dec 2019 – Jan 2023)", "degree": 4, "frequency": 10, "parent": "c:3", "x": 0.0, "y": 0.0},
+        {"id": "e:8", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "SQL Server Optimization", "description": "Refactored stored procedures & composite indexes (45s to <3s latency)", "degree": 3, "frequency": 6, "parent": "c:3", "x": 0.0, "y": 0.0},
+        {"id": "e:9", "kind": "entity", "entity_type": "TECHNOLOGY", "label": ".NET Core / C#", "description": "Enterprise backend architecture, CQRS, and high-concurrency SemaphoreSlim profiling", "degree": 5, "frequency": 15, "parent": "c:3", "x": 0.0, "y": 0.0},
+        {"id": "e:10", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "Angular (12–18)", "description": "Modular SPA frontend engineering, RxJS reactive state, and TypeScript", "degree": 3, "frequency": 7, "parent": "c:3", "x": 0.0, "y": 0.0},
+        {"id": "e:11", "kind": "entity", "entity_type": "ORGANIZATION", "label": "EXFO Electro-Optical", "description": "Telecom test instruments & offline REST sync layers (Mar 2015 – Jun 2018)", "degree": 3, "frequency": 6, "parent": "c:4", "x": 0.0, "y": 0.0},
+        {"id": "e:12", "kind": "entity", "entity_type": "TECHNOLOGY", "label": "WinDbg & Diagnostics", "description": "CLR memory dump analysis and unmanaged handle leak resolution", "degree": 2, "frequency": 4, "parent": "c:4", "x": 0.0, "y": 0.0},
+        {"id": "e:13", "kind": "entity", "entity_type": "ORGANIZATION", "label": "Tanish Infotech Solutions", "description": "Full-stack .NET and SQL custom business solutions (Mar 2014 – Feb 2015)", "degree": 2, "frequency": 4, "parent": "c:1", "x": 0.0, "y": 0.0},
+        {"id": "e:14", "kind": "entity", "entity_type": "ORGANIZATION", "label": "University of Cincinnati", "description": "Master of Science in Information Technology (GPA 3.84/4.0)", "degree": 2, "frequency": 3, "parent": "c:5", "x": 0.0, "y": 0.0},
+        {"id": "e:15", "kind": "entity", "entity_type": "CREDENTIAL", "label": "AWS Certified Cloud Practitioner", "description": "Official AWS Cloud Architecture Certification", "degree": 1, "frequency": 2, "parent": "c:5", "x": 0.0, "y": 0.0},
+    ]
+
+    edges = [
+        {"id": "r:1", "source": "e:1", "target": "e:2", "label": "Migrated legacy monolith to ECS Fargate (40% cost reduction)", "weight": 0.95},
+        {"id": "r:2", "source": "e:1", "target": "e:3", "label": "Built Claude Sonnet GenAI chatbot (70% lookup time savings)", "weight": 0.92},
+        {"id": "r:3", "source": "e:1", "target": "e:4", "label": "Cross-team Kafka/MSK schema governance across 5 squads", "weight": 0.88},
+        {"id": "r:4", "source": "e:1", "target": "e:5", "label": "Single-table DynamoDB architecture with shadow validation", "weight": 0.85},
+        {"id": "r:5", "source": "e:1", "target": "e:6", "label": "Terraform IaC multi-environment deployment pipelines", "weight": 0.80},
+        {"id": "r:6", "source": "e:7", "target": "e:8", "label": "SQL Server query plan tuning (slashed latency from 45s to <3s)", "weight": 0.90},
+        {"id": "r:7", "source": "e:7", "target": "e:9", "label": "Engineered core .NET Core billing API and payment integrations", "weight": 0.88},
+        {"id": "r:8", "source": "e:7", "target": "e:10", "label": "Architected Angular self-service customer portal", "weight": 0.82},
+        {"id": "r:9", "source": "e:11", "target": "e:12", "label": "Diagnosed OS power event memory leaks via WinDbg & CLR dumps", "weight": 0.85},
+        {"id": "r:10", "source": "e:11", "target": "e:9", "label": "Built offline-first REST API sync layer in C#", "weight": 0.80},
+        {"id": "r:11", "source": "e:13", "target": "e:9", "label": "Delivered full-stack .NET and SQL custom business software", "weight": 0.75},
+        {"id": "r:12", "source": "e:14", "target": "e:9", "label": "Master of Science in Information Technology (Enterprise Computing)", "weight": 0.70},
+        {"id": "r:13", "source": "e:15", "target": "e:2", "label": "AWS Cloud Practitioner Certified Validation", "weight": 0.65},
+    ]
+
+    return {
+        "freshness": {
+            "built_at": datetime.now(timezone.utc).isoformat(),
+            "entity_count": len(entities),
+            "relationship_count": len(edges),
+            "community_count": len(communities),
+            "is_precomputed_fallback": True,
+        },
+        "elements": {
+            "nodes": [{"data": n} for n in communities + entities],
+            "edges": [{"data": e} for e in edges],
+        },
+    }

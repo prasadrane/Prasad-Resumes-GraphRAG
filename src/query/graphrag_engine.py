@@ -26,6 +26,7 @@ except ImportError:
     _HAS_LANCEDB = False
 
 from src.config import ROOT_DIR
+from src.query.bm25_search import BM25Index, reciprocal_rank_fusion
 
 # Lazy-loaded artifact columns (avoid loading unused data)
 _ENTITY_COLS = ["id", "title", "type", "description", "text_unit_ids", "frequency", "degree"]
@@ -46,6 +47,9 @@ class GraphRAGEngine:
         self._relationships: Optional[pd.DataFrame] = None
         self._communities: Optional[pd.DataFrame] = None
         self._text_units: Optional[pd.DataFrame] = None
+        self._tu_bm25: Optional[BM25Index] = None
+        self._ent_bm25: Optional[BM25Index] = None
+        self._comm_bm25: Optional[BM25Index] = None
 
     # ── public initialisation helpers ──────────────────────────────────────
 
@@ -201,25 +205,72 @@ class GraphRAGEngine:
 
         return best_ctx, trace
 
-    # ── local mode: vector-search text-units, resolve entities & rels ────
+    # ── local mode: hybrid vector + BM25 search text-units, resolve entities & rels ────
 
     async def _local_retrieval(self, query: str, top_k: int = 26) -> Dict[str, Any]:
-        # Try vector search first, fall back to keyword search if embeddings fail
-        # Retrieve ALL text units (dataset is small: ~26 total) for comprehensive coverage
-        try:
-            table = self._db.open_table("default-text_unit-text")
-            emb = await self.get_embedding(query)
-            results = table.search(emb).limit(top_k).to_pandas()
-        except Exception as e:
-            # Fallback to keyword search on text_units parquet
+        """Hybrid retrieval across LanceDB dense vectors and BM25 sparse index."""
+        dense_results: pd.DataFrame = pd.DataFrame()
+        emb: Optional[List[float]] = None
+        if self._db is not None:
+            try:
+                emb = await self.get_embedding(query)
+                table = self._db.open_table("default-text_unit-text")
+                dense_results = table.search(emb).limit(top_k).to_pandas()
+            except Exception:
+                dense_results = pd.DataFrame()
+
+        # Sparse BM25 search on text units
+        if self._tu_bm25 is None and self._text_units is not None and not self._text_units.empty:
+            self._tu_bm25 = BM25Index.from_dataframe(self._text_units, text_col="text", id_col="id")
+
+        sparse_results = self._tu_bm25.search_df(query, top_k=top_k) if self._tu_bm25 is not None else pd.DataFrame()
+
+        # Fuse dense and sparse rankings via Reciprocal Rank Fusion (RRF)
+        dense_ids = dense_results["id"].tolist() if not dense_results.empty and "id" in dense_results.columns else []
+        sparse_ids = sparse_results["id"].tolist() if not sparse_results.empty and "id" in sparse_results.columns else []
+
+        if dense_ids and sparse_ids:
+            fused = reciprocal_rank_fusion([dense_ids, sparse_ids], k=60)
+            fused_ids = [item_id for item_id, _ in fused][:top_k]
+            tu_map = {row["id"]: row for _, row in self._text_units.iterrows()} if self._text_units is not None else {}
+            results = pd.DataFrame([tu_map[tid] for tid in fused_ids if tid in tu_map])
+        elif not dense_results.empty:
+            results = dense_results
+        elif not sparse_results.empty:
+            results = sparse_results
+        elif self._text_units is not None:
             results = self._keyword_search(self._text_units, "text", query, top_k)
+        else:
+            results = pd.DataFrame()
 
-        text_unit_ids: List[Any] = results["id"].tolist()
+        if results.empty or self._entities is None or self._relationships is None:
+            return {
+                "text_units": results,
+                "entities": pd.DataFrame(),
+                "relationships": pd.DataFrame(),
+            }
 
-        # Entities that authored these units
+        text_unit_ids: List[Any] = results["id"].tolist() if "id" in results.columns else []
+
+        # Direct Entity Vector Search across LanceDB tables (if embedded)
+        direct_ent_ids: Set[str] = set()
+        if self._db is not None and "emb" in locals() and emb is not None:
+            for ent_table_name in ["default-entity-description", "default-entity-title"]:
+                try:
+                    e_table = self._db.open_table(ent_table_name)
+                    e_vec_res = e_table.search(emb).limit(top_k // 2).to_pandas()
+                    if "id" in e_vec_res.columns:
+                        direct_ent_ids.update(e_vec_res["id"].tolist())
+                except Exception:
+                    pass
+
+        # Entities that authored these units OR directly matched via entity vectors
         mask = self._entities["text_unit_ids"].apply(
             lambda arr: any(_tid_match(tid, arr) for tid in text_unit_ids)
         )
+        if direct_ent_ids and "id" in self._entities.columns:
+            mask = mask | self._entities["id"].isin(direct_ent_ids)
+
         relevant_ents = self._entities[mask]
         ent_ids = relevant_ents["id"].tolist()
 
@@ -236,23 +287,49 @@ class GraphRAGEngine:
             "relationships": relevant_rels,
         }
 
-    # ── global mode: community reports ranked by semantic similarity ─────
+    # ── global mode: community reports ranked by hybrid semantic + BM25 similarity ─────
 
     async def _global_retrieval(self, query: str, top_k: int = 5) -> Dict[str, Any]:
-        # Try vector search first, fall back to keyword search if embeddings fail
-        try:
-            table = self._db.open_table("default-community-full_content")
-            emb = await self.get_embedding(query)
-            results = table.search(emb).limit(top_k).to_pandas()
-        except Exception:
-            # Fallback to keyword search on community reports
+        dense_results: pd.DataFrame = pd.DataFrame()
+        if self._db is not None:
+            try:
+                table = self._db.open_table("default-community-full_content")
+                emb = await self.get_embedding(query)
+                dense_results = table.search(emb).limit(top_k).to_pandas()
+            except Exception:
+                dense_results = pd.DataFrame()
+
+        if self._comm_bm25 is None and self._communities is not None and not self._communities.empty:
+            self._comm_bm25 = BM25Index.from_dataframe(self._communities, text_col="full_content", id_col="id")
+
+        sparse_results = self._comm_bm25.search_df(query, top_k=top_k) if self._comm_bm25 is not None else pd.DataFrame()
+
+        dense_ids = dense_results["id"].tolist() if not dense_results.empty and "id" in dense_results.columns else []
+        sparse_ids = sparse_results["id"].tolist() if not sparse_results.empty and "id" in sparse_results.columns else []
+
+        if dense_ids and sparse_ids:
+            fused = reciprocal_rank_fusion([dense_ids, sparse_ids], k=60)
+            fused_ids = [item_id for item_id, _ in fused][:top_k]
+            comm_map = {row["id"]: row for _, row in self._communities.iterrows()} if self._communities is not None else {}
+            results = pd.DataFrame([comm_map[cid] for cid in fused_ids if cid in comm_map])
+        elif not dense_results.empty:
+            results = dense_results
+        elif not sparse_results.empty:
+            results = sparse_results
+        elif self._communities is not None:
             results = self._keyword_search(self._communities, "full_content", query, top_k)
+        else:
+            results = pd.DataFrame()
+
         return {"communities": results}
 
     # ── drift mode: multi-hop entity expansion over relationships ─────────
 
-    async def _drift_retrieval(self, query: str, top_k: int = 10) -> Dict[str, Any]:
+    async def _drift_retrieval(self, query: str, top_k: int = 10, min_edge_weight: float = 0.5) -> Dict[str, Any]:
         base = await self._local_retrieval(query, top_k=top_k)
+
+        if base["entities"].empty or self._relationships is None or self._relationships.empty:
+            return base
 
         seed_ents = base["entities"].head(5)
         seen_ids: set = set(seed_ents["id"])
@@ -263,7 +340,11 @@ class GraphRAGEngine:
             connected = self._relationships[
                 (self._relationships["source"] == eid)
                 | (self._relationships["target"] == eid)
-            ].head(3)
+            ]
+            if "weight" in connected.columns:
+                connected = connected[connected["weight"] >= min_edge_weight].sort_values("weight", ascending=False)
+            connected = connected.head(3)
+
             for _, rel in connected.iterrows():
                 other_id = (
                     rel["target"] if rel["source"] == eid else rel["source"]
@@ -324,12 +405,24 @@ class GraphRAGEngine:
 
         rels = context.get("relationships")
         if rels is not None and not rels.empty:
-            parts.append("\n## Relationships")
-            for _, r in rels.head(8).iterrows():
-                src = str(r.get("source", ""))[:40]
-                tgt = str(r.get("target", ""))[:40]
-                desc = str(r.get("description", ""))[:100]
-                parts.append(f"- {src} → {tgt}: {desc}")
+            parts.append("\n## Knowledge Graph Triples")
+            # Group by source entity for clear relational hierarchy
+            grouped_rels: Dict[str, List[str]] = {}
+            for _, r in rels.head(12).iterrows():
+                src = str(r.get("source", "")).strip()[:50]
+                tgt = str(r.get("target", "")).strip()[:50]
+                desc = str(r.get("description", "")).strip()[:150]
+                if not src or not tgt:
+                    continue
+                triple_str = f"  * --[{desc}]--> **{tgt}**" if desc else f"  * --> **{tgt}**"
+                if src not in grouped_rels:
+                    grouped_rels[src] = []
+                grouped_rels[src].append(triple_str)
+
+            for src_entity, target_triples in grouped_rels.items():
+                parts.append(f"- **{src_entity}**:")
+                for t in target_triples:
+                    parts.append(t)
 
         comms = context.get("communities")
         if comms is not None and not comms.empty:

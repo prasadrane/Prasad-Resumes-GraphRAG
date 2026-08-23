@@ -111,6 +111,20 @@ def _try_chain(primary_fn: Callable[[], Any], *fallback_fns: Callable[[], Any]) 
     raise RuntimeError("All providers in the fallback chain failed.")
 
 
+# ── Fatal HTTP Error Detection ──────────────────────────────────────────────
+
+def is_fatal_http_error(err: BaseException) -> bool:
+    """Check if an error is a non-retryable client HTTP error (400, 401, 403, 404, 422)."""
+    code = getattr(err, "code", None) or getattr(err, "status_code", None)
+    if isinstance(code, int) and code in {400, 401, 403, 404, 422}:
+        return True
+    err_str = str(err).lower()
+    for status in ["400", "401", "403", "404", "422"]:
+        if f"http error {status}" in err_str or f"status {status}" in err_str or f"error code: {status}" in err_str:
+            return True
+    return False
+
+
 # ── Retry with Exponential Backoff ──────────────────────────────────────────
 
 def retry_with_backoff(
@@ -119,7 +133,7 @@ def retry_with_backoff(
 ):
     """Decorator that retries a callable on transient errors with exponential backoff.
 
-    Applies to network and timeout errors (not rate-limit or circuit-open failures).
+    Applies to network and timeout errors (not rate-limit, circuit-open, or fatal HTTP client errors).
     Delay doubles each attempt: ``base_delay * 2^attempt``.
     """
 
@@ -136,6 +150,9 @@ def retry_with_backoff(
                         raise
                     # Never retry circuit-breaker rejections — provider is tripped, move to next
                     if isinstance(err, ProviderCircuitOpen):
+                        raise
+                    # Never retry non-transient fatal HTTP client errors (400, 401, 403, 404, 422)
+                    if is_fatal_http_error(err):
                         raise
                     last_exc = err
                     if attempt < max_retries:

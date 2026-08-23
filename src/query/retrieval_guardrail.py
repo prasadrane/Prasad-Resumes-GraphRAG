@@ -315,6 +315,11 @@ class RetrievalGuardrail:
         expanded_str = " ".join(new_terms[:4])
         return f"{query} {expanded_str}".strip()
 
+    def expand_query_terms(self, query: str) -> str:
+        """Proactively expand query with domain synonyms, canonical technology names, and related skills."""
+        expanded = self._expand_query_with_ontology(query)
+        return expanded if expanded else query
+
     def heal_retrieval(
         self,
         query: str,

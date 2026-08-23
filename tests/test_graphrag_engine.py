@@ -128,10 +128,72 @@ class TestRetrievalModes(unittest.TestCase):
         self.assertGreaterEqual(set(result.keys()), {"text_units", "entities", "relationships"})
         self.assertGreater(len(result["entities"]), 0)
 
+    @patch.object(GraphRAGEngine, 'get_embedding', return_value=MOCK_EMB_2K)
+    def test_hybrid_local_retrieval(self, mock_emb):
+        engine = _sync_run(GraphRAGEngine(_ROOT).connect())
+        result = _sync_run(engine._local_retrieval("AWS Terraform Kubernetes", top_k=10))
+        self.assertIn("text_units", result)
+        self.assertFalse(result["text_units"].empty)
+
+
+# ── mocked retrieval logic (unconditional unit tests) ──────────────────────
+
+class TestMockedRetrieval(unittest.TestCase):
+
+    def setUp(self):
+        reset_engine()
+
+    def test_drift_prunes_low_weight_edges(self):
+        engine = GraphRAGEngine(_ROOT)
+        engine._entities = pd.DataFrame([
+            {"id": "e1", "title": "Prasad Rane", "type": "Person", "description": "Candidate", "text_unit_ids": ["t1"]},
+            {"id": "e2", "title": "Kubernetes", "type": "Technology", "description": "K8s platform", "text_unit_ids": ["t1"]},
+            {"id": "e3", "title": "ObsoleteTool", "type": "Technology", "description": "Old tool", "text_unit_ids": ["t1"]},
+        ])
+        engine._relationships = pd.DataFrame([
+            {"id": "r1", "source": "e1", "target": "e2", "description": "Expert in", "weight": 9.0},
+            {"id": "r2", "source": "e1", "target": "e3", "description": "Mentioned once", "weight": 0.1},
+        ])
+        engine._text_units = pd.DataFrame([
+            {"id": "t1", "text": "Prasad Rane has deep experience with Kubernetes."}
+        ])
+
+        async def fake_local(query, top_k=10):
+            return {
+                "text_units": engine._text_units,
+                "entities": engine._entities[engine._entities["id"] == "e1"],
+                "relationships": engine._relationships,
+            }
+
+        engine._local_retrieval = fake_local  # type: ignore
+        result = _sync_run(engine._drift_retrieval("Kubernetes", min_edge_weight=0.5))
+        
+        ent_ids = result["entities"]["id"].tolist()
+        self.assertIn("e2", ent_ids)
+        self.assertNotIn("e3", ent_ids, "Low-weight edge (<0.5) should be pruned in DRIFT mode")
+
     def test_unknown_mode_raises(self):
         engine = GraphRAGEngine(_ROOT)
         with self.assertRaisesRegex(ValueError, "Unknown GraphRAG mode"):
             _sync_run(engine.retrieve("query", mode="bogus"))
+
+    def test_local_retrieval_with_bm25_fallback(self):
+        engine = GraphRAGEngine(_ROOT)
+        engine._text_units = pd.DataFrame([
+            {"id": "t1", "text": "Architected AWS EKS clusters and Kafka pipelines."},
+            {"id": "t2", "text": "Led agile team meetings and stakeholder communication."}
+        ])
+        engine._entities = pd.DataFrame([
+            {"id": "e1", "title": "Kafka", "type": "Technology", "description": "Streaming", "text_unit_ids": ["t1"]}
+        ])
+        engine._relationships = pd.DataFrame([
+            {"id": "r1", "source": "e1", "target": "e1", "description": "self", "weight": 1.0}
+        ])
+        result = _sync_run(engine._local_retrieval("Kafka", top_k=2))
+        self.assertIn("text_units", result)
+        self.assertFalse(result["text_units"].empty)
+        self.assertEqual(result["text_units"].iloc[0]["id"], "t1")
+        self.assertIn("e1", result["entities"]["id"].tolist())
 
 
 # ── prompt formatting helpers ───────────────────────────────────────────────
@@ -174,8 +236,9 @@ class TestFormatContext(unittest.TestCase):
             "communities": pd.DataFrame(),
         }
         rendered = GraphRAGEngine.format_context(ctx)
-        self.assertIn("Alice → Bob", rendered)
-        self.assertIn("managed by", rendered)
+        self.assertIn("## Knowledge Graph Triples", rendered)
+        self.assertIn("**Alice**:", rendered)
+        self.assertIn("--[managed by]--> **Bob**", rendered)
 
 
 # ── source extraction ───────────────────────────────────────────────────────

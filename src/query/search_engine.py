@@ -90,14 +90,42 @@ query_cache = TTLCache(max_size=_QUERY_CACHE_MAX_SIZE, ttl=_QUERY_CACHE_TTL)
 
 
 def _execute_query(query: str, mode: str, root_dir: Path) -> str:
-    """Internal: perform the actual GraphRAG query (no caching)."""
+    """Internal: perform the actual GraphRAG query with GraphRAGEngine prioritization and static fallback."""
     mode_clean = mode.lower().strip() if mode else "local"
-    try:
-        entities = read_precomputed_entities()
-        # Use more entities for richer context
-        context_snippet = json.dumps(entities[:8], indent=2) if entities else "[]"
-        static_result = search_static_resume(query, mode=mode_clean)
+    graph_context = ""
 
+    # 1. Attempt retrieval via GraphRAGEngine (Hybrid BM25 + Vector + DRIFT)
+    try:
+        from src.query.graphrag_engine import get_engine, GraphRAGEngine
+        import asyncio
+        import concurrent.futures
+
+        async def _retrieve_engine():
+            engine = await get_engine(root_dir)
+            return await engine.retrieve(query, mode=mode_clean)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                ctx_dict = pool.submit(asyncio.run, _retrieve_engine()).result(timeout=4.0)
+        else:
+            ctx_dict = asyncio.run(_retrieve_engine())
+
+        graph_context = GraphRAGEngine.format_context(ctx_dict)
+    except Exception as eng_err:
+        logger.debug("GraphRAGEngine retrieval skipped/failed: %s", eng_err)
+        graph_context = ""
+
+    # 2. Fallback to static resume reader if graph engine returned empty context or failed
+    if not graph_context.strip():
+        graph_context = search_static_resume(query, mode=mode_clean)
+
+    # 3. Assemble prompt and synthesize response via serverless LLM
+    try:
         if mode_clean == "global":
             system_prompt = (
                 "You are Prasad Rane's AI career assistant, communicating in GLOBAL SUMMARY mode. "
@@ -111,8 +139,7 @@ def _execute_query(query: str, mode: str, root_dir: Path) -> str:
                 "- Close with a synthesizing insight about career-level patterns or strategic strengths\n"
                 "- Keep responses focused and under 400 words\n"
                 "- Do NOT make up facts not present in the context\n"
-                f"\n\nResume Knowledge Graph Context:\n{context_snippet}"
-                f"\n\nAdditional Resume Facts:\n{static_result}"
+                f"\n\nResume Knowledge Graph Context:\n{graph_context}"
             )
         else:
             system_prompt = (
@@ -127,16 +154,14 @@ def _execute_query(query: str, mode: str, root_dir: Path) -> str:
                 "- If the exact information is not in the context, clearly say so rather than guessing\n"
                 "- Keep responses focused and under 300 words\n"
                 "- Do NOT invent facts not present in the context\n"
-                f"\n\nResume Knowledge Graph Context:\n{context_snippet}"
-                f"\n\nAdditional Resume Facts:\n{static_result}"
+                f"\n\nResume Knowledge Graph Context:\n{graph_context}"
             )
 
         return call_serverless_llm(prompt=query, system_prompt=system_prompt)
 
     except Exception as e:
-        # Graceful fallback: return static resume search result
-        logger.warning("LLM chatbot polish failed: %s. Falling back to static search.", e)
-        return search_static_resume(query, mode=mode_clean)
+        logger.warning("LLM chatbot polish failed: %s. Returning retrieved graph context.", e)
+        return graph_context
 
 
 def execute_graphrag_query(

@@ -60,9 +60,9 @@ vector_store:
     overwrite: True
 
 embed_text_units: true
-embed_communities: false
+embed_communities: true
 embed_relationships: false
-embed_entities: false
+embed_entities: true
 
 entity_extraction:
   entity_types:
@@ -76,7 +76,7 @@ entity_extraction:
     - Achievement
     - Story
     - Metric
-  max_gleanings: 1
+  max_gleanings: 2
 
 summarize_descriptions:
   max_length: 500
@@ -86,7 +86,7 @@ community_reports:
   max_input_length: 8000
 
 claim_extraction:
-  enabled: false
+  enabled: true
 
 local_search:
   text_unit_prop: 0.5
