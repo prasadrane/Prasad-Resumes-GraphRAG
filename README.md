@@ -23,7 +23,7 @@ The platform operates across five decoupled layers sharing a unified knowledge a
 
 ### 1. Fully Agentic Evaluator In-The-Loop (`src/evaluator`)
 - **Pre-Generation Feasibility Check:** Ingests JD text or live URL, calculates dynamic match %, separates **Fillable Gaps** (grounded in Story Bank) vs **Unfillable Gaps**, and issues an "Apply with Strategy" or `"DO_NOT_APPLY"` verdict before generation.
-- **Truthfulness & Anti-Hallucination Auditor:** Tokenizes and audits all generated resume bullets against `input/03-Story-Bank.txt` and `input/MASTER_RESUME.txt` to guarantee 0 fabricated claims or hallucinated tools.
+- **Truthfulness & Anti-Hallucination Auditor:** Tokenizes and audits all generated resume bullets against the per-company story-bank corpora in `input/` (e.g. `input/Rocket-Mortgage.txt`) and `input/MASTER_RESUME.txt` to guarantee 0 fabricated claims or hallucinated tools.
 - **4-Dimension Scorecard:** Evaluates 1) ATS Keyword Match %, 2) Story Grounding (0 unbacked claims), 3) Format & Page Budget Compliance (<20% bolding cap, 2-page length), and 4) Cover Letter Relevance.
 - **Autonomous Multi-Turn Refinement:** Automatically generates surgical delta critiques and refines resume and cover letter content in a closed loop (capped at max turns).
 
@@ -116,10 +116,10 @@ python src/cli.py ui
 ### 3. Unified All-In-One Agentic Tailoring (`tailor`)
 ```powershell
 # Pre-generation feasibility & gap analysis only:
-python src/cli.py tailor --company "GitHub" --jd input/github_billing_jd.txt --check-only
+python src/cli.py tailor --company "GitHub" --jd examples/github_billing_jd.txt --check-only
 
 # End-to-end autonomous agentic tailoring (pre-check -> draft -> 4D audit -> auto-refinement -> PDF builds):
-python src/cli.py tailor --company "Stripe" --jd input/github_billing_jd.txt
+python src/cli.py tailor --company "Stripe" --jd examples/github_billing_jd.txt
 
 # Directly from a live Job Posting URL:
 python src/cli.py tailor --company "Stripe" --jd "https://jobs.stripe.com/senior-backend-engineer"

@@ -108,7 +108,7 @@ vercel --prod
 ## Architecture & System Design
 
 ### Core Pipeline Flow
-1. **Input Preprocessing** (`src/converters/`): Parses raw PDFs/Markdown into canonical `input/MASTER_RESUME.txt` and `input/03-Story-Bank.txt`
+1. **Input Preprocessing** (`src/converters/`): Parses raw PDFs/Markdown into canonical `input/MASTER_RESUME.txt` plus per-company story-bank corpora (`input/Rocket-Mortgage.txt`, `input/London-Computer-Systems.txt`, `input/EXFO.txt`, `input/Tanish-Infotech-Solutions.txt`, `index.txt`, `prep-playlists.txt`, `Master-Resume-Exhaustive.txt`)
 2. **GraphRAG Indexing**: Extracts entities, relationships, communities; stores embeddings in LanceDB (`output/lancedb`) and Parquet tables
 3. **LLM Gateway** (`src/gateway/`): Provider-driven routing with `_try_chain` failover. Three providers — AlibabaProvider (Anthropic API), OpenRouterProvider (OpenAI API), GeminiProvider (Google REST) — orchestrated by `facade.py`. Provider selection via `src/config/providers.py` registry.
 4. **Resume Generation** (`src/generators/`): NLP keyword extraction, executive summary adaptation, skill reordering, ATS-compliant PDF rendering
@@ -196,7 +196,7 @@ FREELLMAPI_API_KEY=<your_freellmapi_key>
 
 ## Key Input/Output Paths
 
-- **Input**: `input/MASTER_RESUME.txt`, `input/03-Story-Bank.txt`
+- **Input**: `input/MASTER_RESUME.txt` (parser-critical, condensed) + GraphRAG corpus `.txt` files converted from `Profile-Optimizer/input/data-source/` (per-company stories, index, prep-playlists, exhaustive master)
 - **Output**: `output/lancedb/` (embeddings), `output/*.parquet` (graph tables)
 - **Generated Resumes**: `output/<Company>/Prasad_Rane_<Company>_Resume.pdf`
 - **Cache**: `cache/` (GraphRAG intermediate files)

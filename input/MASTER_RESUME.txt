@@ -2,17 +2,18 @@
 **Contact:** Lake Bluff, IL | 513-967-9423 | emailprasadrane@gmail.com | https://linkedin.com/in/rane-prasad | https://github.com/prasadrane | https://prasadrane.vercel.app
 
 ## SUMMARY
-Software Engineer with **10+ years of experience** architecting high-throughput distributed systems, cloud-native microservices, and AI-enabled platforms. Deep technical mastery in **C# / .NET 8/9**, **ASP.NET Core**, **Angular (18)**, **AWS (ECS, Lambda, DynamoDB)**, **Kafka/MSK**, and LLM orchestration (**Amazon Bedrock**), with a proven track record of slashing cloud costs by 40%, optimizing concurrency, and driving enterprise-wide architecture standards.
+Software Engineer with **10+ years of experience** architecting high-throughput distributed systems, cloud-native microservices, and AI-enabled platforms. Deep technical mastery in **C# / .NET 8/9**, **ASP.NET Core**, **Angular (12-18)**, **AWS**, **Python**, event-driven architectures (**Kafka/MSK**, **SQS/SNS**), and LLM orchestration (**Amazon Bedrock**), with a proven track record of slashing cloud costs by 40%, optimizing concurrency, and driving enterprise-wide architecture standards.
 
 ## EXPERIENCE
 ### Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 – Jul 2025
-- Engineered an AI intent-to-API router using **Amazon Bedrock (Claude Sonnet)**, converting natural language mortgage policy queries into JSON microservice payloads with **<450ms latency** and **98% accuracy**.
-- Spearheaded the cloud modernization of a mission-critical underwriting engine to **AWS ECS Fargate (.NET Core)** within 6 months, **cutting infrastructure costs by 40%** with **99.95% uptime**.
+- Engineered an AI intent-to-API router using **Amazon Bedrock (Claude Sonnet)**, converting natural language policy queries into JSON payloads with prompt guardrails, automating **70% of policy queries**, cutting lookup **from 3-4 minutes to <10 seconds**.
+- Spearheaded the cloud modernization of a critical underwriting engine to **AWS ECS Fargate (.NET Core)** in 6 months, **cutting infrastructure costs by 40%**, with **99.95% uptime** and **70% fewer tickets**.
+- Replaced a fragile undocumented COM interop wrapper with Black Knight's official API/SDK via ILSpy reverse-engineering, with **Terraform IaC** and GitHub Actions raising deployments **from quarterly to weekly**.
 - Architected a self-service Product Config platform with **Angular 18, .NET 8, and DynamoDB**, cutting rule deployment **from 14 days to <15 mins** and enabling **47 self-service production changes** in month 1.
-- Migrated legacy MySQL schemas to a single-table **DynamoDB** design (`productConfigId` + `loanType`), running shadow-mode validation to achieve a zero-divergence decommission.
-- Re-engineered Dynatrace synthetic health-checks across Fannie Mae loan microservices, eliminating false-positive auth triggers to **slash on-call alert noise by 80%** and **reclaim ~20 eng hours monthly**.
+- Migrated legacy MySQL schemas to a single-table **DynamoDB** design (`productConfigId` + `loanType`), running shadow-mode validation to achieve a **zero-divergence decommission**.
+- Re-engineered Dynatrace synthetic health-checks across Fannie Mae loan microservices, eliminating false-positive auth triggers to **slash on-call alert noise by 80%**, **improve observability accuracy from 60% to 98%**, and **reclaim ~20 eng hours monthly**.
 - Engineered end-to-end distributed tracing across a 4-stage AWS Lambda and SQS pipeline using ASP.NET Core correlation middleware, restoring **100% cross-service log correlation** and zero DLQ message loss.
-- Established enterprise-wide **Kafka/AWS MSK** governance standards (topic naming, IAM least-privilege, Schema Registry Avro compatibility) adopted across **5 event-driven engineering teams within 3 months**.
+- Established enterprise-wide **Kafka/AWS MSK** governance standards (topic naming, IAM least-privilege, Avro Schema Registry) adopted across **5 event-driven teams within 3 months**.
 - Diagnosed and resolved intermittent 10–15s transaction stalls in a high-volume service (50,000+ daily transactions) using `dotnet-dump` and **WinDbg**, architecting `SemaphoreSlim` concurrency throttling for **99.99% availability**.
 - Owned the end-to-end migration from legacy session-based authentication to **OAuth2/JWT** across 7 dependent teams, **resolving 3 high-priority security audit findings** and reducing auth failures by **60%**.
 - Built a one-command local development environment with **Docker Compose** and CLI tooling, reducing new-developer setup time **from 2 weeks to <1 day**.
@@ -28,7 +29,7 @@ Software Engineer with **10+ years of experience** architecting high-throughput 
 - Engineered responsive multi-tenant property management features using **C#, ASP.NET Core, TypeScript, and SQL Server**, enforcing strict tenant data isolation, role-based access control (RBAC), and automated CI/CD deployment pipelines.
 
 ### Software Developer | EXFO Electro-Optical Engineering | Pune, India | Mar 2015 – Jun 2018
-- Eliminated memory leaks across global optical test instruments via memory dump profiling and `CancellationTokenSource` task aborts, achieving **zero field-reported recurrences**.
+- Eliminated sleep-mode freezing and resume-state memory leaks across hundreds of global optical test instruments via memory dump profiling and `CancellationTokenSource` task aborts, achieving **zero field-reported recurrences**.
 - Architected an offline-first asynchronous **C#/REST API** sync pipeline with local caching and background retry, replacing a manual USB export workflow to achieve **1-click cloud sync** with **zero report data loss** across hundreds of field tests.
 
 ### Software Developer | Tanish Infotech Solutions | Pune, India | Mar 2014 – Feb 2015
@@ -43,11 +44,11 @@ Software Engineer with **10+ years of experience** architecting high-throughput 
 ## SKILLS
 - **Languages**: C#, Python, TypeScript, SQL (T-SQL)
 - **Backend & Architecture**: .NET 8/9, ASP.NET Core, FastAPI, GraphQL, RESTful APIs, Microservices, CQRS, OAuth2/JWT
-- **Frontend**: Angular (18), RxJS, NgRx
+- **Frontend**: Angular (12-18), RxJS, NgRx
 - **Cloud & Infrastructure**: AWS (ECS Fargate, Lambda, S3, SQS, SNS, IAM), Amazon MSK (Kafka), Docker, Kubernetes, Terraform
-- **Data & Storage**: SQL Server, DynamoDB (Single-Table Design), PostgreSQL, LanceDB (Vector DB)
-- **Generative AI & LLM Systems**: Amazon Bedrock (Claude Sonnet), Prompt Engineering, GraphRAG, Vector Indexing, Pydantic, GitHub Copilot, Claude Code
-- **Observability, Testing & DevOps**: Dynatrace, OpenTelemetry, Splunk, CloudWatch, PagerDuty, Split.io, xUnit, Moq, Playwright, GitHub Actions
+- **Data & Storage**: SQL Server, DynamoDB (Single-Table Design), PostgreSQL, MySQL, LanceDB (Vector DB)
+- **Generative AI & LLM Systems**: Amazon Bedrock (Claude Sonnet), Prompt Engineering, Guardrails, Intent-to-API Routing, GraphRAG, Vector Indexing, Pydantic, Claude Code
+- **Observability, Testing & DevOps**: Dynatrace, OpenTelemetry, Splunk, CloudWatch, PagerDuty, Split.io, WinDbg, `dotnet-dump`, xUnit, Moq, Playwright, GitHub Actions
 
 ## CERTIFICATIONS
 - [**AWS Certified Cloud Practitioner**](https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5), Amazon Web Services *(Issued: Apr 2026 | Expires: Apr 2029)*
