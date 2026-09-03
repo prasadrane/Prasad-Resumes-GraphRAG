@@ -160,8 +160,8 @@ def _execute_query(query: str, mode: str, root_dir: Path) -> str:
         return call_serverless_llm(prompt=query, system_prompt=system_prompt)
 
     except Exception as e:
-        logger.warning("LLM chatbot polish failed: %s. Returning retrieved graph context.", e)
-        return graph_context
+        logger.warning("LLM chatbot polish failed: %s. Falling back to static search.", e)
+        return search_static_resume(query, mode=mode_clean)
 
 
 def execute_graphrag_query(

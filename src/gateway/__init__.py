@@ -15,6 +15,7 @@ from .facade import (
     call_serverless_llm,
     call_serverless_llm_stream,
     get_embedding,
+    reset_circuit_breakers,
 )
 
 # Resolve from the registry so the value follows PROVIDERS changes. Never
@@ -25,5 +26,6 @@ __all__ = [
     "call_serverless_llm",
     "call_serverless_llm_stream",
     "get_embedding",
+    "reset_circuit_breakers",
     "ALIBABA_RESUME_MODEL",
 ]

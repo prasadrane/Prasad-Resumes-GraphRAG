@@ -11,11 +11,17 @@ import unittest
 from unittest.mock import patch, MagicMock
 import os
 import json
-from src.gateway import call_serverless_llm
+from src.gateway import call_serverless_llm, reset_circuit_breakers
 
 
 class TestGatewayFacade(unittest.TestCase):
     """Sync chat via urllib, failover, and error surface."""
+
+    def setUp(self):
+        reset_circuit_breakers()
+
+    def tearDown(self):
+        reset_circuit_breakers()
 
     @patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_openrouter_key"})
     @patch("urllib.request.urlopen")

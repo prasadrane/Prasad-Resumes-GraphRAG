@@ -11,6 +11,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -51,6 +52,7 @@ def app_server():
     base_url = f"http://127.0.0.1:{port}"
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT_DIR) + os.pathsep + env.get("PYTHONPATH", "")
+    log_file = tempfile.TemporaryFile(mode="w+b")
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "uvicorn", "src.web.app:app",
@@ -58,7 +60,7 @@ def app_server():
         ],
         cwd=str(ROOT_DIR),
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=log_file,
         stderr=subprocess.STDOUT,
     )
     try:
@@ -70,9 +72,8 @@ def app_server():
         proc.terminate()
         tail = ""
         try:
-            out, _ = proc.communicate(timeout=2)
-            if out:
-                tail = out.decode("utf-8", errors="replace")[-4000:]
+            log_file.seek(0)
+            tail = log_file.read()[-4000:].decode("utf-8", errors="replace")
         except Exception:
             pass
         msg = str(exc)
@@ -88,3 +89,7 @@ def app_server():
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        try:
+            log_file.close()
+        except Exception:
+            pass

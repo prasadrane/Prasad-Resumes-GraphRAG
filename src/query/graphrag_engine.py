@@ -316,8 +316,14 @@ class GraphRAGEngine:
             results = dense_results
         elif not sparse_results.empty:
             results = sparse_results
-        elif self._communities is not None:
+        elif self._communities is not None and not self._communities.empty:
             results = self._keyword_search(self._communities, "full_content", query, top_k)
+            if results.empty:
+                results = (
+                    self._communities.sort_values("rank", ascending=False).head(top_k)
+                    if "rank" in self._communities.columns
+                    else self._communities.head(top_k)
+                )
         else:
             results = pd.DataFrame()
 

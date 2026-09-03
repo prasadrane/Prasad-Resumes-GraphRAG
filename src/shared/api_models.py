@@ -189,3 +189,9 @@ class EvaluatorTailorRequest(BaseModel):
     max_turns: int = 2
     auto_refine: bool = True
     generate_cover_letter: bool = True
+
+
+class LinkedInProfileRequest(BaseModel):
+    target_role: Optional[str] = Field(default="Senior Software Engineer / Tech Lead", description="Target role title")
+    candidate_name: Optional[str] = Field(default="Prasad Rane", description="Candidate name")
+

@@ -27,7 +27,17 @@ def _reset_singletons():
         reset_conversation_store()
     except ImportError:
         pass
+    try:
+        from src.gateway import reset_circuit_breakers
+        reset_circuit_breakers()
+    except ImportError:
+        pass
     yield
+    try:
+        from src.gateway import reset_circuit_breakers
+        reset_circuit_breakers()
+    except ImportError:
+        pass
 
 
 @pytest.fixture

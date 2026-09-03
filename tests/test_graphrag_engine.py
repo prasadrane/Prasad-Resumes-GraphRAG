@@ -101,8 +101,8 @@ class TestRetrievalModes(unittest.TestCase):
     def setUp(self):
         reset_engine()
 
-    # The LanceDB default-text_unit-text table uses 2048-dim vectors.
-    MOCK_EMB_2K = [0.1] * 2048
+    # The LanceDB tables use 3072-dim vectors (gemini-embedding-001).
+    MOCK_EMB_2K = [0.1] * 3072
 
     @patch.object(GraphRAGEngine, 'get_embedding', return_value=MOCK_EMB_2K)
     def test_local_retrieval_returns_dict_keys(self, mock_emb):

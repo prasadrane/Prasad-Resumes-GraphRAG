@@ -67,6 +67,14 @@ def _breaker(name: str) -> CircuitBreaker:
     return _BREAKER_CACHE[name]
 
 
+def reset_circuit_breakers() -> None:
+    """Reset all cached circuit breakers to closed state (primarily for tests)."""
+    for cb in _BREAKER_CACHE.values():
+        cb.reset()
+    _BREAKER_CACHE.clear()
+
+
+
 def _has_key(name: str) -> bool:
     try:
         get_provider(name).get_api_key()
