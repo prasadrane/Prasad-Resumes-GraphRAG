@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.converters.input_converter import convert_documents
+from src.converters.profile_sync import sync_profile
 from src.query.search_engine import execute_graphrag_query
 from src.proxy.litellm_runner import start_proxy_server, check_proxy_health
 from src.generators.resume_generator import generate_raw_resume
@@ -40,10 +41,10 @@ def build_parser() -> argparse.ArgumentParser:
     convert_parser.add_argument(
         "--source",
         type=str,
-        required=True,
-        help="Source directory containing PDFs and MD files",
+        help="Source directory containing PDFs and MD files; omitted: sync central profile",
     )
     convert_parser.add_argument("--force", action="store_true", help="Overwrite existing output files")
+    subparsers.add_parser("sync-profile", help="Refresh resume/story inputs from the validated central profile")
 
     # Index sub-command
     index_parser = subparsers.add_parser("index", help="Build or update the GraphRAG knowledge graph index")
@@ -185,14 +186,21 @@ def main() -> None:
             print(f"[CLI SUCCESS] Artifacts saved to: {output_dir}")
 
     elif args.command == "convert":
+        if not args.source:
+            print(sync_profile())
+            return
         source_path = Path(args.source)
         target_path = ROOT_DIR / "input"
         print(f"[CLI] Converting documents from {source_path} to {target_path}...")
         stats = convert_documents(source_path, target_path, force=args.force)
         print(f"[CLI] Conversion complete: {stats}")
 
+    elif args.command == "sync-profile":
+        print(sync_profile())
+
     elif args.command == "index":
         root_path = Path(args.root)
+        print(sync_profile(target_root=root_path))
         if not check_proxy_health(port=8002):
             print("[WARN] LiteLLM Proxy is not running on http://localhost:8002. Indexing might fail if proxy is required.")
         print(f"[CLI] Starting GraphRAG indexing with root: {root_path}...")

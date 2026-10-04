@@ -32,7 +32,7 @@ models:
 input:
   storage:
     type: file
-    base_dir: "input"
+    base_dir: "input/centralized"
   file_type: text
 
 chunks:

@@ -29,15 +29,18 @@ class TestCLIMain(unittest.TestCase):
         self.assertIn("[CLI] Conversion complete", captured.getvalue())
 
     def test_index_command_success(self):
-        with patch("src.cli.check_proxy_health", return_value=True), \
+        with patch("src.cli.sync_profile", return_value={"documents": 20}) as mock_sync, \
+             patch("src.cli.check_proxy_health", return_value=True), \
              patch("src.cli.subprocess.run", return_value=MagicMock(returncode=0)) as mock_run:
             self._run_main(["index"])
         cmd = mock_run.call_args[0][0]
         self.assertIn("graphrag", cmd)
         self.assertIn("index", cmd)
+        mock_sync.assert_called_once()
 
     def test_index_command_failure_exits(self):
-        with patch("src.cli.check_proxy_health", return_value=True), \
+        with patch("src.cli.sync_profile", return_value={"documents": 20}), \
+             patch("src.cli.check_proxy_health", return_value=True), \
              patch("src.cli.subprocess.run", return_value=MagicMock(returncode=2)):
             with self.assertRaises(SystemExit) as ctx:
                 self._run_main(["index"])

@@ -1,58 +1,148 @@
-# PRASAD RANE
-**Contact:** Lake Bluff, IL | 513-967-9423 | emailprasadrane@gmail.com | https://linkedin.com/in/rane-prasad | https://github.com/prasadrane | https://prasadrane.vercel.app
+# Prasad Rane
+**Title:** C#/.NET and AWS | Backend and Platform Engineering
+**Contact:** Lake Bluff, IL | Open to California relocation and US remote opportunities | 513-967-9423 | emailprasadrane@gmail.com | https://www.linkedin.com/in/rane-prasad/ | https://github.com/prasadrane | https://prasadrane.vercel.app/
 
 ## SUMMARY
-Software Engineer with **10+ years of experience** architecting high-throughput distributed systems, cloud-native microservices, and AI-enabled platforms. Deep technical mastery in **C# / .NET 8/9**, **ASP.NET Core**, **Angular (12-18)**, **AWS**, **Python**, event-driven architectures (**Kafka/MSK**, **SQS/SNS**), and LLM orchestration (**Amazon Bedrock**), with a proven track record of slashing cloud costs by 40%, optimizing concurrency, and driving enterprise-wide architecture standards.
+
+Software engineer with 10+ years of experience building and modernizing C#/.NET applications across mortgage servicing, property management, and field-device software. At Rocket Mortgage, led modernization of a legacy servicing application, built self-service configuration tooling, and coordinated authentication and Kafka standards across multiple teams. Combines hands-on debugging and delivery with user research, mentoring, and operational improvements. Production AI experience includes an Amazon Bedrock intent-to-API assistant backed by existing internal services.
+
+### Domain-Specific Summary Variants
+
+
+- **Backend and platform:** Software engineer with 10+ years of experience in C#/.NET, AWS, and business-critical systems. Experience includes legacy modernization, authentication migration, and cross-team Kafka governance, with a focus on maintainable services and independent team ownership.
+- **Applied AI:** Backend engineer with professional experience building an Amazon Bedrock assistant that routed requests to existing internal APIs and summarized their results. Brings application authorization, structured output validation, and .NET/AWS delivery experience to AI integration.
+- **Modernization and reliability:** Software engineer experienced in legacy discovery, phased migration, and production diagnosis. Investigates service boundaries, deployment constraints, dependency failures, and operational ownership before choosing a migration plan.
 
 ## EXPERIENCE
-### Software Engineer | Rocket Mortgage | Lake Bluff, IL | Jan 2023 – Jul 2025
-- Engineered an AI intent-to-API router using **Amazon Bedrock (Claude Sonnet)**, converting natural language policy queries into JSON payloads with prompt guardrails, automating **70% of policy queries**, cutting lookup **from 3-4 minutes to <10 seconds**.
-- Spearheaded the cloud modernization of a critical underwriting engine to **AWS ECS Fargate (.NET Core)** in 6 months, **cutting infrastructure costs by 40%**, with **99.95% uptime** and **70% fewer tickets**.
-- Replaced a fragile undocumented COM interop wrapper with Black Knight's official API/SDK via ILSpy reverse-engineering, with **Terraform IaC** and GitHub Actions raising deployments **from quarterly to weekly**.
-- Architected a self-service Product Config platform with **Angular 18, .NET 8, and DynamoDB**, cutting rule deployment **from 14 days to <15 mins** and enabling **47 self-service production changes** in month 1.
-- Migrated legacy MySQL schemas to a single-table **DynamoDB** design (`productConfigId` + `loanType`), running shadow-mode validation to achieve a **zero-divergence decommission**.
-- Re-engineered Dynatrace synthetic health-checks across Fannie Mae loan microservices, eliminating false-positive auth triggers to **slash on-call alert noise by 80%**, **improve observability accuracy from 60% to 98%**, and **reclaim ~20 eng hours monthly**.
-- Engineered end-to-end distributed tracing across a 4-stage AWS Lambda and SQS pipeline using ASP.NET Core correlation middleware, restoring **100% cross-service log correlation** and zero DLQ message loss.
-- Established enterprise-wide **Kafka/AWS MSK** governance standards (topic naming, IAM least-privilege, Avro Schema Registry) adopted across **5 event-driven teams within 3 months**.
-- Diagnosed and resolved intermittent 10–15s transaction stalls in a high-volume service (50,000+ daily transactions) using `dotnet-dump` and **WinDbg**, architecting `SemaphoreSlim` concurrency throttling for **99.99% availability**.
-- Owned the end-to-end migration from legacy session-based authentication to **OAuth2/JWT** across 7 dependent teams, **resolving 3 high-priority security audit findings** and reducing auth failures by **60%**.
-- Built a one-command local development environment with **Docker Compose** and CLI tooling, reducing new-developer setup time **from 2 weeks to <1 day**.
-- Architected a high-throughput batch worksheet model on **AWS Lambda** during a strategic mid-sprint pivot with zero schedule slip, saving underwriters **30 minutes per loan file**.
-- Led the safe deprecation of legacy servicing dependencies across 4 interconnected services using **Split.io** feature flags and synthetic traffic alerts, achieving **zero production regressions**.
-- Mentored intern and associate engineers through structured architecture onboarding, and resolved multi-stakeholder design gridlock across 4 product teams with **~80% consensus**.
 
-### Software Developer | London Computer Systems | Cincinnati, OH | Dec 2019 – Jan 2023
-- Optimized SQL Server execution plans for nightly enterprise reports via set-based temp tables and composite indexes, **slashing latency from 45s to <3s** and **reducing peak CPU load by 30%**.
-- Engineered fault-tolerant payment gateway integrations with exponential-backoff retry policies and idempotency keys, enabling thousands of active tenants to pay rent online with **100% graceful failover** and **zero ledger corruption**.
-- Architected a dynamic GraphQL query aggregation engine for customizable customer support dashboards in **Angular** and **.NET Core**, consolidating 15+ individual REST roundtrips into a single query and **cutting dashboard load times by 65%**.
-- Reduced manual check processing by 25% across property management portfolios by launching an automated, secure online payment portal with real-time ledger reconciliation.
-- Engineered responsive multi-tenant property management features using **C#, ASP.NET Core, TypeScript, and SQL Server**, enforcing strict tenant data isolation, role-based access control (RBAC), and automated CI/CD deployment pipelines.
 
-### Software Developer | EXFO Electro-Optical Engineering | Pune, India | Mar 2015 – Jun 2018
-- Eliminated sleep-mode freezing and resume-state memory leaks across hundreds of global optical test instruments via memory dump profiling and `CancellationTokenSource` task aborts, achieving **zero field-reported recurrences**.
-- Architected an offline-first asynchronous **C#/REST API** sync pipeline with local caching and background retry, replacing a manual USB export workflow to achieve **1-click cloud sync** with **zero report data loss** across hundreds of field tests.
+### Software Engineer | Rocket Mortgage | Remote, IL | January 2023 - July 2025
 
-### Software Developer | Tanish Infotech Solutions | Pune, India | Mar 2014 – Feb 2015
-- Delivered custom full-stack **.NET / SQL Server** ERP business solutions for commercial SMB clients, automating manual spreadsheet billing to **reduce error rates to near zero** and saving clients **10+ operational hours weekly**.
+#### Improving health checks for a Fannie Mae integration
+- Diagnosed why a Fannie Mae integration's Dynatrace monitor stayed green during real outages, then proposed a provider health endpoint and a shared health-check checklist adopted by at least three integrations. `[confirmed]` `S01-B1`
+- Rerouted Dynatrace and Splunk alerts on an accurate health signal to achieve about 80% fewer integration pages (8-10 per week to 1-2 per week), with an estimated 12-15 hours per month of investigation time saved. `[corrected]` `S01-B2`
+- Changed Dynatrace and Splunk alert logic so SQS job failures during upstream outages became low-priority tickets instead of pages, and added a GitHub Actions deployment gate requiring a health-check endpoint in configuration. `[self_reported]` `S01-B3`
+
+#### Making product configuration self-service
+- Designed UI prototypes, backend scaffolding and contracts for a self-service configuration platform that cut turnaround for supported configuration changes from about one week to same-day, then transferred delivery so two associates took ownership of the service. `[corrected]` `S02-B1`
+- Enabled 47 business changes in the first month, made by business users without engineering involvement. `[confirmed]` `S02-B2`
+- Designed a .NET 6, DynamoDB and Angular 14 platform and ran shadow reads for two weeks with no observed read divergences before retiring MySQL six months after MVP. `[confirmed]` `S02-B3`
+
+#### Removing a legacy hotlist safely
+- Mapped dependencies and proposed a phased deprecation of a legacy hotlist feature, coordinating QA, product and backend teams and adding usage monitoring. `[self_reported]` `S03-B1`
+- Removed deprecated application logic across four services in a phased rollout with no observed production regressions. `[confirmed]` `S03-B2`
+- Used dependency mapping, Split.io feature flags and usage monitoring across Angular and .NET Core services to remove deprecated hotlist logic without reverting a flag. `[self_reported]` `S03-B3`
+
+#### Modernizing an underwriter application before directory retirement
+- Led discovery and redevelopment of a VB.NET underwriter application into .NET Core services on ECS Fargate, with the six-month deadline met, no observed migration incidents during cutover and 99.95%+ reported observed API availability. `[confirmed]` `S04-B1`
+- Contributed to approximately 40% lower allocated run-rate as reported by the infrastructure team and approximately 70% lower legacy-related help-desk tickets. `[corrected]` `S04-B2`
+- Used Terraform, GitHub Actions and a phased cohort rollout of a thin-client desktop app to move backend releases from quarterly to weekly while replacing legacy COM integration wrappers with the vendor's supported REST API. `[corrected]` `S04-B3`
+
+#### Helping new teammates become independent
+- Mentored an intern and a teammate through component-level onboarding, explanatory code reviews, incident shadowing and shared documentation. `[self_reported]` `S05-B1`
+- Coached an intern who then presented implementation updates independently in sprint reviews, and a teammate who handled rotations independently following a short overlap. `[confirmed]` `S05-B2`
+- Prepared a teammate for on-call rotations with PagerDuty and Dynatrace alert walkthroughs, triage and escalation guidance, and mentored an intern through end-to-end Angular and .NET Core API tracing. `[self_reported]` `S05-B3`
+
+#### Choosing Python for a Bedrock assistant, then building it with underwriters
+- Led a Python-versus-.NET spike for a Bedrock orchestration layer and designed the intent schema, API orchestration, summary stage and validation and authorization boundaries for the underwriter assistant built on it. `[self_reported]` `S06-B1`
+- Ran a Python-versus-.NET spike and the team agreed on Python; then automated approximately 70% of targeted queries in three targeted domains during a 30-day pilot. `[confirmed]` `S06-B2`
+- Built a Python intent-to-API assistant on Amazon Bedrock with Claude Sonnet, mypy and black checks in CI, JSON validation before routing, allowlisted internal REST API operations and downstream authorization, reducing reported common workflow time from three–four minutes to under ten seconds. `[confirmed]` `S06-B3`
+
+#### Building shared Kafka governance without authority
+- Convened and led a Kafka working group across five teams to standardize topic and group naming, scoped IAM templates, and Avro BACKWARD compatibility checks in CI. `[confirmed]` `S07-B1`
+- Drove adoption of Kafka governance standards by five teams within three months for new event-driven services, and the working group continued beyond personal involvement. `[confirmed]` `S07-B2`
+- Partnered with platform engineers to embed Kafka governance for AWS MSK in Terraform and configuration linting, with Schema Registry compatibility enforced in CI. `[self_reported]` `S07-B3`
+
+#### Containing contention in a vendor dependency
+- Diagnosed recurring stalls in a service handling more than 50,000 transactions daily by reproducing load and analyzing .NET counters and dumps, tracing the contention to a vendor library. `[confirmed]` `S08-B1`
+- Resolved a recurring transaction-service stall pattern, with the pattern no longer observed in two-week post-fix production monitoring. `[confirmed]` `S08-B2`
+- Tuned a SemaphoreSlim gate around dependency calls in a .NET Core service and added QA regression coverage. `[self_reported]` `S08-B3`
+
+#### Tracing a loan-modification workflow across Lambda and SQS
+- Implemented a shared correlation library across four Lambda services linked by SQS, propagating request IDs through message attributes and scoped application logs. `[confirmed]` `S09-B1`
+- Cut reported incident investigation from hours to minutes in two compared incidents by enabling single-query workflow reconstruction in CloudWatch Logs Insights. `[confirmed]` `S09-B2`
+- Built request-ID propagation with Serilog and ICorrelationContext for AWS Lambda and SQS pipelines, which two other teams adopted. `[confirmed]` `S09-B3`
+
+#### Making a multi-service development environment repeatable
+- Built Docker Compose and Bash/PowerShell tooling for up to ten local services, with vault-based configuration and health-based startup ordering, and helped the team adopt it. `[self_reported]` `S10-B1`
+- Reduced reported new-developer setup of a functional local environment from more than one week to under one day. `[self_reported_unverified]` `S10-B2`
+- Automated local stack startup with Docker Compose, a CLI wrapper, and vault-based configuration retrieval, with reported startup under five minutes for an already prepared local stack. `[self_reported_unverified]` `S10-B3`
+
+#### Changing a calculator workflow after user feedback
+- Led a loan-modification calculator pivot from sequential input to a complete-worksheet contract after user feedback, owning backend aggregation and pairing with a junior engineer on UI changes. `[self_reported]` `S11-B1`
+- Delivered the revised underwriter calculator on day 42 of a six-week project after a week-three workflow change, reducing manual navigation and rework. `[confirmed]` `S11-B2`
+- Built the calculator backend on .NET Core and AWS Lambda with an Angular UI, using server-side validation, decimal arithmetic with explicit rounding, and auditable input and result records. `[self_reported]` `S11-B3`
+
+#### Migrating seven consumers to consistent API authentication
+- Coordinated seven teams' migration from legacy session authentication to OAuth2 and JWT, mapping callers and designing caller-appropriate grants and consistent API validation policies. `[confirmed]` `S12-B1`
+- Retired legacy authentication after dependent API consumers migrated, with two security audit findings closed by security/audit. `[corrected]` `S12-B2`
+- Ran a monitored dual-auth transition with ASP.NET Core JwtBearer, Splunk, and Dynatrace, reducing sticky-session/routing-related 401s. `[confirmed]` `S12-B3`
+
+### Software Developer | London Computer Systems | Cincinnati, OH | December 2019 - January 2023
+
+#### Improving slow property reports with SQL evidence
+- Reduced reported rent-roll and occupancy report latency from approximately 45 seconds to under 3 seconds in staging tests on scrubbed production data. `[confirmed]` `S13-B1`
+- Tuned SQL Server reporting through execution-plan analysis, set-based T-SQL procedure rewrites, indexed temporary tables and targeted nonclustered indexes; reported peak CPU about 30 percentage points lower (80-85% to about 50-55%) at the Monday-morning peak. `[corrected]` `S13-B2`
+- Analyzed report plans and runtime behavior, refactored procedures and maintained targeted statistics, with associated report timeouts and deadlocks not observed over the 30-45 days including month-end. `[confirmed]` `S13-B3`
+
+#### Integrating rent payments with explicit failure states
+- Designed a .NET Core payment-gateway wrapper and its failure states and coordinated provider sandbox testing and a four-week phased rollout with no observed customer-facing downtime. `[confirmed]` `S14-B1`
+- Built the payment-gateway integration behind online rent payments for thousands of tenants; manually keyed paper-check entries about 25% lower were reported. `[corrected]` `S14-B2`
+- Built a .NET Core payment-gateway boundary using idempotency keys, exponential backoff retries and dependency injection, with no observed ledger corruption in covered sandbox failure tests. `[confirmed]` `S14-B3`
+
+#### Aggregating data for configurable dashboards with GraphQL
+- Built a proof of concept and hybrid proposal for a GraphQL aggregation path alongside REST APIs, with existing REST retained for other consumers. `[confirmed]` `S15-B1`
+- Reduced dashboard initialization for heavy 15-20 widget layouts from more than 15 REST calls to one GraphQL request plus a layout request and reported about 65% lower dashboard load and render time. `[confirmed]` `S15-B2`
+- Implemented a layout-driven Angular query generator that builds dynamic GraphQL selection sets for active widgets on a .NET Core backend. `[self_reported]` `S15-B3`
+
+#### Replacing idle dashboard polling with targeted updates
+- Designed a reusable SignalR hub and listener framework with targeted subscriptions and changed-field delta payloads, replacing periodic dashboard polling for hundreds of connected clients. `[confirmed]` `S16-B1`
+- Reported about 25% lower p90 update latency (roughly 4.0 s to 3.0 s) at peak load for mutation-to-visible updates. `[corrected]` `S16-B2`
+- Built ASP.NET Core SignalR and WebSockets notifications for an Angular dashboard to cut idle polling. `[confirmed]` `S16-B3`
+
+### Software Developer | EXFO | Pune, India | March 2015 - June 2018
+
+#### Fixing polling lifecycle around device sleep and resume
+- Worked with QA to reproduce and diagnose a device freeze after sleep and resume, using memory profiling and dumps to find retained polling work, then added power-aware cancellation and cleanup with connectivity-based restart. `[self_reported]` `S17-B1`
+- Delivered sleep/resume without original freeze in reproduction and field use, with no field-reported recurrence during observed post-release period of about three months across hundreds of devices. `[confirmed]` `S17-B2`
+- Tied polling to Windows power events with CancellationTokenSource and SystemEvents.PowerModeChanged in a C# and .NET application. `[self_reported]` `S17-B3`
+
+#### Adding report upload with offline retry to field devices
+- Built an asynchronous C# HTTP layer and failed-upload JSON cache with retry for optical test reports, coordinating the REST contract and sprint delivery with the backend team. `[self_reported]` `S18-B1`
+- Replaced USB and email export with one-click in-app upload for optical test reports, with no observed report loss across hundreds of covered offline and retry tests. `[confirmed]` `S18-B2`
+- Used HttpClient, REST, JSON and local files to retry failed uploads when connectivity returned, delivering the backend integration within three planned sprints. `[confirmed]` `S18-B3`
+
+### Associate Software Developer | Tanish Infotech Solutions | Pune, India | March 2014 - February 2015
+
+#### Delivering custom business applications from requirements to support
+- Built the ASP.NET Web Forms admin module and SQL Server database for a small interior decoration firm's catalog portal, working under senior developers. `[self_reported]` `S19-B1`
+- Helped deliver a web portal and database that replaced spreadsheet tracking of catalog, categories and inquiries. `[corrected]` `S19-B2`
+- Used foreign-key dropdowns, SQL scripts that loaded cleaned spreadsheet data, and a manual publish to shared IIS hosting, then trained the owner on the admin screens. `[self_reported]` `S19-B3`
 
 ## PROJECTS
-### GraphRAG & Multi-Model Serverless GenAI Engine | Python, FastGraphRAG, Bedrock, Vercel | 2025 - Present
-- Architected an asynchronous GraphRAG retrieval engine integrating LanceDB vector indexing with entity relationship graphs, achieving sub-second query latency for domain knowledge bases.
-- Engineered a multi-model failover gateway (Amazon Bedrock, Google Gemini, Qwen) with automatic 429 rate-limit fallback, Pydantic schema validation, and real-time Server-Sent Events (SSE) streaming.
-- Implemented an automated ATS resume tailoring compiler with dynamic page-budgeting algorithms and programmatic ReportLab PDF rendering, deployed on Vercel Serverless Edge.
+### Independent Projects and Professional Development
+
+August 2025 - Present
+
+- **Resume assistant:** Built a public resume application with a master-resume view and interfaces for retrieval-based Q&A, tailoring, interview preparation, and graph exploration. Developed Python retrieval/model-routing and PDF-generation components; deployment-specific performance and persistence claims are excluded until verified.
+- **Code Turtle Engine:** Built a C#/.NET AI review tool using Roslyn-derived facts and parallel model reviewers, with citation checks against resolved symbols. Citation validation does not establish that every review finding is correct. [Repository](https://github.com/prasadrane/Code-Turtle-Engine)
+- **Operon Job Hunter:** Built a multi-stage job-search and resume-tailoring workflow with graph-based retrieval, checkpointing, and a human approval boundary for submission. Public documentation includes an offline demonstration and mock application portal. [Repository](https://github.com/prasadrane/Operon-Job-Hunter)
+- **Content Machine:** Built an AI-assisted editorial workflow with ingestion, rubric-based review, revision, and human approval. Judge scores support the workflow; they are not a verified guarantee of content quality. [Repository](https://github.com/prasadrane/Content-Machine)
 
 ## SKILLS
-- **Languages**: C#, Python, TypeScript, SQL (T-SQL)
-- **Backend & Architecture**: .NET 8/9, ASP.NET Core, FastAPI, GraphQL, RESTful APIs, Microservices, CQRS, OAuth2/JWT
-- **Frontend**: Angular (12-18), RxJS, NgRx
-- **Cloud & Infrastructure**: AWS (ECS Fargate, Lambda, S3, SQS, SNS, IAM), Amazon MSK (Kafka), Docker, Kubernetes, Terraform
-- **Data & Storage**: SQL Server, DynamoDB (Single-Table Design), PostgreSQL, MySQL, LanceDB (Vector DB)
-- **Generative AI & LLM Systems**: Amazon Bedrock (Claude Sonnet), Prompt Engineering, Guardrails, Intent-to-API Routing, GraphRAG, Vector Indexing, Pydantic, Claude Code
-- **Observability, Testing & DevOps**: Dynatrace, OpenTelemetry, Splunk, CloudWatch, PagerDuty, Split.io, WinDbg, `dotnet-dump`, xUnit, Moq, Playwright, GitHub Actions
+
+- **Professional languages and frameworks:** C#, .NET/.NET Core, ASP.NET Core, Python, TypeScript, Angular, SQL/T-SQL, GraphQL, SignalR.
+- **Professional cloud and delivery:** AWS ECS Fargate, Lambda, DynamoDB, SQS, S3, MSK/Kafka, IAM, CloudWatch, Terraform, Docker, Docker Compose, GitHub Actions.
+- **Professional architecture and data:** Service/API design, event-driven integration, relational data modeling, SQL Server, MySQL, DynamoDB access patterns, OAuth2, JWT validation, role-based authorization.
+- **Professional diagnostics:** Dynatrace, Splunk, PagerDuty, structured logging, correlation propagation, OpenTelemetry, WinDbg, dotnet-dump, dotnet-counters, query-plan analysis, load testing.
+- **AI integration and independent exploration:** Amazon Bedrock, structured model output, intent routing, GraphRAG, vector retrieval, model gateways, Roslyn, Python PDF generation.
+- **Additional tools from prior inventory:** xUnit, Moq, Playwright, PostgreSQL, Kubernetes, RxJS, NgRx, CircleCI, Jenkins, Semantic Kernel, and local model serving. Retain in a tailored resume only when the relevant usage and depth can be explained.
 
 ## CERTIFICATIONS
-- [**AWS Certified Cloud Practitioner**](https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5), Amazon Web Services *(Issued: Apr 2026 | Expires: Apr 2029)*
+
+- [AWS Certified Cloud Practitioner](https://www.credly.com/badges/337a36b4-0285-460e-b115-2023040ba6b5) | April 2026 - April 2029
 
 ## EDUCATION
-- **M.S. in Information Systems**, University of Cincinnati, Cincinnati, OH (2018 - 2019)
-- **B.E. in Electronics & Telecommunication**, Savitribai Phule Pune University, Pune, India (2009 - 2013)
+
+- M.S. in Information Systems | University of Cincinnati | 2018 - 2019
+- B.E. in Electronics and Telecommunication | Savitribai Phule Pune University | 2009 - 2013

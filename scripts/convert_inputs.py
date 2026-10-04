@@ -13,6 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from src.converters.input_converter import convert_documents
+from src.converters.profile_sync import sync_profile
 
 INPUT_DIR = ROOT_DIR / "input"
 
@@ -21,11 +22,14 @@ def main():
     parser.add_argument(
         "--source",
         type=str,
-        required=True,
-        help="Source directory containing PDFs and MD files",
+        help="Source directory containing PDFs and MD files; omitted: sync central profile",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing output files even if unchanged")
     args = parser.parse_args()
+
+    if not args.source:
+        print(sync_profile())
+        return
 
     source_dir = Path(args.source)
     print(f"\n=== Input Converter: {source_dir} -> {INPUT_DIR} ===\n")

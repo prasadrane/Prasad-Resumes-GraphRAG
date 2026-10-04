@@ -1,16 +1,5 @@
 {
   "graphify-indexer-reminder": {
-    "PostToolUse": [
-      {
-        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python -m graphify --update",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
+    "PostToolUse": []
   }
 }

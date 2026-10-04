@@ -185,3 +185,39 @@ python src/cli.py benchmark --mode all --output output/benchmark_report.md
 
 - **EEOC & Uniform Guidelines Compliant:** Completely candidate-agnostic, strictly skill-and-experience indexed without demographic profiling.
 - **EU AI Act Transparency:** Deterministic, inspectable Bloom's Taxonomy scoring replaces opaque black-box GNN ranking.
+
+## Central resume and story source
+
+The local source of truth is the sibling repository `../Prasad-Rane-Profile`,
+using `profiles/prasad-rane`. Override its repository path with
+`PROFILE_SOURCE_ROOT` when needed.
+
+```powershell
+python scripts/sync_profile.py
+# Alternative source/profile:
+python scripts/sync_profile.py --source C:\Users\mamat\Github\Prasad-Rane-Profile --profile prasad-rane
+```
+
+Sync runs the source ledger's `validate --strict` first and stops on errors.
+Build or repair stale exports in the source repository before retrying. It imports
+`resume/Staff_Master_Resume.md` (the full bullet inventory), normalizes headings
+and employer/contact fields for the existing parser, and imports `cards/story-*.md`
+with their authoritative JSON metadata. Evidence labels, measurement limits and
+proposed work remain in the imported context. The central repository is read only.
+
+The normalized resume replaces `input/MASTER_RESUME.txt`, the portable resume
+snapshot used by generation and deployment. The indexing corpus lives in
+`input/centralized/`, excluding older local resume copies and archived source
+documents. Repeated syncs refresh changed content and remove obsolete managed
+story files. Other local input files remain untouched.
+
+`python src/cli.py convert` and `python src/cli.py sync-profile` also sync this
+source. Explicit `convert --source ...` retains generic document conversion.
+`python src/cli.py index` syncs first, then runs GraphRAG indexing. Both settings
+files point indexing at the isolated central corpus.
+
+Sync updates inputs only; graph query artifacts remain unchanged until indexing
+finishes. After central edits, run sync for resume generation, or `index` to refresh
+graph queries as well. Restart running services to clear cached resume/graph data.
+There is no background file watcher. Hosted deployments use the bundled snapshot
+and rebuilt graph artifacts; they cannot access the local Windows source path.
