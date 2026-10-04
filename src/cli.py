@@ -44,11 +44,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Source directory containing PDFs and MD files; omitted: sync central profile",
     )
     convert_parser.add_argument("--force", action="store_true", help="Overwrite existing output files")
-    subparsers.add_parser("sync-profile", help="Refresh resume/story inputs from the validated central profile")
+    convert_parser.add_argument("--apply-sync", action="store_true", help="Apply the central profile preview")
+    sync_parser = subparsers.add_parser("sync-profile", help="Preview resume/story inputs from the validated central profile")
+    sync_parser.add_argument("--apply-sync", action="store_true", help="Apply the reviewed central profile projection")
 
     # Index sub-command
     index_parser = subparsers.add_parser("index", help="Build or update the GraphRAG knowledge graph index")
     index_parser.add_argument("--root", type=str, default=str(ROOT_DIR), help="Root directory for GraphRAG index")
+    index_parser.add_argument("--apply-sync", action="store_true", help="Apply reviewed profile changes before indexing")
 
     # Proxy sub-command
     proxy_parser = subparsers.add_parser("proxy", help="Launch the LiteLLM proxy server")
@@ -187,7 +190,7 @@ def main() -> None:
 
     elif args.command == "convert":
         if not args.source:
-            print(sync_profile())
+            print(sync_profile(dry_run=not args.apply_sync))
             return
         source_path = Path(args.source)
         target_path = ROOT_DIR / "input"
@@ -196,11 +199,14 @@ def main() -> None:
         print(f"[CLI] Conversion complete: {stats}")
 
     elif args.command == "sync-profile":
-        print(sync_profile())
+        print(sync_profile(dry_run=not args.apply_sync))
 
     elif args.command == "index":
         root_path = Path(args.root)
-        print(sync_profile(target_root=root_path))
+        preview = sync_profile(target_root=root_path, dry_run=not args.apply_sync)
+        print(preview)
+        if not args.apply_sync and (preview.get("changed_files") or preview.get("removed_files")):
+            parser.exit(1, "Profile changes pending. Review sync-profile and rerun index with --apply-sync.\n")
         if not check_proxy_health(port=8002):
             print("[WARN] LiteLLM Proxy is not running on http://localhost:8002. Indexing might fail if proxy is required.")
         print(f"[CLI] Starting GraphRAG indexing with root: {root_path}...")

@@ -25,10 +25,11 @@ def main():
         help="Source directory containing PDFs and MD files; omitted: sync central profile",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing output files even if unchanged")
+    parser.add_argument("--apply-sync", action="store_true", help="Apply the central profile preview")
     args = parser.parse_args()
 
     if not args.source:
-        print(sync_profile())
+        print(sync_profile(dry_run=not args.apply_sync))
         return
 
     source_dir = Path(args.source)

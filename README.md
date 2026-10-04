@@ -194,6 +194,8 @@ using `profiles/prasad-rane`. Override its repository path with
 
 ```powershell
 python scripts/sync_profile.py
+# After reviewing the preview and presentation configuration:
+python scripts/sync_profile.py --apply
 # Alternative source/profile:
 python scripts/sync_profile.py --source C:\Users\mamat\Github\Prasad-Rane-Profile --profile prasad-rane
 ```
@@ -205,15 +207,25 @@ and employer/contact fields for the existing parser, and imports `cards/story-*.
 with their authoritative JSON metadata. Evidence labels, measurement limits and
 proposed work remain in the imported context. The central repository is read only.
 
-The normalized resume replaces `input/MASTER_RESUME.txt`, the portable resume
+`config/resume_presentation.json` selects current ledger bullet IDs, exact profile
+skill tokens, and source-exact project excerpts for the earlier categorized resume
+layout. Missing references stop sync before writes. Public bullets omit evidence
+status/ID annotations; the full annotated master and stories remain in the indexing
+corpus. This restores presentation without restoring superseded claims or editing
+the central ledger. One-page rendering retains 9pt text, tightens line spacing, and
+rejects exports that still exceed the requested page count.
+
+The curated resume replaces `input/MASTER_RESUME.txt`, the portable resume
 snapshot used by generation and deployment. The indexing corpus lives in
 `input/centralized/`, excluding older local resume copies and archived source
 documents. Repeated syncs refresh changed content and remove obsolete managed
 story files. Other local input files remain untouched.
 
-`python src/cli.py convert` and `python src/cli.py sync-profile` also sync this
+`python src/cli.py convert` and `python src/cli.py sync-profile` preview this
 source. Explicit `convert --source ...` retains generic document conversion.
-`python src/cli.py index` syncs first, then runs GraphRAG indexing. Both settings
+Add `--apply-sync` to apply the reviewed projection. `python src/cli.py index`
+checks for pending changes and stops before indexing unless they are explicitly
+applied with `--apply-sync`. Both settings
 files point indexing at the isolated central corpus.
 
 Sync updates inputs only; graph query artifacts remain unchanged until indexing

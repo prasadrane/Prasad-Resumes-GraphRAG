@@ -8,12 +8,26 @@ import pypdf
 
 from src.config import MASTER_RESUME_PATH, ROOT_DIR
 from src.generators.models import JobEntry, ResumeData
-from src.generators.page_budgeter import budget_resume_for_pages
+from src.generators.page_budgeter import budget_resume_for_pages, compact_skills_for_1page
 from src.generators.pdf_renderer import render_pdf_from_model, render_pdf_resume
 from src.generators.resume_parser import parse_resume_markdown
 
 
 class TestPageBudgeter(unittest.TestCase):
+    def test_merged_skills_keep_both_categories(self):
+        merged = compact_skills_for_1page([
+            "**Generative AI & LLM Systems**: Bedrock, GraphRAG, Routing, Validation, Models, Roslyn, Retrieval",
+            "**Observability, Testing & DevOps**: Dynatrace, Splunk, CloudWatch, GitHub Actions, PagerDuty",
+        ])
+        self.assertIn("GraphRAG", merged[0])
+        self.assertIn("Splunk", merged[0])
+        self.assertIn("GitHub Actions", merged[0])
+    def test_unfit_content_cannot_be_returned_as_one_page(self):
+        data = ResumeData(name="Example", skills=["Long skill description " * 12] * 70)
+        output = self.test_output_dir / "overflow.pdf"
+        with self.assertRaisesRegex(ValueError, "page budget"):
+            render_pdf_from_model(data, output, target_pages=1)
+        self.assertFalse(output.exists())
     @classmethod
     def setUpClass(cls):
         cls.master_content = MASTER_RESUME_PATH.read_text(encoding="utf-8")
@@ -41,6 +55,10 @@ class TestPageBudgeter(unittest.TestCase):
 
         reader = pypdf.PdfReader(str(pdf_path))
         self.assertEqual(len(reader.pages), 1, f"Expected exactly 1 page, got {len(reader.pages)}")
+        text = reader.pages[0].extract_text()
+        for section in ("SKILLS", "EXPERIENCE", "PROJECTS", "CERTIFICATIONS", "EDUCATION"):
+            self.assertIn(section, text)
+        self.assertNotRegex(text, r"S\d+-B\d+|\[(confirmed|corrected|self_reported)\]")
 
     def test_render_2_page_pdf_exact_page_count(self):
         """Verify rendering 2-page resume produces exactly 2 pages PDF."""

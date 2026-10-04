@@ -115,12 +115,19 @@ def extract_summary_variants(content: str) -> Dict[str, str]:
     """Extract canonical summary and domain variant summaries from MASTER_RESUME text."""
     variants = {}
     lines = content.split("\n")
-    current_key = "Canonical"
+    current_key = None
+    in_variants = False
     buffer = []
 
     for line in lines:
         l = line.strip()
-        if l.startswith("### Canonical Summary"):
+        if l.startswith("## "):
+            if buffer and current_key:
+                variants[current_key] = " ".join(buffer).strip()
+            buffer = []
+            current_key = "Canonical" if "SUMMAR" in l.upper() else None
+            in_variants = False
+        elif l.startswith("### Canonical Summary"):
             if buffer and current_key:
                 variants[current_key] = " ".join(buffer).strip()
             current_key = "Canonical"
@@ -129,11 +136,12 @@ def extract_summary_variants(content: str) -> Dict[str, str]:
             if buffer and current_key:
                 variants[current_key] = " ".join(buffer).strip()
             current_key = None
+            in_variants = True
             buffer = []
         elif current_key == "Canonical" and l and not l.startswith("#") and not l.startswith(">"):
             buffer.append(l)
-        elif l.startswith("- **") and "**: " in l:
-            match = re.match(r"^-\s*\*\*(.*?)\*\*:\s*(.*)", l)
+        elif in_variants and l.startswith("- **"):
+            match = re.match(r"^-\s*\*\*(.*?)(?:\*\*:\s*|:\*\*\s*)(.*)", l)
             if match:
                 variant_name = match.group(1).strip()
                 variant_text = match.group(2).strip()

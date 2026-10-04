@@ -34,6 +34,59 @@ A degree
     assert resume.jobs[0].bullet_stories == ["A story"]
     assert resume.education == ["A degree"]
     assert resume.projects[0].bullets == ["Built a tool."]
+    assert resume.jobs[0].bullets == ["Delivered a service."]
+
+
+def test_project_excerpt_must_be_grounded_in_current_profile():
+    profile = {"name": "Example", "headline": "Engineer", "location": "Remote",
+               "phone": "1234567890", "email": "e@example.com",
+               "independent_projects": [{"name": "Tool", "text": "Built a tool. No performance claim."}]}
+    text = "## Independent Engineering\n- **Tool:** Built a tool. No performance claim.\n"
+    result = normalize_master(text, {}, profile, presentation={"projects": [
+        {"name": "Tool", "text": "Built a tool."}]})
+    assert "- **Tool:** Built a tool." in result
+    assert "No performance claim" not in result
+    with pytest.raises(ValueError, match="project"):
+        normalize_master(text, {}, profile, presentation={"projects": [
+            {"name": "Tool", "text": "Invented performance claim."}]})
+
+
+def test_presentation_selects_current_evidence_and_restores_skill_syntax():
+    profile = {"name": "Example", "headline": "Engineer", "location": "Remote",
+               "phone": "1234567890", "email": "e@example.com",
+               "skills": [{"group": "Professional", "items": "C#, Python."}]}
+    text = """## Professional Experience
+### Acme | Developer
+**Story**
+- Previous variant. `[confirmed]` `S01-B1`
+- Corrected scoped result. `[corrected]` `S01-B2`
+## Technical Skills
+- **Professional:** C#, Python.
+"""
+    presentation = {"bullet_ids": ["S01-B2"],
+                    "skills": [{"group": "Languages", "items": ["C#", "Python"]}]}
+    result = normalize_master(text, {"Acme": {"location": "Remote", "dates": "2020 - 2025"}},
+                              profile, presentation=presentation)
+    assert "Previous variant" not in result
+    assert "Corrected scoped result." in result
+    assert "S01-B2" not in result and "[corrected]" not in result
+    assert "- **Languages**: C#, Python" in result
+    with pytest.raises(ValueError, match="skill"):
+        normalize_master(text, {}, profile, presentation={"skills": [
+            {"group": "Languages", "items": ["Invented language"]}]})
+    with pytest.raises(ValueError, match="bullet"):
+        normalize_master(text, {}, profile, presentation={"bullet_ids": ["S99-B1"]})
+
+
+@patch("src.converters.profile_sync.subprocess.run")
+def test_preview_does_not_write_and_preserves_central_evidence(run, tmp_path):
+    run.return_value.returncode = 0
+    source, target = tmp_path / "source", tmp_path / "target"
+    make_source(source)
+    result = sync_profile(source, target, dry_run=True)
+    assert result["dry_run"] is True
+    assert "MASTER_RESUME.txt" in result["changed_files"]
+    assert not (target / "input").exists()
 
 
 def make_source(root):

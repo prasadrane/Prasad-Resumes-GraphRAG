@@ -24,6 +24,10 @@ from src.generators.pdf_styles import (
 
 class TestMarkdownToReportlabHtml(unittest.TestCase):
 
+    def test_literal_ampersand_and_less_than_are_escaped(self):
+        self.assertEqual(markdown_to_reportlab_html("Q&A and <10 seconds"),
+                         "Q&amp;A and &lt;10 seconds")
+
     def test_bold_conversion(self):
         self.assertEqual(
             markdown_to_reportlab_html("Built **Python** services"),

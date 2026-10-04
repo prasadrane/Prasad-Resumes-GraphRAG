@@ -258,8 +258,12 @@ def render_pdf_from_model(
         compact_styles = get_resume_styles(compact=True)
         pages = _build_with_styles(compact_styles)
         if pages > 1:
-            ultra_styles = get_resume_styles(ultra_compact=True)
-            _build_with_styles(ultra_styles)
+            # Keep readable 9pt text and the curated achievements. Tighten line
+            # spacing before shrinking fonts or silently dropping entire sections.
+            for key in ("bullet", "summary", "skill", "cert", "edu"):
+                compact_styles[key].leading = 10.5
+                compact_styles[key].spaceAfter = 1.0
+            pages = _build_with_styles(compact_styles)
     else:
         # Pass 1: Standard styles
         styles = get_resume_styles()
@@ -269,7 +273,11 @@ def render_pdf_from_model(
             pages = _build_with_styles(compact_styles)
             if pages > 2:
                 ultra_styles = get_resume_styles(ultra_compact=True)
-                _build_with_styles(ultra_styles)
+                pages = _build_with_styles(ultra_styles)
+
+    if pages > target_pages:
+        output_pdf_path.unlink(missing_ok=True)
+        raise ValueError(f"Resume exceeds requested {target_pages}-page budget ({pages} pages); curate content before exporting")
 
     return output_pdf_path
 

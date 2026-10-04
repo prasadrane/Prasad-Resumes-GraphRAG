@@ -1,0 +1,22 @@
+{
+  "bullet_ids": [
+    "S01-B2", "S02-B1", "S02-B2", "S02-B3", "S04-B1", "S04-B2", "S04-B3",
+    "S05-B1", "S06-B3", "S07-B1", "S07-B2", "S08-B1", "S09-B3", "S11-B3", "S12-B1",
+    "S13-B1", "S13-B2", "S14-B3", "S15-B2", "S16-B3",
+    "S17-B2", "S18-B3", "S19-B1"
+  ],
+  "projects": [
+    {"name": "Resume assistant", "text": "Built a public resume application with a master-resume view and interfaces for retrieval-based Q&A, tailoring, interview preparation, and graph exploration."},
+    {"name": "Code Turtle Engine", "text": "Built a C#/.NET AI review tool using Roslyn-derived facts and parallel model reviewers, with citation checks against resolved symbols."},
+    {"name": "Operon Job Hunter", "text": "Built a multi-stage job-search and resume-tailoring workflow with graph-based retrieval, checkpointing, and a human approval boundary for submission."}
+  ],
+  "skills": [
+    {"group": "Languages", "items": ["C#", "Python", "TypeScript", "SQL/T-SQL"]},
+    {"group": "Backend & Architecture", "items": [".NET/.NET Core", "ASP.NET Core", "GraphQL", "SignalR", "Service/API design", "event-driven integration", "OAuth2", "JWT validation"]},
+    {"group": "Frontend", "items": ["Angular"]},
+    {"group": "Cloud & Infrastructure", "items": ["AWS ECS Fargate", "Lambda", "SQS", "S3", "MSK/Kafka", "IAM", "Docker", "Terraform"]},
+    {"group": "Data & Storage", "items": ["SQL Server", "DynamoDB", "MySQL", "DynamoDB access patterns"]},
+    {"group": "Generative AI & LLM Systems", "items": ["Amazon Bedrock", "structured model output", "intent routing", "GraphRAG", "vector retrieval", "model gateways", "Roslyn"]},
+    {"group": "Observability, Testing & DevOps", "items": ["Dynatrace", "Splunk", "CloudWatch", "GitHub Actions", "PagerDuty", "OpenTelemetry", "WinDbg", "dotnet-dump"]}
+  ]
+}

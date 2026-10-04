@@ -48,6 +48,23 @@ class TestResumeParser(unittest.TestCase):
         self.assertIn("Canonical", variants)
         self.assertIn("Software Engineer with 10+ years experience.", variants["Canonical"])
 
+    def test_summary_variants_exclude_header_and_other_sections(self):
+        source = """# Example
+**Title:** Engineer
+**Contact:** e@example.com
+## SUMMARY
+Builds services.
+### Domain-Specific Summary Variants
+- **Applied AI:** Builds assistants.
+## EXPERIENCE
+### Engineer | Acme
+- Shipped services.
+## SKILLS
+- **Languages**: Python
+"""
+        variants = extract_summary_variants(source)
+        self.assertEqual(variants, {"Canonical": "Builds services.", "Applied AI": "Builds assistants."})
+
     def test_clean_em_dashes_via_parser(self):
         self.assertNotIn("—", clean_em_dashes("Reduced alerts — improved response."))
 

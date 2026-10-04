@@ -28,6 +28,22 @@ class TestCLIMain(unittest.TestCase):
         mock_conv.assert_called_once_with(Path("/tmp/src"), ANY, force=True)
         self.assertIn("[CLI] Conversion complete", captured.getvalue())
 
+    def test_central_sync_previews_unless_explicitly_applied(self):
+        for command in ("convert", "sync-profile"):
+            with patch("src.cli.sync_profile", return_value={}) as sync:
+                self._run_main([command])
+                sync.assert_called_once_with(dry_run=True)
+            with patch("src.cli.sync_profile", return_value={}) as sync:
+                self._run_main([command, "--apply-sync"])
+                sync.assert_called_once_with(dry_run=False)
+
+    def test_index_stops_before_indexing_unreviewed_source_changes(self):
+        with patch("src.cli.sync_profile", return_value={"changed_files": ["MASTER_RESUME.txt"]}), \
+             patch("src.cli.subprocess.run") as run:
+            with self.assertRaises(SystemExit):
+                self._run_main(["index"])
+            run.assert_not_called()
+
     def test_index_command_success(self):
         with patch("src.cli.sync_profile", return_value={"documents": 20}) as mock_sync, \
              patch("src.cli.check_proxy_health", return_value=True), \

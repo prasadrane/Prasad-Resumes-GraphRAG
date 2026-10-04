@@ -77,7 +77,13 @@ def compact_skills_for_1page(skills: List[str]) -> List[str]:
     # 2. Merge category pairs
     for (label_a, label_b), merged_label in _1PAGE_MERGE_MAP.items():
         if label_a in parsed and label_b in parsed:
-            merged_items = parsed.pop(label_a) + parsed.pop(label_b)
+            items_a, items_b = parsed.pop(label_a), parsed.pop(label_b)
+            # Reserve room for both categories rather than letting AI consume
+            # the entire cap and erase diagnostics/DevOps skills.
+            limit_a = min(len(items_a), _1PAGE_MAX_ITEMS_PER_LINE // 2)
+            limit_b = min(len(items_b), _1PAGE_MAX_ITEMS_PER_LINE - limit_a)
+            limit_a = min(len(items_a), _1PAGE_MAX_ITEMS_PER_LINE - limit_b)
+            merged_items = items_a[:limit_a] + items_b[:limit_b]
             parsed[merged_label] = merged_items
             # Replace first occurrence with merged, remove second
             replaced = False

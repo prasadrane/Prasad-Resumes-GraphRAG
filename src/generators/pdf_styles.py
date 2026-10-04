@@ -3,6 +3,7 @@ pdf_styles.py — ReportLab styling, color palettes, ParagraphStyles, and HTML f
 """
 
 import re
+from html import escape
 from typing import Dict, Tuple
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -187,6 +188,7 @@ def markdown_to_reportlab_html(text: str) -> str:
     """Convert Markdown bold/italics/backticks and cleanup dashes."""
     if not text:
         return ""
+    text = escape(text, quote=False)
     # Preserve date hyphens while converting em-dashes
     text = re.sub(r"(\b[A-Za-z]{3}\s+\d{4})\s+[—–-]\s+([A-Za-z]{3}\s+\d{4}|\bPresent\b)", r"\1 - \2", text)
     text = text.replace("—", ". ").replace("–", " - ")
